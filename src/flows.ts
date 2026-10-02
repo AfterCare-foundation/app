@@ -32,37 +32,48 @@ export async function subscribeToCard(device: DeviceIdentity, scanned: string): 
 }
 
 export interface NotifyOutcome {
+  /** Devices reached right now. */
   pushed: number;
+  /** Contacts the server held back for later delivery. */
+  scheduled: number;
+  /** Contacts this send covered. */
+  contacts: number;
   campaignId: string;
-  card: CardRecord;
 }
 
-/** One tap of Notify for one card: fresh campaign, one immediate delivery. */
-export async function notifyCard(
+/**
+ * One tap of Notify for a whole group of contacts: one campaign, one delivery
+ * per contact, each encrypted with that contact's own token. The server
+ * rate-limits per campaign, so a hundred contacts still cost one send.
+ */
+export async function notifyContacts(
   device: DeviceIdentity,
-  card: CardRecord,
+  contacts: readonly CardRecord[],
   sti: string,
 ): Promise<NotifyOutcome> {
-  const token = cardToken(card);
+  if (contacts.length === 0) {
+    throw new Error("No contacts to notify.");
+  }
   const campaignId = randomUuid();
   const result = await notify({
     sender_push_id_hash: device.pushIdHash,
     device_credential: device.credentialHex,
     campaign_id: campaignId,
-    deliveries: [
-      {
-        et_hash: card.etHash,
-        encrypted_payload: encryptAlert(token, sti, randomNonce()),
-      },
-    ],
+    deliveries: contacts.map((card) => ({
+      et_hash: card.etHash,
+      encrypted_payload: encryptAlert(cardToken(card), sti, randomNonce()),
+    })),
   });
-  const updated =
-    (await updateCard(card.etHash, {
-      notifiedAt: new Date().toISOString(),
-      notifiedSti: sti,
-      lastPushed: result.pushed,
-    })) ?? card;
-  return { pushed: result.pushed, campaignId, card: updated };
+  const notifiedAt = new Date().toISOString();
+  for (const card of contacts) {
+    await updateCard(card.etHash, { notifiedAt, notifiedSti: sti, lastPushed: null });
+  }
+  return {
+    pushed: result.pushed,
+    scheduled: result.scheduled,
+    contacts: contacts.length,
+    campaignId,
+  };
 }
 
 export type InboxStatus = "ok" | "unavailable" | "offline";

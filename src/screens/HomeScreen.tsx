@@ -1,13 +1,13 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { GhostButton } from "../components/Buttons";
-import { CardRow } from "../components/CardRow";
-import { Chip, Header } from "../components/Chrome";
+import { GhostButton, GradientButton } from "../components/Buttons";
+import { Header } from "../components/Chrome";
 import { AnonymityNote, ExposureCard, formatTime, stiLabel } from "../components/ExposureCard";
-import { BellIcon, ScanIcon } from "../components/Icons";
+import { ArrowRightIcon, BellIcon, ScanIcon } from "../components/Icons";
 import type { InboxStatus } from "../flows";
 import type { AlertRecord, CardRecord, DeviceIdentity } from "../storage/secureStore";
-import { colors, fonts, radius } from "../theme";
+import { colors, fonts, gradients, radius } from "../theme";
+import { lastNotifiedAt } from "../windows";
 
 interface HomeScreenProps {
   device: DeviceIdentity | null;
@@ -19,7 +19,7 @@ interface HomeScreenProps {
   message: string | null;
   onScan: () => void;
   onGenerate: () => void;
-  onNotify: (card: CardRecord) => void;
+  onNotify: () => void;
   onAcknowledge: (alert: AlertRecord) => void;
   onResetInstall: () => void;
 }
@@ -41,12 +41,11 @@ export function HomeScreen({
   const fresh = alerts.filter((a) => a.acknowledgedAt === null);
   const seen = alerts.filter((a) => a.acknowledgedAt !== null);
   const current = fresh[0] ?? null;
+  const lastSent = lastNotifiedAt(cards);
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Header />
-
-      <Chip label="Today" />
 
       {message ? (
         <View style={styles.message}>
@@ -80,18 +79,23 @@ export function HomeScreen({
 
       <View style={styles.section}>
         <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>Your cards</Text>
+          <Text style={styles.sectionTitle}>Contacts</Text>
           <Text style={styles.sectionCount}>{cards.length}</Text>
         </View>
-        {cards.length === 0 ? (
-          <Text style={styles.empty}>Nothing scanned yet.</Text>
-        ) : (
-          <View style={styles.list}>
-            {cards.map((card) => (
-              <CardRow key={card.etHash} card={card} onNotify={onNotify} />
-            ))}
-          </View>
-        )}
+        <Text style={styles.empty}>
+          {cards.length === 0
+            ? "Nothing scanned yet."
+            : `${cards.length} saved on this phone${
+                lastSent ? `. Last notified ${formatWhen(lastSent)}.` : "."
+              }`}
+        </Text>
+        <GradientButton
+          label="Notify partners"
+          colors={gradients.notify}
+          disabled={cards.length === 0}
+          onPress={onNotify}
+          icon={<ArrowRightIcon size={15} />}
+        />
         <GhostButton label="Scan a card" onPress={onScan} icon={<ScanIcon size={18} color={colors.text} />} />
         <GhostButton label="Generate my QR code" onPress={onGenerate} icon={<ScanIcon size={18} color={colors.teal} />} />
       </View>
@@ -240,3 +244,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
+function formatWhen(ms: number): string {
+  const d = new Date(ms);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${d.getDate()}.${d.getMonth() + 1}. ${hh}:${mm}`;
+}

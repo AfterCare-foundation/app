@@ -24,7 +24,7 @@ import {
 } from "./src/storage/secureStore";
 import { colors, fonts } from "./src/theme";
 
-type Route = { name: "home" } | { name: "scan" } | { name: "generate" } | { name: "notify"; card: CardRecord };
+type Route = { name: "home" } | { name: "scan" } | { name: "generate" } | { name: "notify" };
 
 const INBOX_POLL_MS = 4000;
 const HEALTH_POLL_MS = 15000;
@@ -154,9 +154,9 @@ export default function App() {
       await reload();
       setRoute({ name: "home" });
       say(
-        outcome.pushed === 0
-          ? "Sent, but nobody else has scanned this card yet (pushed 0). Your campaign limit was not used."
-          : `Notified ${outcome.pushed} ${outcome.pushed === 1 ? "contact" : "contacts"}. Thanks for taking care of your partners.`,
+        outcome.pushed === 0 && outcome.scheduled === 0
+          ? `Sent for ${outcome.contacts} ${outcome.contacts === 1 ? "contact" : "contacts"}, but nobody else has scanned them yet (pushed 0). Your campaign limit was not used.`
+          : `Notified ${outcome.pushed} of ${outcome.contacts} ${outcome.contacts === 1 ? "contact" : "contacts"}${outcome.scheduled > 0 ? `, ${outcome.scheduled} scheduled` : ""}. Thanks for taking care of your partners.`,
         9000,
       );
     },
@@ -211,7 +211,7 @@ export default function App() {
     );
   } else if (route.name === "notify") {
     body = (
-      <NotifyScreen device={device} card={route.card} onBack={() => setRoute({ name: "home" })} onSent={onSent} />
+      <NotifyScreen device={device} cards={cards} onBack={() => setRoute({ name: "home" })} onSent={onSent} />
     );
   } else {
     body = (
@@ -225,7 +225,7 @@ export default function App() {
         message={message}
         onScan={() => setRoute({ name: "scan" })}
         onGenerate={() => setRoute({ name: "generate" })}
-        onNotify={(card) => setRoute({ name: "notify", card })}
+        onNotify={() => setRoute({ name: "notify" })}
         onAcknowledge={onAcknowledge}
         onResetInstall={onResetInstall}
       />

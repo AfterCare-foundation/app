@@ -1,26 +1,31 @@
-// Notify the other half of one card. Pick the STI type, confirm, send.
+// Notify partners. Not tied to one card: pick the STI type and how far back
+// to go, see how many contacts that covers, confirm, send once.
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { GradientButton } from "../components/Buttons";
 import { SubHeader } from "../components/Chrome";
 import { stiLabel } from "../components/ExposureCard";
 import { ArrowRightIcon } from "../components/Icons";
-import { shortHash, STI_TYPES, type StiType } from "../crypto/contract";
-import { describeError, notifyCard, type NotifyOutcome } from "../flows";
+import { STI_TYPES, type StiType } from "../crypto/contract";
+import { describeError, notifyContacts, type NotifyOutcome } from "../flows";
 import type { CardRecord, DeviceIdentity } from "../storage/secureStore";
 import { colors, fonts, gradients, radius } from "../theme";
+import { NOTIFY_WINDOWS, selectContacts, type WindowId } from "../windows";
 
 interface NotifyScreenProps {
   device: DeviceIdentity;
-  card: CardRecord;
+  cards: CardRecord[];
   onBack: () => void;
   onSent: (outcome: NotifyOutcome) => void;
 }
 
-export function NotifyScreen({ device, card, onBack, onSent }: NotifyScreenProps) {
+export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProps) {
   const [sti, setSti] = useState<StiType>("gonorrhoea");
+  const [windowId, setWindowId] = useState<WindowId>("2w");
+  const contacts = useMemo(() => selectContacts(cards, windowId), [cards, windowId]);
+  const activeWindow = NOTIFY_WINDOWS.find((w) => w.id === windowId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,7 +33,7 @@ export function NotifyScreen({ device, card, onBack, onSent }: NotifyScreenProps
     setBusy(true);
     setError(null);
     try {
-      const outcome = await notifyCard(device, card, sti);
+      const outcome = await notifyContacts(device, contacts, sti);
       onSent(outcome);
     } catch (e) {
       setError(describeError(e));
@@ -41,10 +46,31 @@ export function NotifyScreen({ device, card, onBack, onSent }: NotifyScreenProps
     <View style={styles.flex}>
       <SubHeader title="Notify Partners" onBack={onBack} />
       <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.sectionTitle}>Who should be told?</Text>
+        <View style={styles.chips}>
+          {NOTIFY_WINDOWS.map((w) => {
+            const selected = w.id === windowId;
+            return (
+              <Pressable
+                key={w.id}
+                onPress={() => setWindowId(w.id)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected }}
+                style={[styles.chip, selected && styles.chipSelected]}
+              >
+                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{w.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
         <View style={styles.cardBox}>
-          <Text style={styles.cardLabel}>Card {shortHash(card.etHash)}</Text>
+          <Text style={styles.cardLabel}>
+            {contacts.length === 0
+              ? "No contacts in this window"
+              : `${contacts.length} ${contacts.length === 1 ? "contact" : "contacts"} will be notified`}
+          </Text>
           <Text style={styles.cardMeta}>
-            Whoever scanned the other half of this card gets one anonymous alert. You will not.
+            {activeWindow?.hint} Each one gets one anonymous alert. You will not get one yourself.
           </Text>
         </View>
 
@@ -77,9 +103,10 @@ export function NotifyScreen({ device, card, onBack, onSent }: NotifyScreenProps
         <Text style={styles.warning}>This cannot be undone.</Text>
 
         <GradientButton
-          label="Notify Partners"
+          label={contacts.length > 0 ? `Notify ${contacts.length} ${contacts.length === 1 ? "contact" : "contacts"}` : "Notify Partners"}
           colors={gradients.notify}
           busy={busy}
+          disabled={contacts.length === 0}
           onPress={() => void send()}
           icon={<ArrowRightIcon size={15} />}
         />
@@ -90,8 +117,8 @@ export function NotifyScreen({ device, card, onBack, onSent }: NotifyScreenProps
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <Text style={styles.privacy}>
-          The STI type is encrypted on this phone with a key only the two halves of this card share. The
-          server forwards it without being able to read it.
+          The STI type is encrypted on this phone, separately for each contact, with a key only the two of
+          you share. The server forwards it without being able to read it.
         </Text>
       </ScrollView>
     </View>

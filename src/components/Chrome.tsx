@@ -48,14 +48,6 @@ export function SubHeader({ title, onBack }: { title: string; onBack: () => void
   );
 }
 
-export function Chip({ label }: { label: string }) {
-  return (
-    <View style={styles.chip}>
-      <Text style={styles.chipText}>{label}</Text>
-    </View>
-  );
-}
-
 export type Tab = "home" | "info" | "resources";
 
 export function TabBar({ active, onSelect }: { active: Tab; onSelect: (tab: Tab) => void }) {
@@ -123,20 +115,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: fonts.semibold,
     fontSize: 17,
-  },
-  chip: {
-    alignSelf: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.06)",
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.chip,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-  },
-  chipText: {
-    color: colors.textMuted,
-    fontFamily: fonts.regular,
-    fontSize: 12.5,
   },
   tabBar: {
     flexDirection: "row",
