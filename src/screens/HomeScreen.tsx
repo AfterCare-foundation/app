@@ -7,7 +7,6 @@ import { ArrowRightIcon, BellIcon, ScanIcon } from "../components/Icons";
 import type { InboxStatus } from "../flows";
 import type { AlertRecord, CardRecord, DeviceIdentity } from "../storage/secureStore";
 import { colors, fonts, gradients, radius } from "../theme";
-import { lastNotifiedAt } from "../windows";
 
 interface HomeScreenProps {
   device: DeviceIdentity | null;
@@ -41,7 +40,6 @@ export function HomeScreen({
   const fresh = alerts.filter((a) => a.acknowledgedAt === null);
   const seen = alerts.filter((a) => a.acknowledgedAt !== null);
   const current = fresh[0] ?? null;
-  const lastSent = lastNotifiedAt(cards);
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -78,21 +76,9 @@ export function HomeScreen({
       )}
 
       <View style={styles.section}>
-        <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>Contacts</Text>
-          <Text style={styles.sectionCount}>{cards.length}</Text>
-        </View>
-        <Text style={styles.empty}>
-          {cards.length === 0
-            ? "Nothing scanned yet."
-            : `${cards.length} saved on this phone${
-                lastSent ? `. Last notified ${formatWhen(lastSent)}.` : "."
-              }`}
-        </Text>
         <GradientButton
           label="Notify partners"
           colors={gradients.notify}
-          disabled={cards.length === 0}
           onPress={onNotify}
           icon={<ArrowRightIcon size={15} />}
         />
@@ -104,7 +90,6 @@ export function HomeScreen({
         <View style={styles.section}>
           <View style={styles.sectionHead}>
             <Text style={styles.sectionTitle}>Earlier alerts</Text>
-            <Text style={styles.sectionCount}>{seen.length}</Text>
           </View>
           <View style={styles.list}>
             {seen.map((alert) => (
@@ -244,10 +229,3 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
-
-function formatWhen(ms: number): string {
-  const d = new Date(ms);
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${d.getDate()}.${d.getMonth() + 1}. ${hh}:${mm}`;
-}

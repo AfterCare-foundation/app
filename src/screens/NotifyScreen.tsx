@@ -2,7 +2,7 @@
 // to go, see how many contacts that covers, confirm, send once.
 
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { GradientButton } from "../components/Buttons";
 import { SubHeader } from "../components/Chrome";
@@ -14,6 +14,8 @@ import type { CardRecord, DeviceIdentity } from "../storage/secureStore";
 import { colors, fonts, gradients, radius } from "../theme";
 import { NOTIFY_WINDOWS, selectContacts, type WindowId } from "../windows";
 
+const OTHER_MAX_LENGTH = 40;
+
 interface NotifyScreenProps {
   device: DeviceIdentity;
   cards: CardRecord[];
@@ -23,8 +25,12 @@ interface NotifyScreenProps {
 
 export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProps) {
   const [sti, setSti] = useState<StiType>("gonorrhoea");
+  const [otherText, setOtherText] = useState("");
   const [windowId, setWindowId] = useState<WindowId>("2w");
   const contacts = useMemo(() => selectContacts(cards, windowId), [cards, windowId]);
+  // What actually gets encrypted: the picked type, or the typed name for "Other".
+  const typed = otherText.replace(/\s+/g, " ").trim();
+  const stiValue: string = sti === "other" && typed ? typed : sti;
   const activeWindow = NOTIFY_WINDOWS.find((w) => w.id === windowId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +39,7 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
     setBusy(true);
     setError(null);
     try {
-      const outcome = await notifyContacts(device, contacts, sti);
+      const outcome = await notifyContacts(device, contacts, stiValue);
       onSent(outcome);
     } catch (e) {
       setError(describeError(e));
@@ -46,7 +52,7 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
     <View style={styles.flex}>
       <SubHeader title="Notify Partners" onBack={onBack} />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.sectionTitle}>Who should be told?</Text>
+        <Text style={styles.sectionTitle}>Who should be notified?</Text>
         <View style={styles.chips}>
           {NOTIFY_WINDOWS.map((w) => {
             const selected = w.id === windowId;
@@ -92,11 +98,26 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
           })}
         </View>
 
+        {sti === "other" ? (
+          <TextInput
+            value={otherText}
+            onChangeText={(t) => setOtherText(t.slice(0, OTHER_MAX_LENGTH))}
+            placeholder="Which infection? (optional)"
+            placeholderTextColor="rgba(156, 163, 175, 0.55)"
+            maxLength={OTHER_MAX_LENGTH}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="done"
+            accessibilityLabel="Name of the infection"
+            style={styles.otherInput}
+          />
+        ) : null}
+
         <View style={styles.preview}>
           <Text style={styles.previewLabel}>They will see</Text>
           <Text style={styles.previewLock}>Someone you connected with may have an STI.</Text>
           <Text style={styles.previewIn}>
-            Inside the app: "Someone you connected with has reported {stiLabel(sti)}. Get tested when you can."
+            Inside the app: "Someone you connected with has reported {stiLabel(stiValue)}. Get tested when you can."
           </Text>
         </View>
 
@@ -184,6 +205,17 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     color: colors.text,
     fontFamily: fonts.semibold,
+  },
+  otherInput: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.card - 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    color: colors.text,
+    fontFamily: fonts.regular,
+    fontSize: 14,
   },
   preview: {
     backgroundColor: colors.surfaceStrong,

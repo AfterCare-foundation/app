@@ -20,7 +20,12 @@ const STI_LABELS: Record<string, string> = {
 };
 
 export function stiLabel(sti: string): string {
-  return STI_LABELS[sti] ?? sti;
+  // `sti` can be free text typed by the sender, so only trust own keys.
+  if (Object.prototype.hasOwnProperty.call(STI_LABELS, sti)) {
+    return STI_LABELS[sti] ?? sti;
+  }
+  // Another phone sent this text, so keep it short whatever it says.
+  return sti.length > 60 ? `${sti.slice(0, 60)}…` : sti;
 }
 
 interface ExposureCardProps {
