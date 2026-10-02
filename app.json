@@ -39,7 +39,9 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": ["CAMERA"],
+      "permissions": [
+        "CAMERA"
+      ],
       "usesCleartextTraffic": true,
       "predictiveBackGestureEnabled": false
     },
@@ -54,7 +56,11 @@
       "expo-font"
     ],
     "extra": {
-      "apiBaseUrl": "http://127.0.0.1:8000"
-    }
+      "apiBaseUrl": "http://127.0.0.1:8000",
+      "eas": {
+        "projectId": "a9341236-bd0d-4589-9334-842186946b32"
+      }
+    },
+    "owner": "aftercare"
   }
 }
