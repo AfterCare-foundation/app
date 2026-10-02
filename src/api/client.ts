@@ -8,6 +8,12 @@ import type { Platform } from "../crypto/contract";
 const FALLBACK_BASE_URL = "http://127.0.0.1:8000";
 
 export function apiBaseUrl(): string {
+  // EXPO_PUBLIC_API_URL wins, so a tester can point a build at a hosted dev
+  // backend without editing app.json.
+  const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (fromEnv) {
+    return fromEnv.replace(/\/+$/, "");
+  }
   const extra = Constants.expoConfig?.extra as { apiBaseUrl?: unknown } | undefined;
   return typeof extra?.apiBaseUrl === "string" ? extra.apiBaseUrl : FALLBACK_BASE_URL;
 }
