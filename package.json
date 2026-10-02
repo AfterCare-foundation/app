@@ -1,0 +1,36 @@
+{
+  "name": "aftercare",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo start --ios",
+    "android": "expo start --android",
+    "typecheck": "tsc --noEmit && tsc -p test",
+    "test": "node --import tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@noble/ciphers": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
+    "expo": "~57.0.26",
+    "expo-camera": "~57.0.6",
+    "expo-constants": "~57.0.20",
+    "expo-crypto": "~57.0.3",
+    "expo-font": "~57.0.4",
+    "expo-linear-gradient": "~57.0.2",
+    "expo-secure-store": "~57.0.4",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-svg": "15.15.4"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "@types/react": "~19.2.2",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3"
+  }
+}

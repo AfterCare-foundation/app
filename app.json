@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "AfterCare",
+    "slug": "aftercare",
+    "scheme": "aftercare",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0a0a10",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a10"
+    },
+    "ios": {
+      "bundleIdentifier": "eu.after-care.app",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "AfterCare uses the camera to scan the QR code on your card.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true,
+          "NSExceptionDomains": {
+            "127.0.0.1": {
+              "NSExceptionAllowsInsecureHTTPLoads": true
+            },
+            "localhost": {
+              "NSExceptionAllowsInsecureHTTPLoads": true
+            }
+          }
+        }
+      }
+    },
+    "android": {
+      "package": "eu.aftercare.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0a0a10",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": ["CAMERA"],
+      "usesCleartextTraffic": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "AfterCare uses the camera to scan the QR code on your card."
+        }
+      ],
+      "expo-secure-store",
+      "expo-font"
+    ],
+    "extra": {
+      "apiBaseUrl": "http://127.0.0.1:8000"
+    }
+  }
+}

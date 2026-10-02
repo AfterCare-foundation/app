@@ -1,0 +1,139 @@
+// The three things this version does: subscribe to a card, notify one card,
+// and pull the development inbox. Screens call these and render the result.
+
+import { ApiError, devInbox, notify, subscribe } from "./api/client";
+import { decryptAlert, encryptAlert, etHash, parseConnectInput } from "./crypto/contract";
+import { randomNonce, randomUuid } from "./crypto/random";
+import {
+  cardToken,
+  listCards,
+  saveAlert,
+  saveCard,
+  updateCard,
+  type AlertRecord,
+  type CardRecord,
+  type DeviceIdentity,
+} from "./storage/secureStore";
+
+export { ApiError };
+
+/** Scan or paste -> parse -> POST /subscribe -> store the card. */
+export async function subscribeToCard(device: DeviceIdentity, scanned: string): Promise<CardRecord> {
+  const token = parseConnectInput(scanned);
+  const hash = etHash(token);
+  await subscribe({
+    et_hash: hash,
+    push_id_hash: device.pushIdHash,
+    push_token: device.pushToken,
+    platform: device.platform,
+    device_credential: device.credentialHex,
+  });
+  return saveCard(token);
+}
+
+export interface NotifyOutcome {
+  pushed: number;
+  campaignId: string;
+  card: CardRecord;
+}
+
+/** One tap of Notify for one card: fresh campaign, one immediate delivery. */
+export async function notifyCard(
+  device: DeviceIdentity,
+  card: CardRecord,
+  sti: string,
+): Promise<NotifyOutcome> {
+  const token = cardToken(card);
+  const campaignId = randomUuid();
+  const result = await notify({
+    sender_push_id_hash: device.pushIdHash,
+    device_credential: device.credentialHex,
+    campaign_id: campaignId,
+    deliveries: [
+      {
+        et_hash: card.etHash,
+        encrypted_payload: encryptAlert(token, sti, randomNonce()),
+      },
+    ],
+  });
+  const updated =
+    (await updateCard(card.etHash, {
+      notifiedAt: new Date().toISOString(),
+      notifiedSti: sti,
+      lastPushed: result.pushed,
+    })) ?? card;
+  return { pushed: result.pushed, campaignId, card: updated };
+}
+
+export type InboxStatus = "ok" | "unavailable" | "offline";
+
+export interface InboxPull {
+  status: InboxStatus;
+  received: AlertRecord[];
+}
+
+/**
+ * Pulls the stub-mode inbox and tries every stored card token on each
+ * message. The pull clears the server copy, so everything is saved locally
+ * even when no token decrypts it.
+ */
+export async function pullInbox(device: DeviceIdentity): Promise<InboxPull> {
+  let notifications;
+  try {
+    ({ notifications } = await devInbox({
+      push_id_hash: device.pushIdHash,
+      device_credential: device.credentialHex,
+    }));
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 0) {
+      return { status: "offline", received: [] };
+    }
+    // 404: inbox is off (not development + stub). 403: device unknown yet,
+    // which is normal before the first subscribe.
+    return { status: "unavailable", received: [] };
+  }
+
+  if (notifications.length === 0) {
+    return { status: "ok", received: [] };
+  }
+
+  const cards = await listCards();
+  const received: AlertRecord[] = [];
+  for (const item of notifications) {
+    let match: { etHash: string; sti: string } | null = null;
+    for (const card of cards) {
+      try {
+        const payload = decryptAlert(cardToken(card), item.enc);
+        match = { etHash: card.etHash, sti: payload.sti };
+        break;
+      } catch {
+        // Not this card.
+      }
+    }
+    received.push(
+      await saveAlert({
+        alert: item.alert,
+        enc: item.enc,
+        etHash: match?.etHash ?? null,
+        sti: match?.sti ?? null,
+      }),
+    );
+  }
+  return { status: "ok", received };
+}
+
+export function describeError(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 429) {
+      return `Rate limited. ${error.detail}`;
+    }
+    if (error.status === 403) {
+      return `Refused. ${error.detail}`;
+    }
+    return error.detail;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "Something went wrong";
+}
