@@ -1,0 +1,202 @@
+// About tab: copy taken from the website (Why AfterCare, Our vision, How it works, trust points).
+
+import { tidy } from "../text";
+import { useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+
+import { Header } from "../components/Chrome";
+import { Panel } from "../components/Panel";
+import { colors, fonts, type } from "../theme";
+
+const WHY = [
+  { title: "No contact needed", desc: "Notify partners even when you didn't exchange names or numbers." },
+  { title: "No messages to write", desc: "Send notifications effortlessly and without feeling awkward." },
+  { title: "Stay informed", desc: "Follow your STI exposure to take care of your health without delays." },
+  { title: "Healthier scene for everyone", desc: "The more people are in the loop, the safer it gets, for you too." },
+];
+
+const VISION = ["Better notification", "Earlier detection & treatment", "Less transmission", "Fewer STIs, safer scene"];
+
+type UseCase = "club" | "sauna" | "home";
+const USE_CASES: { id: UseCase; label: string }[] = [
+  { id: "club", label: "Club" },
+  { id: "sauna", label: "Sauna" },
+  { id: "home", label: "Home" },
+];
+
+interface Step {
+  title: string;
+  desc: string;
+}
+
+const NOTIFIED: Step = {
+  title: "Notified",
+  desc: "If either of you tests positive later, one tap tells the other. Anonymously, no name or identifying info exchanged.",
+};
+const TREATED: Step = {
+  title: "Treated",
+  desc: "Get treated sooner, but only when advised by healthcare professionals. Early detection means less spread, and a healthier scene for everyone.",
+};
+const connected = (desc: string): Step => ({
+  title: "Connected",
+  desc: `Connecting shares nothing on its own, and nothing is ever sent unless you tap to send it. ${desc}`,
+});
+
+const STEPS: Record<UseCase, Step[]> = {
+  club: [
+    { title: "Tear", desc: "Split a card in half, like a cloakroom stub: one side each." },
+    { title: "Keep", desc: "Hang onto your half." },
+    { title: "Scan", desc: "Scan it in the app, whenever you're ready." },
+    connected("Your halves match up once you've both scanned."),
+    NOTIFIED,
+    TREATED,
+  ],
+  sauna: [
+    {
+      title: "Pair",
+      desc: "Tap the reader with your wristband, then the other person taps theirs right after. A blinking light confirms you're connected.",
+    },
+    {
+      title: "Check out",
+      desc: "Tap your wristband on the reader on your way out, then enter the code it shows into the app.",
+    },
+    connected("Your wristband pairing shows up in the app once you've both checked out."),
+    NOTIFIED,
+    TREATED,
+  ],
+  home: [
+    { title: "Generate", desc: "Generate your personal QR code in the app. No card needed." },
+    { title: "Show", desc: "Show your QR to the other person. They scan it with their phone camera." },
+    connected("Once the other person scans, the connection is established."),
+    NOTIFIED,
+    TREATED,
+  ],
+};
+
+const FUNNEL = [
+  { backgroundColor: "rgba(244, 244, 246, 0.04)", borderColor: "rgba(244, 244, 246, 0.18)" },
+  { backgroundColor: "rgba(100, 210, 200, 0.07)", borderColor: "rgba(100, 210, 200, 0.28)" },
+  { backgroundColor: "rgba(45, 212, 191, 0.10)", borderColor: "rgba(45, 212, 191, 0.42)" },
+  { backgroundColor: "rgba(45, 212, 191, 0.15)", borderColor: "rgba(45, 212, 191, 0.62)" },
+];
+const FUNNEL_TEXT = ["rgba(244, 244, 246, 0.55)", "rgba(130, 220, 210, 0.75)", "rgba(45, 212, 191, 0.88)", "#2dd4bf"];
+
+const TRUST = [
+  { title: "Privacy first", desc: "No traceable data" },
+  { title: "Anonymous", desc: "No names, emails, or identifying info" },
+  { title: "Free", desc: "Pick up a card pair at a venue" },
+  { title: "Open source", desc: "Anyone can read the code" },
+];
+
+export function AboutScreen() {
+  const [useCase, setUseCase] = useState<UseCase>("club");
+  return (
+    <ScrollView contentContainerStyle={styles.content}>
+      <Header />
+
+      <Text style={styles.title}>Why AfterCare.</Text>
+      <View style={styles.list}>
+        {WHY.map((item) => (
+          <Panel key={item.title} style={styles.card}>
+            <Text style={styles.cardTitle}>{item.title}</Text>
+            <Text style={styles.cardDesc}>{item.desc}</Text>
+          </Panel>
+        ))}
+      </View>
+
+      <Text style={styles.title}>Our vision.</Text>
+      <View style={styles.funnel}>
+        {VISION.map((line, i) => (
+          <View key={line} style={[styles.funnelStep, FUNNEL[i]]}>
+            <Text style={[styles.funnelText, { color: FUNNEL_TEXT[i] }]}>{line}</Text>
+          </View>
+        ))}
+      </View>
+
+      <Text style={styles.title}>How it works.</Text>
+      <View style={styles.toggle} accessibilityRole="tablist">
+        {USE_CASES.map((uc) => {
+          const active = uc.id === useCase;
+          return (
+            <Pressable
+              key={uc.id}
+              onPress={() => setUseCase(uc.id)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              style={[styles.toggleBtn, active && styles.toggleBtnActive]}
+            >
+              <Text style={[styles.toggleText, active && styles.toggleTextActive]}>{uc.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <View style={styles.list}>
+        {STEPS[useCase].map((step, i) => (
+          <Panel key={`${useCase}-${step.title}`} style={styles.step}>
+            <View style={styles.num}>
+              <Text style={styles.numText}>{i + 1}</Text>
+            </View>
+            <View style={styles.stepBody}>
+              <Text style={styles.cardTitle}>{step.title}</Text>
+              <Text style={styles.cardDesc}>{tidy(step.desc)}</Text>
+            </View>
+          </Panel>
+        ))}
+      </View>
+
+      <Text style={styles.tagline}>Take care with AfterCare 💜</Text>
+
+      <View style={styles.trust}>
+        {TRUST.map((item) => (
+          <Panel key={item.title} style={styles.trustItem}>
+            <Text style={styles.cardTitle}>{item.title}</Text>
+            <Text style={styles.cardDesc}>{item.desc}</Text>
+          </Panel>
+        ))}
+      </View>
+
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  content: { paddingHorizontal: 18, paddingBottom: 28, gap: 14 },
+  title: { ...type.sectionTitle, marginTop: 32 },
+  list: { gap: 10 },
+  card: { padding: 16, gap: 4 },
+  cardTitle: { ...type.cardTitle },
+  cardDesc: { ...type.cardDesc },
+  funnel: { gap: 5, width: "100%", maxWidth: 420, alignSelf: "center" },
+  funnelStep: { borderRadius: 10, borderWidth: 1, paddingVertical: 13, paddingHorizontal: 20, alignItems: "center" },
+  funnelText: { fontFamily: fonts.regular, fontSize: 15, textAlign: "center" },
+  toggle: {
+    flexDirection: "row",
+    alignSelf: "center",
+    gap: 6,
+    padding: 4,
+    backgroundColor: "rgba(244, 244, 246, 0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(244, 244, 246, 0.10)",
+    borderRadius: 999,
+  },
+  toggleBtn: { borderRadius: 999, paddingVertical: 7, paddingHorizontal: 22 },
+  toggleBtnActive: { backgroundColor: "rgba(244, 244, 246, 0.18)" },
+  toggleText: { fontFamily: fonts.regular, fontSize: 14, color: "rgba(244, 244, 246, 0.55)" },
+  toggleTextActive: { color: colors.text },
+  step: { flexDirection: "row", alignItems: "flex-start", gap: 12, padding: 16 },
+  num: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(45, 212, 191, 0.4)",
+    backgroundColor: "rgba(45, 212, 191, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  numText: { ...type.cardTitle, fontSize: 13, color: colors.teal },
+  stepBody: { flex: 1, gap: 2 },
+  trust: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 4 },
+  trustItem: { width: "48%", flexGrow: 1, padding: 14, gap: 2 },
+  tagline: { ...type.cardTitle, textAlign: "center", marginTop: 32 },
+});

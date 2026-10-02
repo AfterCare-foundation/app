@@ -1,20 +1,36 @@
 // Notify partners. Not tied to one card: pick the STI type and how far back
 // to go, see how many contacts that covers, confirm, send once.
 
+import { tidy } from "../text";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { GradientButton } from "../components/Buttons";
 import { SubHeader } from "../components/Chrome";
-import { stiLabel } from "../components/ExposureCard";
+import { stiLabel, stiTitle } from "../components/ExposureCard";
 import { ArrowRightIcon } from "../components/Icons";
+import { Panel } from "../components/Panel";
 import { STI_TYPES, type StiType } from "../crypto/contract";
 import { describeError, notifyContacts, type NotifyOutcome } from "../flows";
 import type { CardRecord, DeviceIdentity } from "../storage/secureStore";
-import { colors, fonts, gradients, radius } from "../theme";
+import { colors, fonts, gradients, radius, type } from "../theme";
 import { NOTIFY_WINDOWS, selectContacts, type WindowId } from "../windows";
 
 const OTHER_MAX_LENGTH = 40;
+
+type Choice = "unspecified" | Exclude<StiType, "other"> | "other";
+
+// "Don't specify" goes on the wire as the contract's generic `other`, which
+// the recipient reads as "an STI". The "Other" choice sends the typed name.
+const NAMED_TYPES = STI_TYPES.filter((t): t is Exclude<StiType, "other"> => t !== "other");
+const CHOICES: readonly Choice[] = ["unspecified", ...NAMED_TYPES, "other"];
+
+function choiceLabel(choice: Choice): string {
+  if (choice === "unspecified") {
+    return "Don't specify";
+  }
+  return choice === "other" ? "Other" : stiTitle(choice);
+}
 
 interface NotifyScreenProps {
   device: DeviceIdentity;
@@ -24,13 +40,14 @@ interface NotifyScreenProps {
 }
 
 export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProps) {
-  const [sti, setSti] = useState<StiType>("gonorrhoea");
+  const [choice, setChoice] = useState<Choice>("unspecified");
   const [otherText, setOtherText] = useState("");
   const [windowId, setWindowId] = useState<WindowId>("2w");
   const contacts = useMemo(() => selectContacts(cards, windowId), [cards, windowId]);
-  // What actually gets encrypted: the picked type, or the typed name for "Other".
+  // What actually gets encrypted.
   const typed = otherText.replace(/\s+/g, " ").trim();
-  const stiValue: string = sti === "other" && typed ? typed : sti;
+  const missingName = choice === "other" && typed === "";
+  const stiValue: string = choice === "unspecified" ? "other" : choice === "other" ? typed : choice;
   const activeWindow = NOTIFY_WINDOWS.find((w) => w.id === windowId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,40 +86,40 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
             );
           })}
         </View>
-        <View style={styles.cardBox}>
+        <Panel style={styles.cardBox}>
           <Text style={styles.cardLabel}>
             {contacts.length === 0
               ? "No contacts in this window"
               : `${contacts.length} ${contacts.length === 1 ? "contact" : "contacts"} will be notified`}
           </Text>
           <Text style={styles.cardMeta}>
-            {activeWindow?.hint} Each one gets one anonymous alert. You will not get one yourself.
+            {tidy(`${activeWindow?.hint ?? ""} Each one gets one anonymous alert. You will not get one yourself.`)}
           </Text>
-        </View>
+        </Panel>
 
         <Text style={styles.sectionTitle}>What did you test positive for?</Text>
         <View style={styles.chips}>
-          {STI_TYPES.map((type) => {
-            const selected = type === sti;
+          {CHOICES.map((type) => {
+            const selected = type === choice;
             return (
               <Pressable
                 key={type}
-                onPress={() => setSti(type)}
+                onPress={() => setChoice(type)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected }}
                 style={[styles.chip, selected && styles.chipSelected]}
               >
-                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{stiLabel(type)}</Text>
+                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{choiceLabel(type)}</Text>
               </Pressable>
             );
           })}
         </View>
 
-        {sti === "other" ? (
+        {choice === "other" ? (
           <TextInput
             value={otherText}
             onChangeText={(t) => setOtherText(t.slice(0, OTHER_MAX_LENGTH))}
-            placeholder="Which infection? (optional)"
+            placeholder="Which infection?"
             placeholderTextColor="rgba(156, 163, 175, 0.55)"
             maxLength={OTHER_MAX_LENGTH}
             autoCapitalize="none"
@@ -112,22 +129,23 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
             style={styles.otherInput}
           />
         ) : null}
+        {missingName ? <Text style={styles.warning}>Type the name to continue.</Text> : null}
 
-        <View style={styles.preview}>
+        <Panel tint="blue" style={styles.preview}>
           <Text style={styles.previewLabel}>They will see</Text>
           <Text style={styles.previewLock}>Someone you connected with may have an STI.</Text>
           <Text style={styles.previewIn}>
-            Inside the app: "Someone you connected with has reported {stiLabel(stiValue)}. Get tested when you can."
+            Inside the app: "Someone you connected with has reported {stiLabel(stiValue) || "…"}. Get tested when you can."
           </Text>
-        </View>
+        </Panel>
 
         <Text style={styles.warning}>This cannot be undone.</Text>
 
         <GradientButton
           label={contacts.length > 0 ? `Notify ${contacts.length} ${contacts.length === 1 ? "contact" : "contacts"}` : "Notify Partners"}
-          colors={gradients.notify}
+          colors={gradients.primary}
           busy={busy}
-          disabled={contacts.length === 0}
+          disabled={contacts.length === 0 || missingName}
           onPress={() => void send()}
           icon={<ArrowRightIcon size={15} />}
         />
@@ -135,11 +153,12 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
           <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text style={styles.error}>{tidy(error)}</Text> : null}
 
         <Text style={styles.privacy}>
-          The STI type is encrypted on this phone, separately for each contact, with a key only the two of
-          you share. The server forwards it without being able to read it.
+          {tidy(
+            "The STI type is encrypted on this phone, separately for each contact, with a key only the two of you share. The server forwards it without being able to read it.",
+          )}
         </Text>
       </ScrollView>
     </View>
@@ -156,28 +175,17 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   cardBox: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.card - 4,
     padding: 14,
     gap: 4,
   },
   cardLabel: {
-    color: colors.text,
-    fontFamily: fonts.semibold,
-    fontSize: 14,
+    ...type.cardTitle,
   },
   cardMeta: {
-    color: colors.textMuted,
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    lineHeight: 19,
+    ...type.cardDesc,
   },
   sectionTitle: {
-    color: colors.text,
-    fontFamily: fonts.semibold,
-    fontSize: 15,
+    ...type.slideTitle,
     marginTop: 4,
   },
   chips: {
@@ -218,10 +226,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   preview: {
-    backgroundColor: colors.surfaceStrong,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.card - 4,
     padding: 14,
     gap: 6,
   },

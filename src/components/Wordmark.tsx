@@ -4,10 +4,15 @@ import Svg, { Defs, LinearGradient, Stop, Text as SvgText } from "react-native-s
 
 import { fonts, gradients } from "../theme";
 
-export function Wordmark({ fontSize = 30 }: { fontSize?: number }) {
-  // Approximate advance width for Poppins SemiBold at -0.03em tracking.
+/**
+ * `.logo-badge-name`: Poppins 600, letter-spacing -0.03em, line-height 1, so
+ * the box is exactly `fontSize` tall. With line-height 1 the Poppins baseline
+ * sits 0.85em below the top of the line box (ascent 1.05em, descent 0.35em).
+ */
+export function Wordmark({ fontSize = 32 }: { fontSize?: number }) {
+  const height = fontSize;
+  // Approximate advance width at -0.03em tracking.
   const width = fontSize * 4.9;
-  const height = fontSize * 1.25;
   return (
     <Svg width={width} height={height} accessibilityRole="header" accessibilityLabel="AfterCare">
       <Defs>
@@ -22,7 +27,7 @@ export function Wordmark({ fontSize = 30 }: { fontSize?: number }) {
         fontSize={fontSize}
         letterSpacing={-0.03 * fontSize}
         x={0}
-        y={fontSize}
+        y={fontSize * 0.85}
       >
         AfterCare
       </SvgText>

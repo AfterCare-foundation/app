@@ -8,6 +8,8 @@
 //   card.<et_hash>         CardRecord JSON (includes the raw token)
 //   alerts.index           comma-separated alert ids, newest last
 //   alert.<id>             AlertRecord JSON
+//   sent.index             comma-separated sent-log ids, newest last
+//   sent.<id>              SentRecord JSON (when and what, never to whom)
 
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
@@ -28,6 +30,7 @@ const OPTIONS: SecureStore.SecureStoreOptions = {
 const KEY_DEVICE = "device";
 const KEY_CARDS = "cards.index";
 const KEY_ALERTS = "alerts.index";
+const KEY_SENT = "sent.index";
 
 export interface DeviceIdentity {
   /** 32 random bytes, hex. Sent on every mutating request. */
@@ -60,6 +63,14 @@ export interface AlertRecord {
   sti: string | null;
   /** Set when the user taps the card's button. Local only. */
   acknowledgedAt: string | null;
+}
+
+/** One line of the local "I notified people" log. No contacts, no counts. */
+export interface SentRecord {
+  id: string;
+  sentAt: string;
+  /** The text that was encrypted for recipients: a known type or the typed name. */
+  sti: string;
 }
 
 async function readJson<T>(key: string): Promise<T | null> {
@@ -195,15 +206,33 @@ export async function acknowledgeAlert(id: string): Promise<AlertRecord | null> 
   return next;
 }
 
+export async function listSent(): Promise<SentRecord[]> {
+  const ids = await readIndex(KEY_SENT);
+  const sent = await Promise.all(ids.map((id) => readJson<SentRecord>(`sent.${id}`)));
+  return sent.filter((r): r is SentRecord => r !== null).reverse();
+}
+
+export async function saveSent(sti: string): Promise<SentRecord> {
+  const record: SentRecord = { id: randomUuid(), sentAt: new Date().toISOString(), sti };
+  await writeJson(`sent.${record.id}`, record);
+  const ids = await readIndex(KEY_SENT);
+  ids.push(record.id);
+  await writeIndex(KEY_SENT, ids);
+  return record;
+}
+
 /** Local wipe for development. Does not call DELETE /subscribe. */
 export async function clearLocalData(): Promise<void> {
   const cards = await readIndex(KEY_CARDS);
   const alerts = await readIndex(KEY_ALERTS);
+  const sent = await readIndex(KEY_SENT);
   await Promise.all([
     ...cards.map((id) => SecureStore.deleteItemAsync(`card.${id}`, OPTIONS)),
     ...alerts.map((id) => SecureStore.deleteItemAsync(`alert.${id}`, OPTIONS)),
+    ...sent.map((id) => SecureStore.deleteItemAsync(`sent.${id}`, OPTIONS)),
   ]);
   await SecureStore.deleteItemAsync(KEY_CARDS, OPTIONS);
   await SecureStore.deleteItemAsync(KEY_ALERTS, OPTIONS);
+  await SecureStore.deleteItemAsync(KEY_SENT, OPTIONS);
   await SecureStore.deleteItemAsync(KEY_DEVICE, OPTIONS);
 }

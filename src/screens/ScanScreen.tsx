@@ -1,9 +1,16 @@
 // Scan the card QR, or paste the connect URL. The paste field exists so two
 // simulators can share one token; the iOS simulator has no real camera.
 
-import { CameraView, useCameraPermissions, type BarcodeScanningResult } from "expo-camera";
-import { useCallback, useRef, useState } from "react";
+import { tidy } from "../text";
 import {
+  CameraView,
+  useCameraPermissions,
+  type BarcodeScanningResult,
+} from "expo-camera";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -17,13 +24,77 @@ import { GhostButton, GradientButton } from "../components/Buttons";
 import { SubHeader } from "../components/Chrome";
 import { describeError, subscribeToCard } from "../flows";
 import type { CardRecord, DeviceIdentity } from "../storage/secureStore";
-import { colors, fonts, radius } from "../theme";
+import { colors, fonts, radius, type } from "../theme";
 
 interface ScanScreenProps {
   device: DeviceIdentity;
   onBack: () => void;
   onSubscribed: (card: CardRecord, alreadyKnown: boolean) => void;
 }
+
+const CORNERS = ["tl", "tr", "bl", "br"] as const;
+
+// Teal corner brackets with a beam sweeping the frame, as in the website's scan step.
+function ScanFrame() {
+  const sweep = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(sweep, {
+          toValue: 1,
+          duration: 1800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.delay(500),
+        Animated.timing(sweep, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [sweep]);
+
+  return (
+    <View pointerEvents="none" style={styles.frame}>
+      {CORNERS.map((c) => (
+        <Fragment key={c}>
+          <View style={[styles.corner, styles.cornerH, cornerPos[c]]} />
+          <View style={[styles.corner, styles.cornerV, cornerPos[c]]} />
+        </Fragment>
+      ))}
+      <Animated.View
+        style={[
+          styles.beam,
+          {
+            opacity: sweep.interpolate({
+              inputRange: [0, 0.05, 0.9, 1],
+              outputRange: [0, 1, 1, 0],
+            }),
+            transform: [
+              {
+                translateY: sweep.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [8, 190],
+                }),
+              },
+            ],
+          },
+        ]}
+      />
+    </View>
+  );
+}
+
+const cornerPos = StyleSheet.create({
+  tl: { top: 0, left: 0 },
+  tr: { top: 0, right: 0 },
+  bl: { bottom: 0, left: 0 },
+  br: { bottom: 0, right: 0 },
+});
 
 export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
   const [permission, requestPermission] = useCameraPermissions();
@@ -74,9 +145,16 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
   const cameraGranted = permission?.granted === true;
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
       <SubHeader title="Scan a card" onBack={onBack} />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.label}>Scan the code</Text>
         <View style={styles.viewfinder}>
           {cameraGranted ? (
             <CameraView
@@ -88,20 +166,25 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
           ) : (
             <View style={styles.permission}>
               <Text style={styles.permissionText}>
-                {permission === null
-                  ? "Checking camera access…"
-                  : permission.canAskAgain
-                    ? "Allow camera access to scan the QR on your card half."
-                    : "Camera access is off. Enable it in Settings, or paste the link below."}
+                {tidy(
+                  permission === null
+                    ? "Checking camera access…"
+                    : permission.canAskAgain
+                      ? "Allow camera access to scan the QR on your card half."
+                      : "Camera access is off. Enable it in Settings, or paste the link below.",
+                )}
               </Text>
               {permission?.canAskAgain !== false ? (
-                <GhostButton label="Allow camera" onPress={() => void requestPermission()} />
+                <GhostButton
+                  label="Allow camera"
+                  onPress={() => void requestPermission()}
+                />
               ) : null}
             </View>
           )}
-          <View pointerEvents="none" style={styles.frame} />
+          <ScanFrame />
         </View>
-        <Text style={styles.hint}>Align the QR within the frame.</Text>
+        <Text style={styles.hint}>Align the QR within the frame</Text>
 
         <View style={styles.divider}>
           <View style={styles.rule} />
@@ -122,13 +205,24 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
           style={styles.input}
           accessibilityLabel="Card link"
         />
-        <GradientButton label="Connect" busy={busy} disabled={!pasted.trim()} onPress={() => void submit(pasted)} />
+        <GradientButton
+          label="Connect"
+          busy={busy}
+          disabled={!pasted.trim()}
+          onPress={() => void submit(pasted)}
+        />
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        {lastScan && !error ? <Text style={styles.scanned}>Read a code. Registering…</Text> : null}
+        {error ? <Text style={styles.error}>{tidy(error)}</Text> : null}
+        {lastScan && !error ? (
+          <Text style={styles.scanned}>
+            {tidy("Read a code. Registering…")}
+          </Text>
+        ) : null}
 
         <Text style={styles.privacy}>
-          Only a hash of the card leaves this phone. The card itself is never sent.
+          {tidy(
+            "Only a hash of the card leaves this phone. The card itself is never sent.",
+          )}
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -154,13 +248,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  frame: {
+  label: { ...type.slideTitle, color: colors.text, textAlign: "center" },
+  frame: { position: "absolute", width: 200, height: 200 },
+  corner: {
     position: "absolute",
-    width: "62%",
-    height: "62%",
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: "rgba(45, 212, 191, 0.85)",
+    backgroundColor: colors.teal,
+    borderRadius: 2,
+  },
+  cornerH: { width: 36, height: 5 },
+  cornerV: { width: 5, height: 36 },
+  beam: {
+    position: "absolute",
+    left: 4,
+    right: 4,
+    height: 2,
+    borderRadius: 999,
+    backgroundColor: colors.teal,
+    shadowColor: colors.teal,
+    shadowOpacity: 0.7,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
   },
   permission: {
     padding: 24,

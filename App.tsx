@@ -1,4 +1,5 @@
 import { useFonts } from "expo-font";
+import { tidy } from "./src/text";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, AppState, StyleSheet, Text, View } from "react-native";
@@ -8,6 +9,9 @@ import { apiBaseUrl, health } from "./src/api/client";
 import { Screen, TabBar, type Tab } from "./src/components/Chrome";
 import { stiLabel } from "./src/components/ExposureCard";
 import { pullInbox, type InboxStatus, type NotifyOutcome } from "./src/flows";
+import { HistoryScreen } from "./src/screens/HistoryScreen";
+import { AboutScreen } from "./src/screens/AboutScreen";
+import { ResourcesScreen } from "./src/screens/ResourcesScreen";
 import { HomeScreen } from "./src/screens/HomeScreen";
 import { GenerateScreen } from "./src/screens/GenerateScreen";
 import { NotifyScreen } from "./src/screens/NotifyScreen";
@@ -17,10 +21,12 @@ import {
   clearLocalData,
   listAlerts,
   listCards,
+  listSent,
   loadOrCreateDevice,
   type AlertRecord,
   type CardRecord,
   type DeviceIdentity,
+  type SentRecord,
 } from "./src/storage/secureStore";
 import { colors, fonts } from "./src/theme";
 
@@ -38,6 +44,7 @@ export default function App() {
   const [device, setDevice] = useState<DeviceIdentity | null>(null);
   const [cards, setCards] = useState<CardRecord[]>([]);
   const [alerts, setAlerts] = useState<AlertRecord[]>([]);
+  const [sent, setSent] = useState<SentRecord[]>([]);
   const [route, setRoute] = useState<Route>({ name: "home" });
   const [tab, setTab] = useState<Tab>("home");
   const [serverOk, setServerOk] = useState<boolean | null>(null);
@@ -46,7 +53,7 @@ export default function App() {
   const messageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const say = useCallback((text: string, ms = 6000) => {
-    setMessage(text);
+    setMessage(tidy(text));
     if (messageTimer.current) {
       clearTimeout(messageTimer.current);
     }
@@ -54,9 +61,10 @@ export default function App() {
   }, []);
 
   const reload = useCallback(async () => {
-    const [nextCards, nextAlerts] = await Promise.all([listCards(), listAlerts()]);
+    const [nextCards, nextAlerts, nextSent] = await Promise.all([listCards(), listAlerts(), listSent()]);
     setCards(nextCards);
     setAlerts(nextAlerts);
+    setSent(nextSent);
   }, []);
 
   useEffect(() => {
@@ -213,6 +221,12 @@ export default function App() {
     body = (
       <NotifyScreen device={device} cards={cards} onBack={() => setRoute({ name: "home" })} onSent={onSent} />
     );
+  } else if (tab === "history") {
+    body = <HistoryScreen alerts={alerts} sent={sent} />;
+  } else if (tab === "about") {
+    body = <AboutScreen />;
+  } else if (tab === "resources") {
+    body = <ResourcesScreen />;
   } else {
     body = (
       <HomeScreen
@@ -240,13 +254,7 @@ export default function App() {
         {route.name === "home" ? (
           <TabBar
             active={tab}
-            onSelect={(next) => {
-              setTab(next);
-              if (next !== "home") {
-                say(`${next === "info" ? "Info" : "Resources"} comes later. Home is the only working tab for now.`, 3000);
-                setTab("home");
-              }
-            }}
+            onSelect={setTab}
           />
         ) : null}
       </Screen>

@@ -1,12 +1,15 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { tidy } from "../text";
 import { GhostButton, GradientButton } from "../components/Buttons";
+import { Panel } from "../components/Panel";
 import { Header } from "../components/Chrome";
-import { AnonymityNote, ExposureCard, formatTime, stiLabel } from "../components/ExposureCard";
-import { ArrowRightIcon, BellIcon, ScanIcon } from "../components/Icons";
+import { AnonymityNote, ExposureCard } from "../components/ExposureCard";
+import { ArrowRightIcon, BellIcon, CheckIcon, ScanIcon } from "../components/Icons";
 import type { InboxStatus } from "../flows";
 import type { AlertRecord, CardRecord, DeviceIdentity } from "../storage/secureStore";
-import { colors, fonts, gradients, radius } from "../theme";
+import { colors, fonts, gradients, type } from "../theme";
+import { lastNotifiedAt } from "../windows";
 
 interface HomeScreenProps {
   device: DeviceIdentity | null;
@@ -38,8 +41,11 @@ export function HomeScreen({
   onResetInstall,
 }: HomeScreenProps) {
   const fresh = alerts.filter((a) => a.acknowledgedAt === null);
-  const seen = alerts.filter((a) => a.acknowledgedAt !== null);
   const current = fresh[0] ?? null;
+  // The server allows one campaign a day, so once one went out today the
+  // button shows the site's green "Sent" state and stops taking taps.
+  const lastSent = lastNotifiedAt(cards);
+  const sentToday = lastSent !== null && new Date(lastSent).toDateString() === new Date().toDateString();
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -62,7 +68,7 @@ export function HomeScreen({
           ) : null}
         </>
       ) : (
-        <View style={styles.quiet}>
+        <Panel tint="teal" style={styles.quiet}>
           <View style={styles.quietIcon}>
             <BellIcon size={18} color={colors.teal} />
           </View>
@@ -72,35 +78,31 @@ export function HomeScreen({
               ? "Scan the card you took home to stay in the loop."
               : "You will see it here if someone you connected with reports an STI."}
           </Text>
-        </View>
+        </Panel>
       )}
 
+      {/* Used most: reading a card, then making a code. */}
       <View style={styles.section}>
         <GradientButton
-          label="Notify partners"
-          colors={gradients.notify}
-          onPress={onNotify}
-          icon={<ArrowRightIcon size={15} />}
+          label="Scan a card"
+          onPress={onScan}
+          icon={<ScanIcon size={18} color="#fff" />}
         />
-        <GhostButton label="Scan a card" onPress={onScan} icon={<ScanIcon size={18} color={colors.text} />} />
         <GhostButton label="Generate my QR code" onPress={onGenerate} icon={<ScanIcon size={18} color={colors.teal} />} />
       </View>
 
-      {seen.length > 0 ? (
-        <View style={styles.section}>
-          <View style={styles.sectionHead}>
-            <Text style={styles.sectionTitle}>Earlier alerts</Text>
-          </View>
-          <View style={styles.list}>
-            {seen.map((alert) => (
-              <View key={alert.id} style={styles.seenRow}>
-                <Text style={styles.seenText}>{alert.sti ? stiLabel(alert.sti) : "Unspecified STI"}</Text>
-                <Text style={styles.seenTime}>{formatTime(alert.receivedAt)}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      ) : null}
+      {/* Used rarely, so it sits apart from the everyday actions. */}
+      <Panel tint="blue" style={styles.notifyBlock}>
+        <Text style={styles.notifyTitle}>Tested positive?</Text>
+        <Text style={styles.notifyDesc}>{tidy("Let the people you met know. They will not learn who you are.")}</Text>
+        <GradientButton
+          label={sentToday ? "Sent" : "Notify partners"}
+          colors={sentToday ? gradients.sent : gradients.primary}
+          disabled={sentToday}
+          onPress={onNotify}
+          icon={sentToday ? <CheckIcon size={15} /> : <ArrowRightIcon size={15} />}
+        />
+      </Panel>
 
       <Pressable onLongPress={onResetInstall} delayLongPress={1200} style={styles.footer} accessibilityLabel="Development status. Long press to reset this install.">
         <Text style={styles.footerLine}>
@@ -141,10 +143,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   quiet: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.card,
     padding: 20,
     alignItems: "center",
     gap: 8,
@@ -153,21 +151,20 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(45, 212, 191, 0.14)",
+    backgroundColor: "rgba(45, 212, 191, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(45, 212, 191, 0.4)",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 2,
   },
   quietTitle: {
+    ...type.slideTitle,
     color: colors.text,
-    fontFamily: fonts.semibold,
-    fontSize: 16,
   },
   quietBody: {
-    color: colors.textMuted,
-    fontFamily: fonts.regular,
-    fontSize: 13.5,
-    lineHeight: 20,
+    ...type.slideDesc,
+    color: colors.textSoft,
     textAlign: "center",
   },
   section: {
@@ -180,14 +177,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   sectionTitle: {
-    color: colors.text,
-    fontFamily: fonts.semibold,
-    fontSize: 15,
+    ...type.sectionTitle,
   },
   sectionCount: {
     color: colors.textMuted,
     fontFamily: fonts.regular,
     fontSize: 13,
+  },
+  notifyBlock: {
+    padding: 16,
+    gap: 6,
+  },
+  notifyTitle: {
+    ...type.cardTitle,
+  },
+  notifyDesc: {
+    ...type.cardDesc,
+    marginBottom: 8,
   },
   list: {
     gap: 8,
@@ -209,9 +215,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   seenText: {
+    ...type.cardDesc,
     color: colors.textSoft,
-    fontFamily: fonts.regular,
-    fontSize: 13.5,
   },
   seenTime: {
     color: colors.textMuted,

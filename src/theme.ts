@@ -4,9 +4,9 @@
 export const colors = {
   bg: "#0a0a10",
   bg2: "#0f0f17",
-  surface: "rgba(255, 255, 255, 0.05)",
+  surface: "rgba(255, 255, 255, 0.03)",
   surfaceStrong: "rgba(28, 25, 52, 0.92)",
-  border: "rgba(255, 255, 255, 0.08)",
+  border: "rgba(255, 255, 255, 0.1)",
   borderStrong: "rgba(255, 255, 255, 0.14)",
   text: "#f4f4f6",
   textMuted: "#9ca3af",
@@ -32,7 +32,59 @@ export const fonts = {
 } as const;
 
 export const radius = {
+  panel: 18, // .trust li
   card: 20,
-  button: 14,
+  button: 10, // .why-btn
   chip: 999,
+} as const;
+
+/** `.trust li` drop shadow. */
+export const panelShadow = {
+  shadowColor: "#000",
+  shadowOpacity: 0.3,
+  shadowRadius: 14,
+  shadowOffset: { width: 0, height: 10 },
+  elevation: 6,
+} as const;
+
+/**
+ * Type scale from the site, at phone widths (px at a 16px root).
+ *   sectionTitle  .section-title      clamp(1.5rem, ...) -> 24, 600, -0.03em, line 1.08
+ *   slideTitle    .why-slide-title    1.25rem, 600, -0.02em, 85% white
+ *   slideDesc     .why-slide-desc     0.875rem, line 1.55, 78% white
+ *   cardTitle     .trust-title        0.9375rem, 600, -0.01em, white
+ *   cardDesc      .trust-desc         0.8125rem, line 1.45, --gray
+ */
+export const type = {
+  sectionTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 24,
+    lineHeight: 26,
+    letterSpacing: -0.72,
+    color: colors.text,
+  },
+  slideTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 20,
+    letterSpacing: -0.4,
+    color: "rgba(244, 244, 246, 0.85)",
+  },
+  slideDesc: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 21.7,
+    color: "rgba(244, 244, 246, 0.78)",
+  },
+  cardTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 15,
+    letterSpacing: -0.15,
+    color: colors.text,
+  },
+  cardDesc: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    lineHeight: 18.85,
+    color: colors.textMuted,
+  },
 } as const;

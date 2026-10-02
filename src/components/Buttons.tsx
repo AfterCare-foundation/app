@@ -17,7 +17,7 @@ interface GradientButtonProps {
   accessibilityLabel?: string;
 }
 
-/** The mockup's "Learn what to do" button: violet to teal, white label. */
+/** `.why-btn` shape (10px corners, hairline border, glow) in the brand gradient, violet to teal. */
 export function GradientButton({
   label,
   onPress,
@@ -30,13 +30,21 @@ export function GradientButton({
   accessibilityLabel,
 }: GradientButtonProps) {
   const inactive = disabled || busy;
+  const sent = stops === gradients.sent;
   return (
     <Pressable
       onPress={onPress}
       disabled={inactive}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      style={({ pressed }) => [styles.pressable, pressed && styles.pressed, inactive && styles.disabled, style]}
+      style={({ pressed }) => [
+        styles.pressable,
+        sent ? styles.glowSent : styles.glowNotify,
+        pressed && styles.pressed,
+        // A finished "Sent" button stays fully lit, like the site's.
+        inactive && !sent && styles.disabled,
+        style,
+      ]}
     >
       <LinearGradient
         colors={[stops[0], stops[1]]}
@@ -70,7 +78,7 @@ export function NotifyButton({ sent, onPress, busy, disabled }: NotifyButtonProp
     <GradientButton
       compact
       label={sent ? "Sent" : "Notify Partners"}
-      colors={sent ? gradients.sent : gradients.notify}
+      colors={sent ? gradients.sent : gradients.primary}
       onPress={onPress}
       busy={busy}
       disabled={disabled}
@@ -104,18 +112,30 @@ export function GhostButton({ label, onPress, icon, style }: GhostButtonProps) {
 const styles = StyleSheet.create({
   pressable: {
     borderRadius: radius.button,
-    overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.13)",
   },
+  glowNotify: {
+    shadowColor: "#6d28d9",
+    shadowOpacity: 0.24,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 7 },
+  },
+  glowSent: {
+    shadowColor: "#138a72",
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 7 },
+  },
   pressed: {
     opacity: 0.86,
-    transform: [{ scale: 0.985 }],
+    transform: [{ scale: 0.98 }],
   },
   disabled: {
     opacity: 0.5,
   },
   gradient: {
+    borderRadius: radius.button - 1,
     paddingVertical: 15,
     paddingHorizontal: 18,
     alignItems: "center",
@@ -139,7 +159,7 @@ const styles = StyleSheet.create({
   },
   labelCompact: {
     fontSize: 12.5,
-    letterSpacing: 0.1,
+    letterSpacing: 0.12,
   },
   ghost: {
     borderRadius: radius.button,

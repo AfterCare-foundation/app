@@ -2,12 +2,14 @@
 // differs from the picture: it shows the decrypted STI type when a scanned
 // token opens the payload, otherwise only the server's generic alert.
 
+import { tidy } from "../text";
 import { StyleSheet, Text, View } from "react-native";
 
 import type { AlertRecord } from "../storage/secureStore";
-import { colors, fonts, radius } from "../theme";
+import { colors, fonts, radius, type } from "../theme";
 import { GradientButton } from "./Buttons";
 import { HeartIcon } from "./Icons";
+import { Panel } from "./Panel";
 
 const STI_LABELS: Record<string, string> = {
   gonorrhoea: "gonorrhoea",
@@ -28,6 +30,19 @@ export function stiLabel(sti: string): string {
   return sti.length > 60 ? `${sti.slice(0, 60)}…` : sti;
 }
 
+/**
+ * Same name for lists and chips, starting with a capital: "Gonorrhoea",
+ * "HIV", "Mpox". The generic type reads "Unspecified STI"; typed names keep
+ * their own spelling apart from the first letter.
+ */
+export function stiTitle(sti: string): string {
+  if (sti === "other") {
+    return "Unspecified STI";
+  }
+  const label = stiLabel(sti);
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 interface ExposureCardProps {
   alert: AlertRecord;
   onAcknowledge: () => void;
@@ -38,15 +53,15 @@ export function ExposureCard({ alert, onAcknowledge }: ExposureCardProps) {
     ? `Someone you connected with has reported ${stiLabel(alert.sti)}. Get tested when you can.`
     : alert.alert;
   return (
-    <View style={styles.card}>
+    <Panel tint="blue" style={styles.card}>
       <View style={styles.badge}>
         <HeartIcon size={18} color="#fff" strokeWidth={2} />
       </View>
       <Text style={styles.headline}>You may have been{"\n"}exposed to an STI.</Text>
-      <Text style={styles.body}>{body}</Text>
+      <Text style={styles.body}>{tidy(body)}</Text>
       <GradientButton label="Learn what to do" onPress={onAcknowledge} style={styles.button} />
       <Text style={styles.time}>{formatTime(alert.receivedAt)}</Text>
-    </View>
+    </Panel>
   );
 }
 
@@ -65,12 +80,16 @@ export function formatTime(iso: string): string {
   return `${hh}:${mm}`;
 }
 
+/** "3 Oct, 00:12", with the year only when it is not the current one. */
+export function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const year = d.getFullYear() === new Date().getFullYear() ? "" : ` ${d.getFullYear()}`;
+  return `${d.getDate()} ${months[d.getMonth()]}${year}, ${formatTime(iso)}`;
+}
+
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surfaceStrong,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.card,
     padding: 18,
     paddingTop: 16,
     gap: 14,
@@ -84,18 +103,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headline: {
-    color: colors.text,
-    fontFamily: fonts.semibold,
-    fontSize: 21,
-    lineHeight: 28,
+    ...type.slideTitle,
     textAlign: "center",
-    letterSpacing: -0.2,
   },
   body: {
-    color: colors.textSoft,
-    fontFamily: fonts.regular,
-    fontSize: 14.5,
-    lineHeight: 21,
+    ...type.slideDesc,
     textAlign: "center",
     paddingHorizontal: 4,
   },
@@ -118,10 +130,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   noteText: {
-    color: colors.textSoft,
-    fontFamily: fonts.regular,
-    fontSize: 13.5,
-    lineHeight: 20,
+    ...type.cardDesc,
     textAlign: "center",
   },
 });

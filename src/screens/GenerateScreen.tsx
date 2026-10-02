@@ -2,6 +2,7 @@
 // right away (so this phone is one half of the pair), and show it as a QR
 // code for the other person to scan. Same token, same /subscribe as a card.
 
+import { tidy } from "../text";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
@@ -68,11 +69,12 @@ export function GenerateScreen({ device, onBack, onGenerated }: GenerateScreenPr
 
         {card ? <Text style={styles.label}>Code {shortHash(card.etHash)}</Text> : null}
         <Text style={styles.hint}>
-          Ask the other person to scan this in their AfterCare app. Once they do, either of you can notify the
-          other. No card needed.
+          {tidy(
+            "Ask the other person to scan this in their AfterCare app. Once they do, either of you can notify the other. No card needed.",
+          )}
         </Text>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text style={styles.error}>{tidy(error)}</Text> : null}
 
         {url ? (
           <GhostButton label="Share link" onPress={() => void Share.share({ message: url })} />

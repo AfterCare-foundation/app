@@ -7,6 +7,7 @@ import { randomNonce, randomUuid } from "./crypto/random";
 import {
   cardToken,
   listCards,
+  saveSent,
   saveAlert,
   saveCard,
   updateCard,
@@ -68,6 +69,7 @@ export async function notifyContacts(
   for (const card of contacts) {
     await updateCard(card.etHash, { notifiedAt, notifiedSti: sti, lastPushed: null });
   }
+  await saveSent(sti);
   return {
     pushed: result.pushed,
     scheduled: result.scheduled,

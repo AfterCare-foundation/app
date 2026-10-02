@@ -89,3 +89,32 @@ export function BackIcon({ size = 20, color = "#fff", strokeWidth = 1.8 }: IconP
     </Svg>
   );
 }
+
+export function ClockIcon({ size = 22, color = "#fff", strokeWidth = 1.75 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <Circle cx={12} cy={12} r={9.25} />
+      <Path d="M12 7v5l3.25 2" />
+    </Svg>
+  );
+}
+
+/** Arrow coming in to the bottom left: something received. */
+export function ArrowInIcon({ size = 16, color = "#fff", strokeWidth = 1.9 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M17 7 7 17" />
+      <Path d="M17 17H7V7" />
+    </Svg>
+  );
+}
+
+/** Arrow going out to the top right: something sent. */
+export function ArrowOutIcon({ size = 16, color = "#fff", strokeWidth = 1.9 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M7 17 17 7" />
+      <Path d="M7 7h10v10" />
+    </Svg>
+  );
+}

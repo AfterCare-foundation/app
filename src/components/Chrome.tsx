@@ -1,36 +1,58 @@
 // Screen background, header, and the bottom bar from the mockup.
 
-import { LinearGradient } from "expo-linear-gradient";
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
-import { colors, fonts, gradients, radius } from "../theme";
-import { BackIcon, BookIcon, HeartFilledIcon, InfoIcon } from "./Icons";
+import { colors, fonts, radius } from "../theme";
+import { BackIcon, BookIcon, ClockIcon, HeartFilledIcon, InfoIcon } from "./Icons";
 import { Logo } from "./Logo";
 import { Wordmark } from "./Wordmark";
 
+/**
+ * Site `.hero` in dark mode:
+ *   radial-gradient(ellipse at 50% 0%, rgba(29, 78, 216, 0.3), transparent 60%)
+ * Centred on the top edge. CSS sizes an ellipse to the farthest corner, so its
+ * radii are sqrt(2) times half the width and sqrt(2) times the full height;
+ * the colour stops end at 60% of that.
+ */
 export function Screen({ children }: { children: ReactNode }) {
   return (
     <View style={styles.screen}>
-      <LinearGradient
-        colors={[gradients.glow[0], gradients.glow[1]]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={styles.glow}
-        pointerEvents="none"
-      />
+      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
+        <Defs>
+          <RadialGradient id="hero" cx="0.5" cy="0" rx="0.7071" ry="1.4142" fx="0.5" fy="0">
+            <Stop offset="0" stopColor="#1d4ed8" stopOpacity={0.3} />
+            <Stop offset="0.6" stopColor="#1d4ed8" stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#hero)" />
+      </Svg>
       {children}
     </View>
   );
 }
 
+/**
+ * Site `.logo-badge`, sized for a phone. The site sets the title to
+ * clamp(2rem, 1.1rem + 3.5vw, 4rem), which is 32px at phone widths, and
+ * derives everything else from that size in em:
+ *   logo   1.3em square, pulled up 0.28em, top-aligned with the title
+ *   gap    8px between logo and title
+ */
+const TITLE_SIZE = 32;
+
 export function Header() {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-      <Logo size={38} />
-      <Wordmark fontSize={30} />
+    <View style={[styles.header, { paddingTop: insets.top + 14 + TITLE_SIZE * 0.28 }]}>
+      <View style={styles.lockup}>
+        <View style={{ marginTop: -TITLE_SIZE * 0.28 }}>
+          <Logo size={TITLE_SIZE * 1.3} />
+        </View>
+        <Wordmark fontSize={TITLE_SIZE} />
+      </View>
     </View>
   );
 }
@@ -48,13 +70,14 @@ export function SubHeader({ title, onBack }: { title: string; onBack: () => void
   );
 }
 
-export type Tab = "home" | "info" | "resources";
+export type Tab = "home" | "history" | "about" | "resources";
 
 export function TabBar({ active, onSelect }: { active: Tab; onSelect: (tab: Tab) => void }) {
   const insets = useSafeAreaInsets();
   const items: Array<{ key: Tab; label: string; icon: (color: string) => ReactNode }> = [
     { key: "home", label: "Home", icon: (c) => <HeartFilledIcon size={22} color={c} /> },
-    { key: "info", label: "Info", icon: (c) => <InfoIcon size={22} color={c} /> },
+    { key: "history", label: "History", icon: (c) => <ClockIcon size={22} color={c} /> },
+    { key: "about", label: "About", icon: (c) => <InfoIcon size={22} color={c} /> },
     { key: "resources", label: "Resources", icon: (c) => <BookIcon size={22} color={c} /> },
   ];
   return (
@@ -84,19 +107,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  glow: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 360,
-  },
   header: {
     alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 10,
     paddingBottom: 18,
+  },
+  lockup: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
   },
   subHeader: {
     flexDirection: "row",
