@@ -18,6 +18,7 @@ interface HomeScreenProps {
   inboxStatus: InboxStatus | null;
   message: string | null;
   onScan: () => void;
+  onGenerate: () => void;
   onNotify: (card: CardRecord) => void;
   onAcknowledge: (alert: AlertRecord) => void;
   onResetInstall: () => void;
@@ -32,6 +33,7 @@ export function HomeScreen({
   inboxStatus,
   message,
   onScan,
+  onGenerate,
   onNotify,
   onAcknowledge,
   onResetInstall,
@@ -91,6 +93,7 @@ export function HomeScreen({
           </View>
         )}
         <GhostButton label="Scan a card" onPress={onScan} icon={<ScanIcon size={18} color={colors.text} />} />
+        <GhostButton label="Generate my QR code" onPress={onGenerate} icon={<ScanIcon size={18} color={colors.teal} />} />
       </View>
 
       {seen.length > 0 ? (

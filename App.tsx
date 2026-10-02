@@ -9,6 +9,7 @@ import { Screen, TabBar, type Tab } from "./src/components/Chrome";
 import { stiLabel } from "./src/components/ExposureCard";
 import { pullInbox, type InboxStatus, type NotifyOutcome } from "./src/flows";
 import { HomeScreen } from "./src/screens/HomeScreen";
+import { GenerateScreen } from "./src/screens/GenerateScreen";
 import { NotifyScreen } from "./src/screens/NotifyScreen";
 import { ScanScreen } from "./src/screens/ScanScreen";
 import {
@@ -23,7 +24,7 @@ import {
 } from "./src/storage/secureStore";
 import { colors, fonts } from "./src/theme";
 
-type Route = { name: "home" } | { name: "scan" } | { name: "notify"; card: CardRecord };
+type Route = { name: "home" } | { name: "scan" } | { name: "generate" } | { name: "notify"; card: CardRecord };
 
 const INBOX_POLL_MS = 4000;
 const HEALTH_POLL_MS = 15000;
@@ -204,6 +205,10 @@ export default function App() {
   let body;
   if (route.name === "scan") {
     body = <ScanScreen device={device} onBack={() => setRoute({ name: "home" })} onSubscribed={onSubscribed} />;
+  } else if (route.name === "generate") {
+    body = (
+      <GenerateScreen device={device} onBack={() => setRoute({ name: "home" })} onGenerated={() => void reload()} />
+    );
   } else if (route.name === "notify") {
     body = (
       <NotifyScreen device={device} card={route.card} onBack={() => setRoute({ name: "home" })} onSent={onSent} />
@@ -219,6 +224,7 @@ export default function App() {
         inboxStatus={inboxStatus}
         message={message}
         onScan={() => setRoute({ name: "scan" })}
+        onGenerate={() => setRoute({ name: "generate" })}
         onNotify={(card) => setRoute({ name: "notify", card })}
         onAcknowledge={onAcknowledge}
         onResetInstall={onResetInstall}
