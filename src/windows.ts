@@ -29,7 +29,7 @@ export const NOTIFY_WINDOWS: readonly NotifyWindow[] = [
   {
     id: "sinceNotified",
     label: "Since I last notified",
-    hint: "Contacts saved after your previous notification, so nobody is told twice.",
+    hint: "Contacts saved after your previous notification.",
   },
   { id: "all", label: "All contacts", hint: "Every contact still on this phone (60 days)." },
 ];

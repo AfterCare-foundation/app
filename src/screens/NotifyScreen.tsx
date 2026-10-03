@@ -158,7 +158,7 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
 
         {error ? <Text style={styles.error}>{tidy(error)}</Text> : null}
 
-        <Text style={styles.privacy}>The STI type is encrypted on this phone. The server cannot read it.</Text>
+        <Text style={styles.privacy}>The STI type is encrypted on this phone.{"\n"}The server cannot read it.</Text>
       </ScrollView>
     </View>
   );
@@ -185,6 +185,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...type.slideTitle,
+    color: colors.text,
     marginTop: 4,
   },
   chips: {
