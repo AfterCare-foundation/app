@@ -1,20 +1,21 @@
-// Notify partners. Not tied to one card: pick the STI type and how far back
-// to go, confirm, send once. Contacts are never counted on screen.
+// Notify partners. Not tied to one card and nobody is picked by hand: the
+// infection and the last negative test decide who is reached (see windows.ts).
+// Contacts are never counted on screen.
 
-import { tidy } from "../text";
+import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { GradientButton } from "../components/Buttons";
 import { SubHeader } from "../components/Chrome";
 import { stiLabel, stiTitle } from "../components/ExposureCard";
-import { ArrowRightIcon } from "../components/Icons";
 import { Panel } from "../components/Panel";
 import { STI_TYPES, type StiType } from "../crypto/contract";
 import { describeError, notifyContacts, type NotifyOutcome } from "../flows";
 import type { CardRecord, DeviceIdentity } from "../storage/secureStore";
+import { tidy } from "../text";
 import { colors, fonts, gradients, radius, type } from "../theme";
-import { NOTIFY_WINDOWS, selectContacts, type WindowId } from "../windows";
+import { DAY_MS, MAX_AGE_DAYS, lookbackDays, notifyFrom, selectContacts } from "../windows";
 
 const OTHER_MAX_LENGTH = 40;
 
@@ -32,6 +33,14 @@ function choiceLabel(choice: Choice): string {
   return choice === "other" ? "Other" : stiTitle(choice);
 }
 
+const startOfDay = (d: Date): number => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+function formatDay(ms: number, withYear = false): string {
+  const d = new Date(ms);
+  const showYear = withYear || d.getFullYear() !== new Date().getFullYear();
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(showYear ? { year: "numeric" } : {}) });
+}
+
 interface NotifyScreenProps {
   device: DeviceIdentity;
   cards: CardRecord[];
@@ -42,22 +51,56 @@ interface NotifyScreenProps {
 export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProps) {
   const [choice, setChoice] = useState<Choice>("unspecified");
   const [otherText, setOtherText] = useState("");
-  const [windowId, setWindowId] = useState<WindowId>("2w");
-  const contacts = useMemo(() => selectContacts(cards, windowId), [cards, windowId]);
+  // Start of the day of the last negative test; null = not known.
+  const [lastNegative, setLastNegative] = useState<number | null>(null);
   // What actually gets encrypted.
   const typed = otherText.replace(/\s+/g, " ").trim();
   const missingName = choice === "other" && typed === "";
   const stiValue: string = choice === "unspecified" ? "other" : choice === "other" ? typed : choice;
-  const activeWindow = NOTIFY_WINDOWS.find((w) => w.id === windowId);
+  const contacts = useMemo(
+    () => selectContacts(cards, { sti: stiValue, lastNegative }),
+    [cards, stiValue, lastNegative],
+  );
+  const fromMs = notifyFrom({ sti: stiValue, lastNegative });
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const today = new Date();
+  const minDate = new Date(today.getTime() - MAX_AGE_DAYS * DAY_MS);
+
+  const onPickDate = (_event: unknown, date?: Date) => {
+    if (date) {
+      // Never in the future, never older than the server keeps contacts.
+      const day = Math.min(startOfDay(date), startOfDay(new Date()));
+      setLastNegative(Math.max(day, startOfDay(minDate)));
+    }
+  };
+  const chooseDate = () => {
+    const current = new Date(lastNegative ?? Date.now());
+    setLastNegative(startOfDay(current));
+    if (Platform.OS === "ios") {
+      setPickerOpen((open) => !open);
+    } else {
+      DateTimePickerAndroid.open({
+        value: current,
+        mode: "date",
+        maximumDate: today,
+        minimumDate: minDate,
+        onChange: onPickDate,
+      });
+    }
+  };
 
   const send = async () => {
     setBusy(true);
     setError(null);
     try {
       if (__DEV__) {
-        console.log(`[notify] window ${windowId}: ${contacts.length} contacts selected`);
+        console.log(
+          `[notify] ${stiValue}, from ${new Date(fromMs).toISOString()}, last negative ${lastNegative === null ? "unknown" : new Date(lastNegative).toISOString()}: ${contacts.length} contacts selected`,
+        );
       }
       const outcome = await notifyContacts(device, contacts, stiValue);
       onSent(outcome);
@@ -68,38 +111,38 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
     }
   };
 
+  const since = `Contacts since ${formatDay(fromMs)}`;
+
+  if (confirming) {
+    return (
+      <View style={styles.flex}>
+        <SubHeader title="Notify Partners" onBack={() => setConfirming(false)} />
+        <ScrollView contentContainerStyle={styles.content}>
+          <Text style={styles.sectionTitle}>Send this notification?</Text>
+          <Panel style={styles.cardBox}>
+            <Text style={styles.cardLabel}>{stiTitle(stiValue)}</Text>
+            <Text style={styles.cardMeta}>{since}</Text>
+          </Panel>
+          <Text style={styles.warning}>This cannot be undone.</Text>
+          <GradientButton
+            label="Send"
+            colors={gradients.primary}
+            busy={busy}
+            onPress={() => void send()}
+          />
+          <Pressable onPress={() => setConfirming(false)} accessibilityRole="button" style={styles.cancel}>
+            <Text style={styles.cancelText}>Go back</Text>
+          </Pressable>
+          {error ? <Text style={styles.error}>{tidy(error)}</Text> : null}
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.flex}>
       <SubHeader title="Notify Partners" onBack={onBack} />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.sectionTitle}>Who should be notified?</Text>
-        <View style={styles.chips}>
-          {NOTIFY_WINDOWS.map((w) => {
-            const selected = w.id === windowId;
-            return (
-              <Pressable
-                key={w.id}
-                onPress={() => setWindowId(w.id)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected }}
-                style={[styles.chip, selected && styles.chipSelected]}
-              >
-                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{w.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <Panel style={styles.cardBox}>
-          <Text style={styles.cardLabel}>
-            {contacts.length === 0
-              ? "No contacts in this window"
-              : "Contacts in this window will be notified"}
-          </Text>
-          <Text style={styles.cardMeta}>
-            {activeWindow?.hint}
-          </Text>
-        </Panel>
-
         <Text style={styles.sectionTitle}>What did you test positive for?</Text>
         <View style={styles.chips}>
           {CHOICES.map((type) => {
@@ -134,6 +177,55 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
         ) : null}
         {missingName ? <Text style={styles.warning}>Type the name to continue.</Text> : null}
 
+        <Text style={styles.sectionTitle}>When was your last negative test?</Text>
+        <View style={styles.chips}>
+          <Pressable
+            onPress={() => {
+              setLastNegative(null);
+              setPickerOpen(false);
+            }}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: lastNegative === null }}
+            style={[styles.chip, lastNegative === null && styles.chipSelected]}
+          >
+            <Text style={[styles.chipText, lastNegative === null && styles.chipTextSelected]}>I don't know</Text>
+          </Pressable>
+          <Pressable
+            onPress={chooseDate}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: lastNegative !== null }}
+            style={[styles.chip, lastNegative !== null && styles.chipSelected]}
+          >
+            <Text style={[styles.chipText, lastNegative !== null && styles.chipTextSelected]}>
+              {lastNegative === null ? "Pick a date" : formatDay(lastNegative, true)}
+            </Text>
+          </Pressable>
+        </View>
+        {pickerOpen && Platform.OS === "ios" ? (
+          <Panel style={styles.pickerPanel}>
+            <DateTimePicker
+              value={new Date(lastNegative ?? Date.now())}
+              mode="date"
+              display="inline"
+              maximumDate={today}
+              minimumDate={minDate}
+              onChange={(event, date) => {
+                onPickDate(event, date);
+                setPickerOpen(false);
+              }}
+              themeVariant="dark"
+              accentColor={colors.violetLight}
+            />
+          </Panel>
+        ) : null}
+
+        <Panel style={styles.cardBox}>
+          <Text style={styles.cardLabel}>{contacts.length === 0 ? "No contacts to notify" : `${since} will be notified`}</Text>
+          {lastNegative === null ? (
+            <Text style={styles.cardMeta}>{`Standard period: ${lookbackDays(stiValue)} days.`}</Text>
+          ) : null}
+        </Panel>
+
         <Panel tint="blue" style={styles.preview}>
           <Text style={styles.previewLabel}>They will see</Text>
           <Text style={styles.previewLock}>You have a new message. Open the app to read it.</Text>
@@ -142,15 +234,15 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
           </Text>
         </Panel>
 
-        <Text style={styles.warning}>This cannot be undone.</Text>
-
         <GradientButton
           label="Notify Partners"
           colors={gradients.primary}
           busy={busy}
           disabled={contacts.length === 0 || missingName}
-          onPress={() => void send()}
-          icon={<ArrowRightIcon size={15} />}
+          onPress={() => {
+            setError(null);
+            setConfirming(true);
+          }}
         />
         <Pressable onPress={onBack} accessibilityRole="button" style={styles.cancel}>
           <Text style={styles.cancelText}>Cancel</Text>
@@ -173,6 +265,7 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     gap: 14,
   },
+  pickerPanel: { padding: 8, alignItems: "center" },
   cardBox: {
     padding: 14,
     gap: 4,
@@ -191,6 +284,7 @@ const styles = StyleSheet.create({
   chips: {
     flexDirection: "row",
     flexWrap: "wrap",
+    alignItems: "center",
     gap: 8,
   },
   chip: {

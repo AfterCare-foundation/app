@@ -5,7 +5,7 @@ import { GhostButton, GradientButton } from "../components/Buttons";
 import { Panel } from "../components/Panel";
 import { Header } from "../components/Chrome";
 import { AnonymityNote, ExposureCard } from "../components/ExposureCard";
-import { ArrowRightIcon, BellIcon, CheckIcon, ScanIcon } from "../components/Icons";
+import { BellIcon, CheckIcon, ScanIcon } from "../components/Icons";
 import type { InboxStatus } from "../flows";
 import type { AlertRecord, CardRecord, DeviceIdentity } from "../storage/secureStore";
 import { colors, fonts, gradients, type } from "../theme";
@@ -100,7 +100,7 @@ export function HomeScreen({
           colors={sentToday ? gradients.sent : gradients.primary}
           disabled={sentToday}
           onPress={onNotify}
-          icon={sentToday ? <CheckIcon size={15} /> : <ArrowRightIcon size={15} />}
+          icon={sentToday ? <CheckIcon size={15} /> : undefined}
         />
       </Panel>
 
