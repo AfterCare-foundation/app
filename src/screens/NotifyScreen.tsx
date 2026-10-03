@@ -1,5 +1,5 @@
 // Notify partners. Not tied to one card: pick the STI type and how far back
-// to go, see how many contacts that covers, confirm, send once.
+// to go, confirm, send once. Contacts are never counted on screen.
 
 import { tidy } from "../text";
 import { useMemo, useState } from "react";
@@ -56,6 +56,9 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
     setBusy(true);
     setError(null);
     try {
+      if (__DEV__) {
+        console.log(`[notify] window ${windowId}: ${contacts.length} contacts selected`);
+      }
       const outcome = await notifyContacts(device, contacts, stiValue);
       onSent(outcome);
     } catch (e) {
@@ -90,10 +93,10 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
           <Text style={styles.cardLabel}>
             {contacts.length === 0
               ? "No contacts in this window"
-              : `${contacts.length} ${contacts.length === 1 ? "contact" : "contacts"} will be notified`}
+              : "Contacts in this window will be notified"}
           </Text>
           <Text style={styles.cardMeta}>
-            {tidy(`${activeWindow?.hint ?? ""} Each one gets one anonymous alert. You will not get one yourself.`)}
+            {activeWindow?.hint}
           </Text>
         </Panel>
 
@@ -133,7 +136,7 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
 
         <Panel tint="blue" style={styles.preview}>
           <Text style={styles.previewLabel}>They will see</Text>
-          <Text style={styles.previewLock}>Someone you connected with may have an STI.</Text>
+          <Text style={styles.previewLock}>You have a new message. Open the app to read it.</Text>
           <Text style={styles.previewIn}>
             Inside the app: "Someone you connected with has reported {stiLabel(stiValue) || "…"}. Get tested when you can."
           </Text>
@@ -142,7 +145,7 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
         <Text style={styles.warning}>This cannot be undone.</Text>
 
         <GradientButton
-          label={contacts.length > 0 ? `Notify ${contacts.length} ${contacts.length === 1 ? "contact" : "contacts"}` : "Notify Partners"}
+          label="Notify Partners"
           colors={gradients.primary}
           busy={busy}
           disabled={contacts.length === 0 || missingName}
@@ -155,11 +158,7 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
 
         {error ? <Text style={styles.error}>{tidy(error)}</Text> : null}
 
-        <Text style={styles.privacy}>
-          {tidy(
-            "The STI type is encrypted on this phone, separately for each contact, with a key only the two of you share. The server forwards it without being able to read it.",
-          )}
-        </Text>
+        <Text style={styles.privacy}>The STI type is encrypted on this phone. The server cannot read it.</Text>
       </ScrollView>
     </View>
   );

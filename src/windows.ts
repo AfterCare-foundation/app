@@ -31,7 +31,7 @@ export const NOTIFY_WINDOWS: readonly NotifyWindow[] = [
     label: "Since I last notified",
     hint: "Contacts saved after your previous notification, so nobody is told twice.",
   },
-  { id: "all", label: "Everyone", hint: "Every contact still on this phone (60 days)." },
+  { id: "all", label: "All contacts", hint: "Every contact still on this phone (60 days)." },
 ];
 
 const WINDOW_DAYS: Partial<Record<WindowId, number>> = {

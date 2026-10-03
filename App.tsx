@@ -161,10 +161,16 @@ export default function App() {
     async (outcome: NotifyOutcome) => {
       await reload();
       setRoute({ name: "home" });
+      if (__DEV__) {
+        // Development log only. Counts are never shown in the UI.
+        console.log(
+          `[notify] campaign ${outcome.campaignId}: contacts ${outcome.contacts}, pushed ${outcome.pushed}, scheduled ${outcome.scheduled}`,
+        );
+      }
       say(
         outcome.pushed === 0 && outcome.scheduled === 0
-          ? `Sent for ${outcome.contacts} ${outcome.contacts === 1 ? "contact" : "contacts"}, but nobody else has scanned them yet (pushed 0). Your campaign limit was not used.`
-          : `Notified ${outcome.pushed} of ${outcome.contacts} ${outcome.contacts === 1 ? "contact" : "contacts"}${outcome.scheduled > 0 ? `, ${outcome.scheduled} scheduled` : ""}. Thanks for taking care of your partners.`,
+          ? "Sent, but nobody else has scanned yet. Your campaign limit was not used."
+          : "Your partners have been notified. Thanks for taking care of them.",
         9000,
       );
     },
