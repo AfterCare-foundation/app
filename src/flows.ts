@@ -137,6 +137,9 @@ export async function pullInbox(device: DeviceIdentity): Promise<InboxPull> {
 
 export function describeError(error: unknown): string {
   if (error instanceof ApiError) {
+    if (error.status === 409 && error.detail === "code_in_use") {
+      return "This code is already in use.";
+    }
     if (error.status === 429) {
       return `Rate limited. ${error.detail}`;
     }
