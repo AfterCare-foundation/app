@@ -70,7 +70,10 @@ export interface DevInboxRequest {
 
 export interface InboxNotification {
   alert: string;
+  /** First ciphertext. */
   enc: string;
+  /** Further ciphertexts bundled into the same push (same device, several contacts or senders). */
+  more?: string[];
 }
 
 export interface DevInboxResponse {

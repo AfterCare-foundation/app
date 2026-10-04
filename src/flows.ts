@@ -113,24 +113,31 @@ export async function pullInbox(device: DeviceIdentity): Promise<InboxPull> {
   const cards = await listCards();
   const received: AlertRecord[] = [];
   for (const item of notifications) {
-    let match: { etHash: string; sti: string } | null = null;
-    for (const card of cards) {
-      try {
-        const payload = decryptAlert(cardToken(card), item.enc);
-        match = { etHash: card.etHash, sti: payload.sti };
-        break;
-      } catch {
-        // Not this card.
+    // One push can carry several ciphertexts (the server bundles them per
+    // device). Several contacts or senders reporting the same infection
+    // become one alert; different infections stay separate.
+    const found = new Map<string, { enc: string; etHash: string; sti: string }>();
+    for (const enc of [item.enc, ...(item.more ?? [])]) {
+      for (const card of cards) {
+        try {
+          const payload = decryptAlert(cardToken(card), enc);
+          if (!found.has(payload.sti)) {
+            found.set(payload.sti, { enc, etHash: card.etHash, sti: payload.sti });
+          }
+          break;
+        } catch {
+          // Not this card.
+        }
       }
     }
-    received.push(
-      await saveAlert({
-        alert: item.alert,
-        enc: item.enc,
-        etHash: match?.etHash ?? null,
-        sti: match?.sti ?? null,
-      }),
-    );
+    if (found.size === 0) {
+      // Nothing decrypts. Keep the message anyway, as before.
+      received.push(await saveAlert({ alert: item.alert, enc: item.enc, etHash: null, sti: null }));
+      continue;
+    }
+    for (const match of found.values()) {
+      received.push(await saveAlert({ alert: item.alert, ...match }));
+    }
   }
   return { status: "ok", received };
 }
