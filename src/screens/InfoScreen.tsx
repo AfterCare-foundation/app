@@ -94,15 +94,34 @@ const FAQ = [
   },
 ];
 
+const CONTACT = { title: "Contact us", desc: "contact@after-care.eu", url: "mailto:contact@after-care.eu" };
+
 const LINKS = [
   { title: "AfterCare website", desc: "after-care.eu", url: "https://www.after-care.eu/" },
-  { title: "Contact us", desc: "contact@after-care.eu", url: "mailto:contact@after-care.eu" },
   {
     title: "Bacterial STIs reach record highs in Europe",
     desc: "ECDC press release, 21 May 2026",
     url: "https://www.ecdc.europa.eu/en/news-events/bacterial-stis-reach-record-highs-europe-congenital-syphilis-cases-nearly-double",
   },
 ];
+
+function LinkRow({ link }: { link: { title: string; desc: string; url: string } }) {
+  return (
+    <Pressable
+      onPress={() => void Linking.openURL(link.url)}
+      accessibilityRole="link"
+      accessibilityLabel={`${link.title}. ${link.desc}`}
+    >
+      <Panel style={styles.linkRow}>
+        <View style={styles.stepBody}>
+          <Text style={styles.cardTitle}>{link.title}</Text>
+          <Text style={styles.cardDesc}>{link.desc}</Text>
+        </View>
+        <ArrowRightIcon size={16} color={colors.teal} />
+      </Panel>
+    </Pressable>
+  );
+}
 
 export function InfoScreen() {
   const [useCase, setUseCase] = useState<UseCase>("club");
@@ -179,22 +198,12 @@ export function InfoScreen() {
       <Text style={styles.title}>Learn more.</Text>
       <View style={styles.list}>
         {LINKS.map((link) => (
-          <Pressable
-            key={link.url}
-            onPress={() => void Linking.openURL(link.url)}
-            accessibilityRole="link"
-            accessibilityLabel={`${link.title}. ${link.desc}`}
-          >
-            <Panel style={styles.linkRow}>
-              <View style={styles.stepBody}>
-                <Text style={styles.cardTitle}>{link.title}</Text>
-                <Text style={styles.cardDesc}>{link.desc}</Text>
-              </View>
-              <ArrowRightIcon size={16} color={colors.teal} />
-            </Panel>
-          </Pressable>
+          <LinkRow key={link.url} link={link} />
         ))}
       </View>
+
+      <Text style={styles.title}>Contact.</Text>
+      <LinkRow link={CONTACT} />
 
       <Text style={styles.tagline}>Take care with AfterCare 💜</Text>
     </ScrollView>
