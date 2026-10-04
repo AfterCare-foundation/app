@@ -14,7 +14,6 @@ import { Panel } from "../components/Panel";
 import { STI_TYPES, type StiType } from "../crypto/contract";
 import { describeError, notifyContacts, type NotifyOutcome } from "../flows";
 import type { CardRecord, DeviceIdentity } from "../storage/secureStore";
-import { tidy } from "../text";
 import { colors, fonts, gradients, radius, type } from "../theme";
 import { DAY_MS, MAX_AGE_DAYS, lookbackDays, notifyFrom, selectContacts } from "../windows";
 
@@ -129,7 +128,7 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
           <Pressable onPress={() => setConfirming(false)} accessibilityRole="button" style={styles.cancel}>
             <Text style={styles.cancelText}>Go back</Text>
           </Pressable>
-          {error ? <Text style={styles.error}>{tidy(error)}</Text> : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
         </ScrollView>
       </View>
     );
@@ -244,7 +243,7 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
           <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
 
-        {error ? <Text style={styles.error}>{tidy(error)}</Text> : null}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <Text style={styles.privacy}>The STI type is encrypted on this phone.{"\n"}The server cannot read it.</Text>
       </ScrollView>

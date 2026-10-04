@@ -2,7 +2,6 @@
 // differs from the picture: it shows the decrypted STI type when a scanned
 // token opens the payload, otherwise only the server's generic alert.
 
-import { tidy } from "../text";
 import { StyleSheet, Text, View } from "react-native";
 
 import type { AlertRecord } from "../storage/secureStore";
@@ -58,7 +57,7 @@ export function ExposureCard({ alert, onAcknowledge }: ExposureCardProps) {
         <HeartIcon size={18} color="#fff" strokeWidth={2} />
       </View>
       <Text style={styles.headline}>You may have been{"\n"}exposed to an STI.</Text>
-      <Text style={styles.body}>{tidy(body)}</Text>
+      <Text style={styles.body}>{body}</Text>
       <GradientButton label="Learn what to do" onPress={onAcknowledge} style={styles.button} />
       <Text style={styles.time}>{formatTime(alert.receivedAt)}</Text>
     </Panel>

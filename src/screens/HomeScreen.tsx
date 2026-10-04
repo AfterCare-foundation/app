@@ -1,6 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { tidy } from "../text";
 import { ActionTile, GradientButton } from "../components/Buttons";
 import { Panel } from "../components/Panel";
 import { Header } from "../components/Chrome";
@@ -90,7 +89,7 @@ export function HomeScreen({
       {/* Used rarely, so it sits apart from the everyday actions. */}
       <Panel tint="blue" style={styles.notifyBlock}>
         <Text style={styles.notifyTitle}>Tested positive?</Text>
-        <Text style={styles.notifyDesc}>{tidy("Let the people you met know. They will not learn who you are.")}</Text>
+        <Text style={styles.notifyDesc}>Let the people you met know. They will not learn who you are.</Text>
         <GradientButton
           label={sentToday ? "Sent" : "Notify partners"}
           colors={sentToday ? gradients.sent : gradients.primary}

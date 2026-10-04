@@ -10,7 +10,6 @@ import { ArrowRightIcon } from "../components/Icons";
 import { Panel } from "../components/Panel";
 import type { InboxStatus } from "../flows";
 import type { AppIconChoice, DeviceIdentity } from "../storage/secureStore";
-import { tidy } from "../text";
 import { colors, fonts, radius, type } from "../theme";
 
 const PRIVACY_URL = "https://www.after-care.eu/privacy";
@@ -121,7 +120,7 @@ export function SettingsScreen({
         <Panel style={deleting ? styles.rowSoon : styles.row}>
           <View style={styles.rowBody}>
             <Text style={styles.dangerTitle}>{deleting ? "Deleting…" : "Delete my data"}</Text>
-            <Text style={styles.rowDesc}>{tidy("Removes everything from this phone and from the server.")}</Text>
+            <Text style={styles.rowDesc}>Removes everything from this phone and from the server.</Text>
           </View>
         </Panel>
       </Pressable>

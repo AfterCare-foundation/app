@@ -2,14 +2,13 @@
 // right away (so this phone is one half of the pair), and show it as a QR
 // code for the other person to scan. Same token, same /subscribe as a card.
 
-import { tidy } from "../text";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 
 import { GhostButton, GradientButton } from "../components/Buttons";
 import { SubHeader } from "../components/Chrome";
-import { connectUrl, shortHash } from "../crypto/contract";
+import { connectUrl } from "../crypto/contract";
 import { randomToken } from "../crypto/random";
 import { describeError, subscribeToCard } from "../flows";
 import type { CardRecord, DeviceIdentity } from "../storage/secureStore";
@@ -23,7 +22,6 @@ interface GenerateScreenProps {
 
 export function GenerateScreen({ device, onBack, onGenerated }: GenerateScreenProps) {
   const [url, setUrl] = useState<string | null>(null);
-  const [card, setCard] = useState<CardRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const started = useRef(false);
@@ -35,7 +33,6 @@ export function GenerateScreen({ device, onBack, onGenerated }: GenerateScreenPr
       const link = connectUrl(randomToken());
       const saved = await subscribeToCard(device, link);
       setUrl(link);
-      setCard(saved);
       onGenerated(saved);
     } catch (e) {
       setError(describeError(e));
@@ -67,14 +64,11 @@ export function GenerateScreen({ device, onBack, onGenerated }: GenerateScreenPr
           )}
         </View>
 
-        {card ? <Text style={styles.label}>Code {shortHash(card.etHash)}</Text> : null}
         <Text style={styles.hint}>
-          {tidy(
-            "Ask the other person to scan this in their AfterCare app. Once they do, either of you can notify the other. No card needed.",
-          )}
+          Ask the other person to scan this code, or share the link with them. Once they connect, either of you can notify the other.
         </Text>
 
-        {error ? <Text style={styles.error}>{tidy(error)}</Text> : null}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
 
         {url ? (
           <GhostButton label="Share link" onPress={() => void Share.share({ message: url })} />
@@ -105,13 +99,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
   },
   qrFallback: { color: "#0a0a10", fontFamily: fonts.regular },
-  label: {
-    color: colors.text,
-    fontFamily: fonts.semibold,
-    fontSize: 15,
-    textAlign: "center",
-    fontVariant: ["tabular-nums"],
-  },
   hint: {
     color: colors.textSoft,
     fontFamily: fonts.regular,

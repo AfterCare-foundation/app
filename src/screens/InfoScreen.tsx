@@ -1,6 +1,5 @@
 // Info tab: how the app works, what stays private, answers to common questions, and links.
 
-import { tidy } from "../text";
 import { useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -113,7 +112,7 @@ export function InfoScreen() {
       <Header />
 
       <Text style={styles.intro}>
-        {tidy("Add a code when you meet someone. If either of you tests positive later, one tap tells the other, anonymously.")}
+        Add a code when you meet someone. If either of you tests positive later, one tap tells the other, anonymously.
       </Text>
 
       <Text style={[styles.title, styles.firstTitle]}>How it works.</Text>
@@ -141,7 +140,7 @@ export function InfoScreen() {
             </View>
             <View style={styles.stepBody}>
               <Text style={styles.cardTitle}>{step.title}</Text>
-              <Text style={styles.cardDesc}>{tidy(step.desc)}</Text>
+              <Text style={styles.cardDesc}>{step.desc}</Text>
             </View>
           </Panel>
         ))}
@@ -152,7 +151,7 @@ export function InfoScreen() {
         {PRIVACY.map((item) => (
           <Panel key={item.title} style={styles.card}>
             <Text style={styles.cardTitle}>{item.title}</Text>
-            <Text style={styles.cardDesc}>{tidy(item.desc)}</Text>
+            <Text style={styles.cardDesc}>{item.desc}</Text>
           </Panel>
         ))}
       </View>
@@ -170,7 +169,7 @@ export function InfoScreen() {
             >
               <Panel style={styles.card}>
                 <Text style={styles.cardTitle}>{item.q}</Text>
-                {open ? <Text style={styles.cardDesc}>{tidy(item.a)}</Text> : null}
+                {open ? <Text style={styles.cardDesc}>{item.a}</Text> : null}
               </Panel>
             </Pressable>
           );

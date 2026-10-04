@@ -1,7 +1,6 @@
 // Scan the card QR, or paste the connect URL. The paste field exists so two
 // simulators can share one token; the iOS simulator has no real camera.
 
-import { tidy } from "../text";
 import {
   CameraView,
   useCameraPermissions,
@@ -206,13 +205,11 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
               ) : (
                 <View style={styles.permission}>
                   <Text style={styles.permissionText}>
-                    {tidy(
-                      permission === null
+                    {permission === null
                         ? "Checking camera access…"
                         : permission.canAskAgain
                           ? "Allow camera access to scan the QR on your card half."
-                          : "Camera access is off. Enable it in Settings, or use Enter.",
-                    )}
+                          : "Camera access is off. Enable it in Settings, or use Enter."}
                   </Text>
                   {permission?.canAskAgain !== false ? (
                     <GhostButton label="Allow camera" onPress={() => void requestPermission()} />
@@ -240,7 +237,7 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
               accessibilityLabel="Link or code"
             />
             <Text style={styles.hint}>
-              {tidy("Paste a connect link or card code. Sauna reader codes are coming soon.")}
+              Paste a connect link or card code. Sauna reader codes are coming soon.
             </Text>
             <GradientButton
               label="Connect"
@@ -251,17 +248,15 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
           </>
         )}
 
-        {error ? <Text style={styles.error}>{tidy(error)}</Text> : null}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
         {lastScan && !error ? (
           <Text style={styles.scanned}>
-            {tidy("Read a code. Registering…")}
+            Read a code. Registering…
           </Text>
         ) : null}
 
         <Text style={styles.privacy}>
-          {tidy(
-            "Only a hash of the card leaves this phone. The card itself is never sent.",
-          )}
+          Only a hash of the card leaves this phone. The card itself is never sent.
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>

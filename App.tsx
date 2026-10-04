@@ -1,5 +1,4 @@
 import { useFonts } from "expo-font";
-import { tidy } from "./src/text";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, AppState, StyleSheet, Text, View } from "react-native";
@@ -53,7 +52,7 @@ export default function App() {
   const messageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const say = useCallback((text: string, ms = 6000) => {
-    setMessage(tidy(text));
+    setMessage(text);
     if (messageTimer.current) {
       clearTimeout(messageTimer.current);
     }
