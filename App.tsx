@@ -1,7 +1,7 @@
 import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, AppState, StyleSheet, Text, View } from "react-native";
+import { Alert, AppState, Linking, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { apiBaseUrl, deleteDevice, health } from "./src/api/client";
@@ -33,6 +33,8 @@ type Route = { name: "home" } | { name: "scan" } | { name: "generate" } | { name
 
 const INBOX_POLL_MS = 4000;
 const HEALTH_POLL_MS = 15000;
+
+const TEST_FINDER_URL = "https://testfinder.info/";
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -180,6 +182,8 @@ export default function App() {
     async (alert: AlertRecord) => {
       await acknowledgeAlert(alert.id);
       await reload();
+      // European Test Finder (ECDC, run from the Capital Region of Denmark).
+      void Linking.openURL(TEST_FINDER_URL);
     },
     [reload],
   );
