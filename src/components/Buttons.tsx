@@ -109,7 +109,81 @@ export function GhostButton({ label, onPress, icon, style }: GhostButtonProps) {
   );
 }
 
+interface ActionTileProps {
+  title: string;
+  subtitle: string;
+  icon: ReactNode;
+  onPress: () => void;
+  /** The filled brand-gradient tile; the other one is outlined. */
+  highlighted?: boolean;
+}
+
+/** Square home action: icon on top, title and one line below. */
+export function ActionTile({ title, subtitle, icon, onPress, highlighted = false }: ActionTileProps) {
+  const content = (
+    <>
+      <View style={[styles.tileIcon, highlighted && styles.tileIconOnGradient]}>{icon}</View>
+      <View style={styles.tileText}>
+        <Text style={styles.tileTitle}>{title}</Text>
+        <Text style={[styles.tileSubtitle, highlighted && styles.tileSubtitleOnGradient]}>{subtitle}</Text>
+      </View>
+    </>
+  );
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${title}. ${subtitle}`}
+      style={({ pressed }) => [styles.tileWrap, highlighted && styles.glowNotify, pressed && styles.pressed]}
+    >
+      {highlighted ? (
+        <LinearGradient
+          colors={[gradients.primary[0], gradients.primary[1]]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.tile, styles.tileFilled]}
+        >
+          {content}
+        </LinearGradient>
+      ) : (
+        <View style={[styles.tile, styles.tileOutlined]}>{content}</View>
+      )}
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
+  tileWrap: { flex: 1, aspectRatio: 1, borderRadius: radius.panel },
+  tile: {
+    flex: 1,
+    borderRadius: radius.panel,
+    padding: 16,
+    justifyContent: "space-between",
+  },
+  tileFilled: { borderWidth: 1, borderColor: "rgba(255, 255, 255, 0.18)" },
+  tileOutlined: {
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
+  },
+  tileIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(45, 212, 191, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(45, 212, 191, 0.4)",
+  },
+  tileIconOnGradient: {
+    backgroundColor: "rgba(255, 255, 255, 0.18)",
+    borderColor: "rgba(255, 255, 255, 0.4)",
+  },
+  tileText: { gap: 2 },
+  tileTitle: { color: "#fff", fontFamily: fonts.semibold, fontSize: 20, letterSpacing: -0.4 },
+  tileSubtitle: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 12.5, lineHeight: 17 },
+  tileSubtitleOnGradient: { color: "rgba(255, 255, 255, 0.85)" },
   pressable: {
     borderRadius: radius.button,
     borderWidth: 1,

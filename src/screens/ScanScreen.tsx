@@ -13,6 +13,7 @@ import {
   Easing,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -31,6 +32,16 @@ interface ScanScreenProps {
   onBack: () => void;
   onSubscribed: (card: CardRecord, alreadyKnown: boolean) => void;
 }
+
+type AddMode = "scan" | "paste" | "code";
+
+// "code" (a short one-time code from a sauna reader) needs backend support
+// that does not exist yet, so it is listed but cannot be picked.
+const MODES: readonly { id: AddMode; label: string; soon?: boolean }[] = [
+  { id: "scan", label: "Scan" },
+  { id: "paste", label: "Paste" },
+  { id: "code", label: "Code", soon: true },
+];
 
 const CORNERS = ["tl", "tr", "bl", "br"] as const;
 
@@ -98,6 +109,7 @@ const cornerPos = StyleSheet.create({
 
 export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
   const [permission, requestPermission] = useCameraPermissions();
+  const [mode, setMode] = useState<AddMode>("scan");
   const [pasted, setPasted] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -149,68 +161,92 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
       style={styles.flex}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <SubHeader title="Scan a card" onBack={onBack} />
+      <SubHeader title="Add a code" onBack={onBack} />
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.label}>Scan the code</Text>
-        <View style={styles.viewfinder}>
-          {cameraGranted ? (
-            <CameraView
-              style={StyleSheet.absoluteFill}
-              facing="back"
-              barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-              onBarcodeScanned={busy ? undefined : onBarcode}
-            />
-          ) : (
-            <View style={styles.permission}>
-              <Text style={styles.permissionText}>
-                {tidy(
-                  permission === null
-                    ? "Checking camera access…"
-                    : permission.canAskAgain
-                      ? "Allow camera access to scan the QR on your card half."
-                      : "Camera access is off. Enable it in Settings, or paste the link below.",
-                )}
-              </Text>
-              {permission?.canAskAgain !== false ? (
-                <GhostButton
-                  label="Allow camera"
-                  onPress={() => void requestPermission()}
+        <View style={styles.toggle} accessibilityRole="tablist">
+          {MODES.map((m) => {
+            const active = m.id === mode;
+            return (
+              <Pressable
+                key={m.id}
+                disabled={m.soon}
+                onPress={() => {
+                  setMode(m.id);
+                  setError(null);
+                }}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active, disabled: m.soon === true }}
+                style={[styles.toggleBtn, active && styles.toggleBtnActive, m.soon && styles.toggleBtnSoon]}
+              >
+                <Text style={[styles.toggleText, active && styles.toggleTextActive]}>{m.label}</Text>
+                {m.soon ? <Text style={styles.soon}>Soon</Text> : null}
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {mode === "scan" ? (
+          <>
+            <Text style={styles.label}>Scan the code</Text>
+            <View style={styles.viewfinder}>
+              {cameraGranted ? (
+                <CameraView
+                  style={StyleSheet.absoluteFill}
+                  facing="back"
+                  barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+                  onBarcodeScanned={busy ? undefined : onBarcode}
                 />
-              ) : null}
+              ) : (
+                <View style={styles.permission}>
+                  <Text style={styles.permissionText}>
+                    {tidy(
+                      permission === null
+                        ? "Checking camera access…"
+                        : permission.canAskAgain
+                          ? "Allow camera access to scan the QR on your card half."
+                          : "Camera access is off. Enable it in Settings, or use Paste.",
+                    )}
+                  </Text>
+                  {permission?.canAskAgain !== false ? (
+                    <GhostButton label="Allow camera" onPress={() => void requestPermission()} />
+                  ) : null}
+                </View>
+              )}
+              <ScanFrame />
             </View>
-          )}
-          <ScanFrame />
-        </View>
-        <Text style={styles.hint}>Align the QR within the frame</Text>
-
-        <View style={styles.divider}>
-          <View style={styles.rule} />
-          <Text style={styles.dividerText}>or paste the link</Text>
-          <View style={styles.rule} />
-        </View>
-
-        <TextInput
-          value={pasted}
-          onChangeText={setPasted}
-          placeholder="https://after-care.eu/connect#et=…"
-          placeholderTextColor="rgba(156, 163, 175, 0.55)"
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="url"
-          returnKeyType="go"
-          onSubmitEditing={() => void submit(pasted)}
-          style={styles.input}
-          accessibilityLabel="Card link"
-        />
-        <GradientButton
-          label="Connect"
-          busy={busy}
-          disabled={!pasted.trim()}
-          onPress={() => void submit(pasted)}
-        />
+            <Text style={styles.hint}>Align the QR within the frame</Text>
+            <View style={[styles.severalRow, styles.toggleBtnSoon]} accessibilityState={{ disabled: true }}>
+              <Text style={styles.severalText}>Scan several in a row</Text>
+              <Text style={styles.soon}>Soon</Text>
+            </View>
+          </>
+        ) : (
+          <>
+            <Text style={styles.label}>Paste the link</Text>
+            <TextInput
+              value={pasted}
+              onChangeText={setPasted}
+              placeholder="https://after-care.eu/connect#et=…"
+              placeholderTextColor="rgba(156, 163, 175, 0.55)"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              returnKeyType="go"
+              onSubmitEditing={() => void submit(pasted)}
+              style={styles.input}
+              accessibilityLabel="Card link"
+            />
+            <GradientButton
+              label="Connect"
+              busy={busy}
+              disabled={!pasted.trim()}
+              onPress={() => void submit(pasted)}
+            />
+          </>
+        )}
 
         {error ? <Text style={styles.error}>{tidy(error)}</Text> : null}
         {lastScan && !error ? (
@@ -287,22 +323,36 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: "center",
   },
-  divider: {
+  toggle: {
+    flexDirection: "row",
+    alignSelf: "center",
+    gap: 6,
+    padding: 4,
+    backgroundColor: "rgba(244, 244, 246, 0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(244, 244, 246, 0.10)",
+    borderRadius: 999,
+  },
+  toggleBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginTop: 6,
+    gap: 6,
+    borderRadius: 999,
+    paddingVertical: 7,
+    paddingHorizontal: 18,
   },
-  rule: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
+  toggleBtnActive: { backgroundColor: "rgba(244, 244, 246, 0.18)" },
+  toggleBtnSoon: { opacity: 0.5 },
+  toggleText: { fontFamily: fonts.regular, fontSize: 14, color: "rgba(244, 244, 246, 0.55)" },
+  toggleTextActive: { color: colors.text },
+  soon: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 11 },
+  severalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
-  dividerText: {
-    color: colors.textMuted,
-    fontFamily: fonts.regular,
-    fontSize: 12.5,
-  },
+  severalText: { ...type.cardDesc },
   input: {
     backgroundColor: colors.surface,
     borderWidth: 1,

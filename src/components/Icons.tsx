@@ -1,6 +1,6 @@
 // Line icons drawn with the same paths the website uses.
 
-import Svg, { Circle, Line, Path } from "react-native-svg";
+import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 
 interface IconProps {
   size?: number;
@@ -115,6 +115,20 @@ export function ArrowOutIcon({ size = 16, color = "#fff", strokeWidth = 1.9 }: I
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
       <Path d="M7 17 17 7" />
       <Path d="M7 7h10v10" />
+    </Svg>
+  );
+}
+
+export function QrIcon({ size = 22, color = "#fff", strokeWidth = 1.75 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <Rect x={3} y={3} width={7} height={7} rx={1} />
+      <Rect x={14} y={3} width={7} height={7} rx={1} />
+      <Rect x={3} y={14} width={7} height={7} rx={1} />
+      <Path d="M14 14h3v3h-3z" />
+      <Path d="M21 14v3" />
+      <Path d="M14 21h3" />
+      <Path d="M21 21h-1" />
     </Svg>
   );
 }

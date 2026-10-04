@@ -1,11 +1,11 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { tidy } from "../text";
-import { GhostButton, GradientButton } from "../components/Buttons";
+import { ActionTile, GradientButton } from "../components/Buttons";
 import { Panel } from "../components/Panel";
 import { Header } from "../components/Chrome";
 import { AnonymityNote, ExposureCard } from "../components/ExposureCard";
-import { BellIcon, CheckIcon, ScanIcon } from "../components/Icons";
+import { BellIcon, CheckIcon, QrIcon, ScanIcon } from "../components/Icons";
 import type { InboxStatus } from "../flows";
 import type { AlertRecord, CardRecord, DeviceIdentity } from "../storage/secureStore";
 import { colors, fonts, gradients, type } from "../theme";
@@ -75,20 +75,27 @@ export function HomeScreen({
           <Text style={styles.quietTitle}>No new alerts</Text>
           <Text style={styles.quietBody}>
             {cards.length === 0
-              ? "Scan the card you took home to stay in the loop."
+              ? "Add the code from the card you took home to stay in the loop."
               : "You will see it here if someone you connected with reports an STI."}
           </Text>
         </Panel>
       )}
 
-      {/* Used most: reading a card, then making a code. */}
-      <View style={styles.section}>
-        <GradientButton
-          label="Scan a card"
+      {/* Used most: adding someone's code, then making one. */}
+      <View style={styles.tiles}>
+        <ActionTile
+          highlighted
+          title="Add"
+          subtitle="Scan or enter a code"
           onPress={onScan}
-          icon={<ScanIcon size={18} color="#fff" />}
+          icon={<ScanIcon size={20} color="#fff" />}
         />
-        <GhostButton label="Generate my QR code" onPress={onGenerate} icon={<ScanIcon size={18} color={colors.teal} />} />
+        <ActionTile
+          title="Create"
+          subtitle="Show a code to scan"
+          onPress={onGenerate}
+          icon={<QrIcon size={20} color={colors.teal} />}
+        />
       </View>
 
       {/* Used rarely, so it sits apart from the everyday actions. */}
@@ -167,8 +174,9 @@ const styles = StyleSheet.create({
     color: colors.textSoft,
     textAlign: "center",
   },
-  section: {
-    gap: 10,
+  tiles: {
+    flexDirection: "row",
+    gap: 12,
   },
   sectionHead: {
     flexDirection: "row",

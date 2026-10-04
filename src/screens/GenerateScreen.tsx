@@ -55,7 +55,7 @@ export function GenerateScreen({ device, onBack, onGenerated }: GenerateScreenPr
 
   return (
     <View style={styles.flex}>
-      <SubHeader title="Your QR code" onBack={onBack} />
+      <SubHeader title="Create a code" onBack={onBack} />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.qrBox}>
           {url ? (
