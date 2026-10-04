@@ -4,10 +4,9 @@ import { ActionTile, GradientButton } from "../components/Buttons";
 import { Panel } from "../components/Panel";
 import { Header } from "../components/Chrome";
 import { AnonymityNote, ExposureCard } from "../components/ExposureCard";
-import { BellIcon, CheckIcon, QrIcon, ScanIcon } from "../components/Icons";
+import { BellIcon, QrIcon, ScanIcon } from "../components/Icons";
 import type { AlertRecord, CardRecord } from "../storage/secureStore";
 import { colors, fonts, gradients, type } from "../theme";
-import { lastNotifiedAt } from "../windows";
 
 interface HomeScreenProps {
   cards: CardRecord[];
@@ -30,10 +29,6 @@ export function HomeScreen({
 }: HomeScreenProps) {
   const fresh = alerts.filter((a) => a.acknowledgedAt === null);
   const current = fresh[0] ?? null;
-  // The server allows one campaign a day, so once one went out today the
-  // button shows the site's green "Sent" state and stops taking taps.
-  const lastSent = lastNotifiedAt(cards);
-  const sentToday = lastSent !== null && new Date(lastSent).toDateString() === new Date().toDateString();
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -90,13 +85,7 @@ export function HomeScreen({
       <Panel tint="blue" style={styles.notifyBlock}>
         <Text style={styles.notifyTitle}>Tested positive?</Text>
         <Text style={styles.notifyDesc}>Let the people you met know. They will not learn who you are.</Text>
-        <GradientButton
-          label={sentToday ? "Sent" : "Notify partners"}
-          colors={sentToday ? gradients.sent : gradients.primary}
-          disabled={sentToday}
-          onPress={onNotify}
-          icon={sentToday ? <CheckIcon size={15} /> : undefined}
-        />
+        <GradientButton label="Notify partners" colors={gradients.primary} onPress={onNotify} />
       </Panel>
     </ScrollView>
   );
