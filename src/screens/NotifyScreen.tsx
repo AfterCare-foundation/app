@@ -172,7 +172,10 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
         ) : null}
         {missingName ? <Text style={styles.warning}>Type the name to continue.</Text> : null}
 
-        <Text style={styles.sectionTitle}>When was your last negative test?</Text>
+        <Text style={styles.sectionTitle}>
+          When were you last <Text style={styles.underline}>negative</Text>?
+        </Text>
+        <Text style={styles.sectionHint}>Your last negative test, or the day you finished treatment.</Text>
         <View style={styles.chips}>
           <Pressable
             onPress={() => {
@@ -183,7 +186,7 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
             accessibilityState={{ selected: lastNegative === null }}
             style={[styles.chip, lastNegative === null && styles.chipSelected]}
           >
-            <Text style={[styles.chipText, lastNegative === null && styles.chipTextSelected]}>I don't know</Text>
+            <Text style={[styles.chipText, lastNegative === null && styles.chipTextSelected]}>I'm not sure</Text>
           </Pressable>
           <Pressable
             onPress={chooseDate}
@@ -275,6 +278,13 @@ const styles = StyleSheet.create({
     ...type.slideTitle,
     color: colors.text,
     marginTop: 4,
+  },
+  underline: {
+    textDecorationLine: "underline",
+  },
+  sectionHint: {
+    ...type.cardDesc,
+    marginTop: -6,
   },
   chips: {
     flexDirection: "row",
