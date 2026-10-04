@@ -1,4 +1,4 @@
-// Info tab: copy taken from the website (Why AfterCare, Our vision, How it works, trust points).
+// Info tab: how the app works, what stays private, answers to common questions, and links.
 
 import { tidy } from "../text";
 import { useState } from "react";
@@ -8,15 +8,6 @@ import { Header } from "../components/Chrome";
 import { ArrowRightIcon } from "../components/Icons";
 import { Panel } from "../components/Panel";
 import { colors, fonts, type } from "../theme";
-
-const WHY = [
-  { title: "No contact needed", desc: "Notify partners even when you didn't exchange names or numbers." },
-  { title: "No messages to write", desc: "Send notifications effortlessly and without feeling awkward." },
-  { title: "Stay informed", desc: "Follow your STI exposure to take care of your health without delays." },
-  { title: "Healthier scene for everyone", desc: "The more people are in the loop, the safer it gets, for you too." },
-];
-
-const VISION = ["Better notification", "Earlier detection & treatment", "Less transmission", "Fewer STIs, safer scene"];
 
 type UseCase = "club" | "sauna" | "home";
 const USE_CASES: { id: UseCase; label: string }[] = [
@@ -74,16 +65,39 @@ const STEPS: Record<UseCase, Step[]> = {
   ],
 };
 
-const FUNNEL = [
-  { backgroundColor: "rgba(244, 244, 246, 0.04)", borderColor: "rgba(244, 244, 246, 0.18)" },
-  { backgroundColor: "rgba(100, 210, 200, 0.07)", borderColor: "rgba(100, 210, 200, 0.28)" },
-  { backgroundColor: "rgba(45, 212, 191, 0.10)", borderColor: "rgba(45, 212, 191, 0.42)" },
-  { backgroundColor: "rgba(45, 212, 191, 0.15)", borderColor: "rgba(45, 212, 191, 0.62)" },
+const PRIVACY = [
+  { title: "On your phone", desc: "Your codes, contacts and history stay on this phone." },
+  { title: "On our server", desc: "No name, email or phone number. What a notification says is encrypted, and the server cannot read it." },
+  { title: "Gone after 60 days", desc: "Old notifications are removed from the server automatically." },
+  { title: "Yours to erase", desc: "Delete everything at any time in Settings." },
 ];
-const FUNNEL_TEXT = ["rgba(244, 244, 246, 0.55)", "rgba(130, 220, 210, 0.75)", "rgba(45, 212, 191, 0.88)", "#2dd4bf"];
+
+const FAQ = [
+  {
+    q: "What happens when someone scans my code?",
+    a: "You are connected. Nothing is shared, and nothing is sent unless you choose to send it.",
+  },
+  {
+    q: "Will they know it is me?",
+    a: "No. A notification carries no name or contact details, and does not say who sent it.",
+  },
+  {
+    q: "What does a notification say?",
+    a: "That someone you were connected with tested positive, and for what if they chose to say. It is a prompt to get tested, not a diagnosis.",
+  },
+  {
+    q: "Why can I not see how many people I notified?",
+    a: "So it never becomes a score. You only see that it was sent.",
+  },
+  {
+    q: "What if I get a new phone?",
+    a: "Your codes and contacts live only on your phone, so a new phone or a reinstall starts fresh.",
+  },
+];
 
 const LINKS = [
   { title: "AfterCare website", desc: "after-care.eu", url: "https://www.after-care.eu/" },
+  { title: "Contact us", desc: "contact@after-care.eu", url: "mailto:contact@after-care.eu" },
   {
     title: "Bacterial STIs reach record highs in Europe",
     desc: "ECDC press release, 21 May 2026",
@@ -91,39 +105,18 @@ const LINKS = [
   },
 ];
 
-const TRUST = [
-  { title: "Privacy first", desc: "No traceable data" },
-  { title: "Anonymous", desc: "No names, emails, or identifying info" },
-  { title: "Free", desc: "Pick up a card pair at a venue" },
-  { title: "Open source", desc: "Anyone can read the code" },
-];
-
 export function InfoScreen() {
   const [useCase, setUseCase] = useState<UseCase>("club");
+  const [openFaq, setOpenFaq] = useState<string | null>(null);
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Header />
 
-      <Text style={styles.title}>Why AfterCare.</Text>
-      <View style={styles.list}>
-        {WHY.map((item) => (
-          <Panel key={item.title} style={styles.card}>
-            <Text style={styles.cardTitle}>{item.title}</Text>
-            <Text style={styles.cardDesc}>{item.desc}</Text>
-          </Panel>
-        ))}
-      </View>
+      <Text style={styles.intro}>
+        {tidy("Add a code when you meet someone. If either of you tests positive later, one tap tells the other, anonymously.")}
+      </Text>
 
-      <Text style={styles.title}>Our vision.</Text>
-      <View style={styles.funnel}>
-        {VISION.map((line, i) => (
-          <View key={line} style={[styles.funnelStep, FUNNEL[i]]}>
-            <Text style={[styles.funnelText, { color: FUNNEL_TEXT[i] }]}>{line}</Text>
-          </View>
-        ))}
-      </View>
-
-      <Text style={styles.title}>How it works.</Text>
+      <Text style={[styles.title, styles.firstTitle]}>How it works.</Text>
       <View style={styles.toggle} accessibilityRole="tablist">
         {USE_CASES.map((uc) => {
           const active = uc.id === useCase;
@@ -154,17 +147,35 @@ export function InfoScreen() {
         ))}
       </View>
 
-      <Text style={styles.tagline}>Take care with AfterCare 💜</Text>
-
-      <View style={styles.trust}>
-        {TRUST.map((item) => (
-          <Panel key={item.title} style={styles.trustItem}>
+      <Text style={styles.title}>What stays private.</Text>
+      <View style={styles.list}>
+        {PRIVACY.map((item) => (
+          <Panel key={item.title} style={styles.card}>
             <Text style={styles.cardTitle}>{item.title}</Text>
-            <Text style={styles.cardDesc}>{item.desc}</Text>
+            <Text style={styles.cardDesc}>{tidy(item.desc)}</Text>
           </Panel>
         ))}
       </View>
 
+      <Text style={styles.title}>Questions.</Text>
+      <View style={styles.list}>
+        {FAQ.map((item) => {
+          const open = openFaq === item.q;
+          return (
+            <Pressable
+              key={item.q}
+              onPress={() => setOpenFaq(open ? null : item.q)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: open }}
+            >
+              <Panel style={styles.card}>
+                <Text style={styles.cardTitle}>{item.q}</Text>
+                {open ? <Text style={styles.cardDesc}>{tidy(item.a)}</Text> : null}
+              </Panel>
+            </Pressable>
+          );
+        })}
+      </View>
 
       <Text style={styles.title}>Learn more.</Text>
       <View style={styles.list}>
@@ -185,6 +196,8 @@ export function InfoScreen() {
           </Pressable>
         ))}
       </View>
+
+      <Text style={styles.tagline}>Take care with AfterCare 💜</Text>
     </ScrollView>
   );
 }
@@ -192,13 +205,12 @@ export function InfoScreen() {
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 18, paddingBottom: 28, gap: 14 },
   title: { ...type.sectionTitle, marginTop: 32 },
+  firstTitle: { marginTop: 18 },
   list: { gap: 10 },
   card: { padding: 16, gap: 4 },
   cardTitle: { ...type.cardTitle },
   cardDesc: { ...type.cardDesc },
-  funnel: { gap: 5, width: "100%", maxWidth: 420, alignSelf: "center" },
-  funnelStep: { borderRadius: 10, borderWidth: 1, paddingVertical: 13, paddingHorizontal: 20, alignItems: "center" },
-  funnelText: { fontFamily: fonts.regular, fontSize: 15, textAlign: "center" },
+  intro: { ...type.cardDesc, fontSize: 16, lineHeight: 23 },
   toggle: {
     flexDirection: "row",
     alignSelf: "center",
@@ -227,7 +239,5 @@ const styles = StyleSheet.create({
   numText: { ...type.cardTitle, fontSize: 13, color: colors.teal },
   linkRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, paddingHorizontal: 16 },
   stepBody: { flex: 1, gap: 2 },
-  trust: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 4 },
-  trustItem: { width: "48%", flexGrow: 1, padding: 14, gap: 2 },
   tagline: { ...type.cardTitle, textAlign: "center", marginTop: 32 },
 });

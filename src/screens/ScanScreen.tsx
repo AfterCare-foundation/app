@@ -33,14 +33,11 @@ interface ScanScreenProps {
   onSubscribed: (card: CardRecord, alreadyKnown: boolean) => void;
 }
 
-type AddMode = "scan" | "paste" | "code";
+type AddMode = "scan" | "enter";
 
-// "code" (a short one-time code from a sauna reader) needs backend support
-// that does not exist yet, so it is listed but cannot be picked.
-const MODES: readonly { id: AddMode; label: string; soon?: boolean }[] = [
+const MODES: readonly { id: AddMode; label: string }[] = [
   { id: "scan", label: "Scan" },
-  { id: "paste", label: "Paste" },
-  { id: "code", label: "Code", soon: true },
+  { id: "enter", label: "Enter" },
 ];
 
 const CORNERS = ["tl", "tr", "bl", "br"] as const;
@@ -143,6 +140,15 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
     [device, onSubscribed],
   );
 
+  // Sauna reader codes are short numbers; anything else (link or card token) goes to the card parser.
+  const onEnter = useCallback(async () => {
+    if (/^[\d\s-]{1,12}$/.test(pasted.trim())) {
+      setError("Sauna codes are coming soon. For now, paste a connect link or card code.");
+      return;
+    }
+    await submit(pasted);
+  }, [pasted, submit]);
+
   const onBarcode = useCallback(
     (result: BarcodeScanningResult) => {
       if (lockRef.current || !result.data) {
@@ -172,17 +178,15 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
             return (
               <Pressable
                 key={m.id}
-                disabled={m.soon}
                 onPress={() => {
                   setMode(m.id);
                   setError(null);
                 }}
                 accessibilityRole="tab"
-                accessibilityState={{ selected: active, disabled: m.soon === true }}
-                style={[styles.toggleBtn, active && styles.toggleBtnActive, m.soon && styles.toggleBtnSoon]}
+                accessibilityState={{ selected: active }}
+                style={[styles.toggleBtn, active && styles.toggleBtnActive]}
               >
                 <Text style={[styles.toggleText, active && styles.toggleTextActive]}>{m.label}</Text>
-                {m.soon ? <Text style={styles.soon}>Soon</Text> : null}
               </Pressable>
             );
           })}
@@ -207,7 +211,7 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
                         ? "Checking camera access…"
                         : permission.canAskAgain
                           ? "Allow camera access to scan the QR on your card half."
-                          : "Camera access is off. Enable it in Settings, or use Paste.",
+                          : "Camera access is off. Enable it in Settings, or use Enter.",
                     )}
                   </Text>
                   {permission?.canAskAgain !== false ? (
@@ -218,32 +222,31 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
               <ScanFrame />
             </View>
             <Text style={styles.hint}>Align the QR within the frame</Text>
-            <View style={[styles.severalRow, styles.toggleBtnSoon]} accessibilityState={{ disabled: true }}>
-              <Text style={styles.severalText}>Scan several in a row</Text>
-              <Text style={styles.soon}>Soon</Text>
-            </View>
           </>
         ) : (
           <>
-            <Text style={styles.label}>Paste the link</Text>
+            <Text style={styles.label}>Enter a link or code</Text>
             <TextInput
               value={pasted}
               onChangeText={setPasted}
-              placeholder="https://after-care.eu/connect#et=…"
+              placeholder="Link or code"
               placeholderTextColor="rgba(156, 163, 175, 0.55)"
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"
               returnKeyType="go"
-              onSubmitEditing={() => void submit(pasted)}
+              onSubmitEditing={() => void onEnter()}
               style={styles.input}
-              accessibilityLabel="Card link"
+              accessibilityLabel="Link or code"
             />
+            <Text style={styles.hint}>
+              {tidy("Paste a connect link or card code. Sauna reader codes are coming soon.")}
+            </Text>
             <GradientButton
               label="Connect"
               busy={busy}
               disabled={!pasted.trim()}
-              onPress={() => void submit(pasted)}
+              onPress={() => void onEnter()}
             />
           </>
         )}
@@ -342,17 +345,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   toggleBtnActive: { backgroundColor: "rgba(244, 244, 246, 0.18)" },
-  toggleBtnSoon: { opacity: 0.5 },
   toggleText: { fontFamily: fonts.regular, fontSize: 14, color: "rgba(244, 244, 246, 0.55)" },
   toggleTextActive: { color: colors.text },
-  soon: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 11 },
-  severalRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  severalText: { ...type.cardDesc },
   input: {
     backgroundColor: colors.surface,
     borderWidth: 1,
