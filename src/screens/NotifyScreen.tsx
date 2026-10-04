@@ -8,6 +8,7 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } fr
 
 import { GradientButton } from "../components/Buttons";
 import { SubHeader } from "../components/Chrome";
+import { HoldToConfirm } from "../components/HoldToConfirm";
 import { stiLabel, stiTitle } from "../components/ExposureCard";
 import { Panel } from "../components/Panel";
 import { STI_TYPES, type StiType } from "../crypto/contract";
@@ -124,12 +125,7 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
             <Text style={styles.cardMeta}>{since}</Text>
           </Panel>
           <Text style={styles.warning}>This cannot be undone.</Text>
-          <GradientButton
-            label="Send"
-            colors={gradients.primary}
-            busy={busy}
-            onPress={() => void send()}
-          />
+          <HoldToConfirm label="Confirm" busy={busy} onConfirm={() => void send()} />
           <Pressable onPress={() => setConfirming(false)} accessibilityRole="button" style={styles.cancel}>
             <Text style={styles.cancelText}>Go back</Text>
           </Pressable>

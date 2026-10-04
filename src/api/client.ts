@@ -102,6 +102,9 @@ async function request<T>(method: "GET" | "POST" | "DELETE", path: string, body?
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch (error) {
+    if (__DEV__) {
+      console.warn(`[api] ${method} ${path} failed before a response:`, error);
+    }
     throw new ApiError(0, `Cannot reach ${url}. Is the server running?`);
   }
 
