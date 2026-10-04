@@ -9,14 +9,15 @@ import { Header } from "../components/Chrome";
 import { ArrowRightIcon } from "../components/Icons";
 import { Panel } from "../components/Panel";
 import type { InboxStatus } from "../flows";
+import { ICON_PREVIEWS } from "../iconPreviews";
 import type { AppIconChoice, DeviceIdentity } from "../storage/secureStore";
 import { colors, fonts, radius, type } from "../theme";
 
 const PRIVACY_URL = "https://www.after-care.eu/privacy";
 
-const ICONS: readonly { id: AppIconChoice; label: string; image: number }[] = [
-  { id: "playful", label: "Playful", image: require("../../assets/icon-preview-playful.png") },
-  { id: "discreet", label: "Discreet", image: require("../../assets/icon-preview-discreet.png") },
+const ICONS: readonly { id: AppIconChoice; label: string; image: { uri: string } }[] = [
+  { id: "playful", label: "Playful", image: ICON_PREVIEWS.playful },
+  { id: "discreet", label: "Discreet", image: ICON_PREVIEWS.discreet },
 ];
 
 interface SettingsScreenProps {
