@@ -235,4 +235,18 @@ export async function clearLocalData(): Promise<void> {
   await SecureStore.deleteItemAsync(KEY_ALERTS, OPTIONS);
   await SecureStore.deleteItemAsync(KEY_SENT, OPTIONS);
   await SecureStore.deleteItemAsync(KEY_DEVICE, OPTIONS);
+  await SecureStore.deleteItemAsync(KEY_ICON, OPTIONS);
+}
+
+export type AppIconChoice = "playful" | "discreet";
+const KEY_ICON = "settings.icon";
+
+/** The icon the user picked. The OS holds the real state; this is what Expo Go (no icon switching) remembers. */
+export async function loadIconChoice(): Promise<AppIconChoice> {
+  const raw = await SecureStore.getItemAsync(KEY_ICON, OPTIONS);
+  return raw === "discreet" ? "discreet" : "playful";
+}
+
+export async function saveIconChoice(choice: AppIconChoice): Promise<void> {
+  await SecureStore.setItemAsync(KEY_ICON, choice, OPTIONS);
 }

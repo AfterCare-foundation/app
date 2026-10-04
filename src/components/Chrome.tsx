@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import { colors, fonts, radius } from "../theme";
-import { BackIcon, BookIcon, ClockIcon, HeartFilledIcon, InfoIcon } from "./Icons";
+import { BackIcon, GearIcon, ClockIcon, HeartFilledIcon, InfoIcon } from "./Icons";
 import { Logo } from "./Logo";
 import { Wordmark } from "./Wordmark";
 
@@ -70,15 +70,15 @@ export function SubHeader({ title, onBack }: { title: string; onBack: () => void
   );
 }
 
-export type Tab = "home" | "history" | "about" | "resources";
+export type Tab = "home" | "history" | "info" | "settings";
 
 export function TabBar({ active, onSelect }: { active: Tab; onSelect: (tab: Tab) => void }) {
   const insets = useSafeAreaInsets();
   const items: Array<{ key: Tab; label: string; icon: (color: string) => ReactNode }> = [
     { key: "home", label: "Home", icon: (c) => <HeartFilledIcon size={22} color={c} /> },
     { key: "history", label: "History", icon: (c) => <ClockIcon size={22} color={c} /> },
-    { key: "about", label: "About", icon: (c) => <InfoIcon size={22} color={c} /> },
-    { key: "resources", label: "Resources", icon: (c) => <BookIcon size={22} color={c} /> },
+    { key: "info", label: "Info", icon: (c) => <InfoIcon size={22} color={c} /> },
+    { key: "settings", label: "Settings", icon: (c) => <GearIcon size={22} color={c} /> },
   ];
   return (
     <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>

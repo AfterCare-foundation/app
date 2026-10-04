@@ -38,6 +38,11 @@ export interface SubscribeRequest {
   device_credential: string;
 }
 
+export interface DeleteDeviceRequest {
+  push_id_hash: string;
+  device_credential: string;
+}
+
 export interface Delivery {
   et_hash: string;
   encrypted_payload: string;
@@ -135,6 +140,11 @@ export async function health(): Promise<boolean> {
 
 export function subscribe(body: SubscribeRequest): Promise<{ status: "ok" }> {
   return request("POST", "/subscribe", body);
+}
+
+/** Erases this device and everything the server holds for it (GDPR Art. 17). */
+export function deleteDevice(body: DeleteDeviceRequest): Promise<unknown> {
+  return request("DELETE", "/subscribe", body);
 }
 
 export function notify(body: NotifyRequest): Promise<NotifyResponse> {

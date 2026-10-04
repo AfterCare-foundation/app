@@ -54,7 +54,20 @@
       ],
       "expo-secure-store",
       "expo-font",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-alternate-app-icons",
+        [
+          {
+            "name": "Discreet",
+            "ios": "./assets/icon-discreet.png",
+            "android": {
+              "foregroundImage": "./assets/icon-discreet-foreground.png",
+              "backgroundColor": "#643cc5"
+            }
+          }
+        ]
+      ]
     ],
     "extra": {
       "apiBaseUrl": "http://127.0.0.1:8000",

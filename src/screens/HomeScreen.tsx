@@ -6,39 +6,28 @@ import { Panel } from "../components/Panel";
 import { Header } from "../components/Chrome";
 import { AnonymityNote, ExposureCard } from "../components/ExposureCard";
 import { BellIcon, CheckIcon, QrIcon, ScanIcon } from "../components/Icons";
-import type { InboxStatus } from "../flows";
-import type { AlertRecord, CardRecord, DeviceIdentity } from "../storage/secureStore";
+import type { AlertRecord, CardRecord } from "../storage/secureStore";
 import { colors, fonts, gradients, type } from "../theme";
 import { lastNotifiedAt } from "../windows";
 
 interface HomeScreenProps {
-  device: DeviceIdentity | null;
   cards: CardRecord[];
   alerts: AlertRecord[];
-  serverOk: boolean | null;
-  serverUrl: string;
-  inboxStatus: InboxStatus | null;
   message: string | null;
   onScan: () => void;
   onGenerate: () => void;
   onNotify: () => void;
   onAcknowledge: (alert: AlertRecord) => void;
-  onResetInstall: () => void;
 }
 
 export function HomeScreen({
-  device,
   cards,
   alerts,
-  serverOk,
-  serverUrl,
-  inboxStatus,
   message,
   onScan,
   onGenerate,
   onNotify,
   onAcknowledge,
-  onResetInstall,
 }: HomeScreenProps) {
   const fresh = alerts.filter((a) => a.acknowledgedAt === null);
   const current = fresh[0] ?? null;
@@ -110,15 +99,6 @@ export function HomeScreen({
           icon={sentToday ? <CheckIcon size={15} /> : undefined}
         />
       </Panel>
-
-      <Pressable onLongPress={onResetInstall} delayLongPress={1200} style={styles.footer} accessibilityLabel="Development status. Long press to reset this install.">
-        <Text style={styles.footerLine}>
-          Server {serverUrl} · {serverOk === null ? "checking" : serverOk ? "reachable" : "unreachable"}
-        </Text>
-        <Text style={styles.footerLine}>
-          Inbox {inboxStatus ?? "idle"} · device {device ? device.pushIdHash.slice(0, 8) : "…"} · {device?.platform ?? ""}
-        </Text>
-      </Pressable>
     </ScrollView>
   );
 }

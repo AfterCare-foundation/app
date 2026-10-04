@@ -5,13 +5,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, AppState, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { apiBaseUrl, health } from "./src/api/client";
+import { apiBaseUrl, deleteDevice, health } from "./src/api/client";
 import { Screen, TabBar, type Tab } from "./src/components/Chrome";
 import { stiLabel } from "./src/components/ExposureCard";
-import { pullInbox, type InboxStatus, type NotifyOutcome } from "./src/flows";
+import { describeError, pullInbox, type InboxStatus, type NotifyOutcome } from "./src/flows";
 import { HistoryScreen } from "./src/screens/HistoryScreen";
-import { AboutScreen } from "./src/screens/AboutScreen";
-import { ResourcesScreen } from "./src/screens/ResourcesScreen";
+import { InfoScreen } from "./src/screens/InfoScreen";
+import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { HomeScreen } from "./src/screens/HomeScreen";
 import { GenerateScreen } from "./src/screens/GenerateScreen";
 import { NotifyScreen } from "./src/screens/NotifyScreen";
@@ -185,6 +185,24 @@ export default function App() {
     [reload],
   );
 
+  const onDeleteData = useCallback(async () => {
+    if (!device) {
+      return;
+    }
+    try {
+      await deleteDevice({ push_id_hash: device.pushIdHash, device_credential: device.credentialHex });
+    } catch (e) {
+      Alert.alert("Could not delete your data", describeError(e));
+      return;
+    }
+    await clearLocalData();
+    const identity = await loadOrCreateDevice();
+    setDevice(identity);
+    await reload();
+    setTab("home");
+    say("Your data was deleted.");
+  }, [device, reload, say]);
+
   const onResetInstall = useCallback(() => {
     Alert.alert(
       "Reset this install?",
@@ -229,25 +247,29 @@ export default function App() {
     );
   } else if (tab === "history") {
     body = <HistoryScreen alerts={alerts} sent={sent} />;
-  } else if (tab === "about") {
-    body = <AboutScreen />;
-  } else if (tab === "resources") {
-    body = <ResourcesScreen />;
-  } else {
+  } else if (tab === "info") {
+    body = <InfoScreen />;
+  } else if (tab === "settings") {
     body = (
-      <HomeScreen
+      <SettingsScreen
         device={device}
-        cards={cards}
-        alerts={alerts}
         serverOk={serverOk}
         serverUrl={apiBaseUrl()}
         inboxStatus={inboxStatus}
+        onDeleteData={onDeleteData}
+        onResetInstall={onResetInstall}
+      />
+    );
+  } else {
+    body = (
+      <HomeScreen
+        cards={cards}
+        alerts={alerts}
         message={message}
         onScan={() => setRoute({ name: "scan" })}
         onGenerate={() => setRoute({ name: "generate" })}
         onNotify={() => setRoute({ name: "notify" })}
         onAcknowledge={onAcknowledge}
-        onResetInstall={onResetInstall}
       />
     );
   }

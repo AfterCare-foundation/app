@@ -1,10 +1,11 @@
-// About tab: copy taken from the website (Why AfterCare, Our vision, How it works, trust points).
+// Info tab: copy taken from the website (Why AfterCare, Our vision, How it works, trust points).
 
 import { tidy } from "../text";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Header } from "../components/Chrome";
+import { ArrowRightIcon } from "../components/Icons";
 import { Panel } from "../components/Panel";
 import { colors, fonts, type } from "../theme";
 
@@ -81,6 +82,15 @@ const FUNNEL = [
 ];
 const FUNNEL_TEXT = ["rgba(244, 244, 246, 0.55)", "rgba(130, 220, 210, 0.75)", "rgba(45, 212, 191, 0.88)", "#2dd4bf"];
 
+const LINKS = [
+  { title: "AfterCare website", desc: "after-care.eu", url: "https://www.after-care.eu/" },
+  {
+    title: "Bacterial STIs reach record highs in Europe",
+    desc: "ECDC press release, 21 May 2026",
+    url: "https://www.ecdc.europa.eu/en/news-events/bacterial-stis-reach-record-highs-europe-congenital-syphilis-cases-nearly-double",
+  },
+];
+
 const TRUST = [
   { title: "Privacy first", desc: "No traceable data" },
   { title: "Anonymous", desc: "No names, emails, or identifying info" },
@@ -88,7 +98,7 @@ const TRUST = [
   { title: "Open source", desc: "Anyone can read the code" },
 ];
 
-export function AboutScreen() {
+export function InfoScreen() {
   const [useCase, setUseCase] = useState<UseCase>("club");
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -155,6 +165,26 @@ export function AboutScreen() {
         ))}
       </View>
 
+
+      <Text style={styles.title}>Learn more.</Text>
+      <View style={styles.list}>
+        {LINKS.map((link) => (
+          <Pressable
+            key={link.url}
+            onPress={() => void Linking.openURL(link.url)}
+            accessibilityRole="link"
+            accessibilityLabel={`${link.title}. ${link.desc}`}
+          >
+            <Panel style={styles.linkRow}>
+              <View style={styles.stepBody}>
+                <Text style={styles.cardTitle}>{link.title}</Text>
+                <Text style={styles.cardDesc}>{link.desc}</Text>
+              </View>
+              <ArrowRightIcon size={16} color={colors.teal} />
+            </Panel>
+          </Pressable>
+        ))}
+      </View>
     </ScrollView>
   );
 }
@@ -195,6 +225,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   numText: { ...type.cardTitle, fontSize: 13, color: colors.teal },
+  linkRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, paddingHorizontal: 16 },
   stepBody: { flex: 1, gap: 2 },
   trust: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 4 },
   trustItem: { width: "48%", flexGrow: 1, padding: 14, gap: 2 },
