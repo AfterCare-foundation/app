@@ -149,7 +149,7 @@ export default function App() {
       setRoute({ name: "home" });
       say(
         alreadyKnown
-          ? `Card ${card.etHash.slice(0, 8)} was already on this phone. Subscription refreshed.`
+          ? "You already have this code."
           : "Card scanned. You can now safely discard it.",
       );
     },
