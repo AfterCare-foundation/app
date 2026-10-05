@@ -5,7 +5,9 @@
 //   - last negative test known: contacts saved on or after that day;
 //   - not known: the standard lookback period for that infection, counted
 //     back from today (a freshly received positive result is assumed).
-// Contacts already notified about the same infection are skipped.
+// Contacts already notified about the same infection are skipped. A generic
+// "Don't specify" notice carries less than a named one, so it is skipped for
+// anyone already told about any infection.
 //
 // A "contact" is one stored card token. The scan time stands in for the
 // encounter time (spec 3.3, `activated_at`): scans happen 0 to 24 hours after
@@ -53,8 +55,15 @@ export function lastNotifiedAt(cards: readonly CardRecord[]): number | null {
   return latest;
 }
 
-const same = (a: string | null, b: string): boolean =>
-  a !== null && a.trim().toLowerCase() === b.trim().toLowerCase();
+const norm = (value: string): string => value.trim().toLowerCase();
+
+/** True when this contact needs nothing more for this infection. */
+function alreadyTold(card: CardRecord, sti: string): boolean {
+  if (norm(sti) === "other") {
+    return card.notifiedStis.length > 0;
+  }
+  return card.notifiedStis.some((told) => norm(told) === norm(sti));
+}
 
 export interface NotifyCriteria {
   /** The value that goes on the wire (`other` for "Don't specify"). */
@@ -84,7 +93,7 @@ export function selectContacts(
   return cards
     .filter((card) => {
       const t = new Date(card.scannedAt).getTime();
-      return t >= from && t <= now && !same(card.notifiedSti, criteria.sti);
+      return t >= from && t <= now && !alreadyTold(card, criteria.sti);
     })
     .sort((a, b) => new Date(b.scannedAt).getTime() - new Date(a.scannedAt).getTime())
     .slice(0, MAX_CONTACTS_PER_CAMPAIGN);

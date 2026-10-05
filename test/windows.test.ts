@@ -7,13 +7,14 @@ import { DAY_MS, MAX_CONTACTS_PER_CAMPAIGN, lookbackDays, notifyFrom, selectCont
 const NOW = Date.UTC(2026, 9, 3, 12, 0, 0);
 const daysAgo = (d: number) => NOW - d * DAY_MS;
 
-function card(id: string, scannedDaysAgo: number, notifiedSti: string | null = null): CardRecord {
+function card(id: string, scannedDaysAgo: number, notifiedSti: string | string[] | null = null): CardRecord {
+  const told = notifiedSti === null ? [] : Array.isArray(notifiedSti) ? notifiedSti : [notifiedSti];
   return {
     etHash: id,
     tokenB64: "",
     scannedAt: new Date(daysAgo(scannedDaysAgo)).toISOString(),
-    notifiedAt: notifiedSti === null ? null : new Date(daysAgo(1)).toISOString(),
-    notifiedSti,
+    notifiedAt: told.length === 0 ? null : new Date(daysAgo(1)).toISOString(),
+    notifiedStis: told,
     lastPushed: null,
   };
 }
@@ -74,4 +75,19 @@ test("the per campaign cap keeps the newest contacts", () => {
   const picked = selectContacts(many, { sti: "hiv", lastNegative: daysAgo(60) }, NOW);
   assert.equal(picked.length, MAX_CONTACTS_PER_CAMPAIGN);
   assert.equal(picked[0]?.etHash, "x0");
+});
+
+test("told about gonorrhoea then chlamydia: gonorrhoea is still skipped", () => {
+  const list = [card("a", 1, ["gonorrhoea", "chlamydia"]), card("b", 2)];
+  assert.deepEqual(ids(selectContacts(list, { sti: "gonorrhoea", lastNegative: null }, NOW)), ["b"]);
+});
+
+test("a generic notice is skipped for anyone already told about something", () => {
+  const list = [card("a", 1, "gonorrhoea"), card("b", 2)];
+  assert.deepEqual(ids(selectContacts(list, { sti: "other", lastNegative: null }, NOW)), ["b"]);
+});
+
+test("a named notice still goes to someone only told generically", () => {
+  const list = [card("a", 1, "other")];
+  assert.deepEqual(ids(selectContacts(list, { sti: "gonorrhoea", lastNegative: null }, NOW)), ["a"]);
 });

@@ -61,8 +61,13 @@ export default function App() {
     messageTimer.current = setTimeout(() => setMessage(null), ms);
   }, []);
 
+  const reloadSeq = useRef(0);
   const reload = useCallback(async () => {
+    const seq = ++reloadSeq.current;
     const [nextCards, nextAlerts, nextSent] = await Promise.all([listCards(), listAlerts(), listSent()]);
+    if (seq !== reloadSeq.current) {
+      return; // a newer reload started meanwhile; its data is fresher
+    }
     setCards(nextCards);
     setAlerts(nextAlerts);
     setSent(nextSent);

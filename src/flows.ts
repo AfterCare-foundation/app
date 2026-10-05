@@ -74,7 +74,11 @@ export async function notifyContacts(
   if (delivered) {
     const notifiedAt = new Date().toISOString();
     for (const card of contacts) {
-      await updateCard(card.etHash, { notifiedAt, notifiedSti: sti, lastPushed: null });
+      await updateCard(card.etHash, {
+        notifiedAt,
+        notifiedStis: card.notifiedStis.includes(sti) ? card.notifiedStis : [...card.notifiedStis, sti],
+        lastPushed: null,
+      });
     }
     await saveSent(sti);
   }

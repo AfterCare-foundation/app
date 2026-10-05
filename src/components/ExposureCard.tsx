@@ -42,6 +42,12 @@ export function stiTitle(sti: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
+/** The alert sentence. Disease names start with a capital; the generic type reads "an STI". */
+export function reportedText(sti: string): string {
+  const name = sti === "other" ? "an STI" : stiTitle(sti) || "…";
+  return `Someone you connected with has reported ${name}. Get tested when you can.`;
+}
+
 interface ExposureCardProps {
   alert: AlertRecord;
   onAcknowledge: () => void;
@@ -49,7 +55,7 @@ interface ExposureCardProps {
 
 export function ExposureCard({ alert, onAcknowledge }: ExposureCardProps) {
   const body = alert.sti
-    ? `Someone you connected with has reported ${stiLabel(alert.sti)}. Get tested when you can.`
+    ? reportedText(alert.sti)
     : alert.alert;
   return (
     <Panel tint="blue" style={styles.card}>

@@ -49,7 +49,8 @@ export interface CardRecord {
   scannedAt: string;
   /** Set after a successful POST /notify for this card. */
   notifiedAt: string | null;
-  notifiedSti: string | null;
+  /** Every infection this contact was already told about. */
+  notifiedStis: string[];
   lastPushed: number | null;
 }
 
@@ -123,14 +124,24 @@ export async function loadOrCreateDevice(): Promise<DeviceIdentity> {
   return identity;
 }
 
+/** Older saves kept one `notifiedSti`; turn it into the list. */
+function normalizeCard(raw: (CardRecord & { notifiedSti?: string | null }) | null): CardRecord | null {
+  if (!raw) {
+    return null;
+  }
+  const { notifiedSti, ...card } = raw;
+  const list = Array.isArray(card.notifiedStis) ? card.notifiedStis : [];
+  return { ...card, notifiedStis: notifiedSti && !list.includes(notifiedSti) ? [...list, notifiedSti] : list };
+}
+
 export async function listCards(): Promise<CardRecord[]> {
   const ids = await readIndex(KEY_CARDS);
-  const cards = await Promise.all(ids.map((id) => readJson<CardRecord>(`card.${id}`)));
+  const cards = await Promise.all(ids.map((id) => getCard(id)));
   return cards.filter((c): c is CardRecord => c !== null).reverse();
 }
 
 export async function getCard(hash: string): Promise<CardRecord | null> {
-  return readJson<CardRecord>(`card.${hash}`);
+  return normalizeCard(await readJson<CardRecord>(`card.${hash}`));
 }
 
 export function cardToken(card: CardRecord): Uint8Array {
@@ -149,7 +160,7 @@ export async function saveCard(token: Uint8Array): Promise<CardRecord> {
     tokenB64: bytesToBase64(token),
     scannedAt: new Date().toISOString(),
     notifiedAt: null,
-    notifiedSti: null,
+    notifiedStis: [],
     lastPushed: null,
   };
   await writeJson(`card.${hash}`, record);
