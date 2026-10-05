@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ActionTile, GradientButton } from "../components/Buttons";
 import { Panel } from "../components/Panel";
 import { Header } from "../components/Chrome";
-import { AnonymityNote, ExposureCard } from "../components/ExposureCard";
+import { ExposureCard } from "../components/ExposureCard";
 import { BellIcon, QrIcon, ScanIcon } from "../components/Icons";
 import type { AlertRecord, CardRecord } from "../storage/secureStore";
 import { colors, fonts, gradients, type } from "../theme";
@@ -43,7 +43,6 @@ export function HomeScreen({
       {current ? (
         <>
           <ExposureCard alert={current} onAcknowledge={() => onAcknowledge(current)} />
-          <AnonymityNote />
           {fresh.length > 1 ? (
             <Text style={styles.moreAlerts}>
               {fresh.length - 1} more {fresh.length - 1 === 1 ? "alert" : "alerts"} waiting
