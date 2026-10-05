@@ -1,7 +1,7 @@
 // Info tab: how the app works, what stays private, answers to common questions, and links.
 
 import { useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Header } from "../components/Chrome";
 import { ArrowRightIcon } from "../components/Icons";
@@ -105,10 +105,19 @@ const LINKS = [
   },
 ];
 
+// A device without a mail app (or a simulator) rejects mailto: links; show the address instead.
+async function openLink(link: { title: string; desc: string; url: string }): Promise<void> {
+  try {
+    await Linking.openURL(link.url);
+  } catch {
+    Alert.alert(link.title, link.url.startsWith("mailto:") ? `No mail app found. Write to ${link.desc}.` : "Could not open this link.");
+  }
+}
+
 function LinkRow({ link }: { link: { title: string; desc: string; url: string } }) {
   return (
     <Pressable
-      onPress={() => void Linking.openURL(link.url)}
+      onPress={() => void openLink(link)}
       accessibilityRole="link"
       accessibilityLabel={`${link.title}. ${link.desc}`}
     >
