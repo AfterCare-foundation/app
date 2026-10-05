@@ -175,29 +175,23 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
         <Text style={styles.sectionTitle}>
           When were you last <Text style={styles.underline}>negative</Text>?
         </Text>
-        <Text style={styles.sectionHint}>Your last negative test, or the day you finished treatment.</Text>
+        <Text style={styles.sectionHint}>Your last negative test, or the day you finished treatment. An approximate date is fine.</Text>
         <View style={styles.chips}>
-          <Pressable
+          <Chip
+            label="I'm not sure"
+            selected={lastNegative === null}
             onPress={() => {
               setLastNegative(null);
               setPickerOpen(false);
             }}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: lastNegative === null }}
-            style={[styles.chip, lastNegative === null && styles.chipSelected]}
-          >
-            <Text style={[styles.chipText, lastNegative === null && styles.chipTextSelected]}>I'm not sure</Text>
-          </Pressable>
-          <Pressable
-            onPress={chooseDate}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: lastNegative !== null }}
-            style={[styles.chip, lastNegative !== null && styles.chipSelected]}
-          >
-            <Text style={[styles.chipText, lastNegative !== null && styles.chipTextSelected]}>
-              {lastNegative === null ? "Pick a date" : formatDay(lastNegative, true)}
-            </Text>
-          </Pressable>
+          />
+          <Chip
+            label={lastNegative === null ? "Pick a date" : formatDay(lastNegative, true)}
+            selected={lastNegative !== null}
+            onPress={() => {
+              chooseDate();
+            }}
+          />
         </View>
         {pickerOpen && Platform.OS === "ios" ? (
           <Panel style={styles.pickerPanel}>
