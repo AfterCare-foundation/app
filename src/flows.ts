@@ -37,6 +37,8 @@ export interface NotifyOutcome {
   pushed: number;
   /** Contacts the server held back for later delivery. */
   scheduled: number;
+  /** Pushes the server is retrying for up to a day. */
+  retrying: number;
   /** Contacts this send covered. */
   contacts: number;
   campaignId: string;
@@ -65,14 +67,21 @@ export async function notifyContacts(
       encrypted_payload: encryptAlert(cardToken(card), sti, randomNonce()),
     })),
   });
-  const notifiedAt = new Date().toISOString();
-  for (const card of contacts) {
-    await updateCard(card.etHash, { notifiedAt, notifiedSti: sti, lastPushed: null });
+  const retrying = result.retrying ?? 0;
+  // Nobody else is on those codes yet: the server gave the slot back, so do
+  // not mark anyone as notified and let a later tap reach them.
+  const delivered = result.pushed + result.scheduled + retrying > 0;
+  if (delivered) {
+    const notifiedAt = new Date().toISOString();
+    for (const card of contacts) {
+      await updateCard(card.etHash, { notifiedAt, notifiedSti: sti, lastPushed: null });
+    }
+    await saveSent(sti);
   }
-  await saveSent(sti);
   return {
     pushed: result.pushed,
     scheduled: result.scheduled,
+    retrying,
     contacts: contacts.length,
     campaignId,
   };
@@ -147,8 +156,11 @@ export function describeError(error: unknown): string {
     if (error.status === 409 && error.detail === "code_in_use") {
       return "This code is already in use.";
     }
+    if (error.status === 409 && error.detail === "campaign_already_used") {
+      return "This notification was already sent.";
+    }
     if (error.status === 429) {
-      return `Rate limited. ${error.detail}`;
+      return error.detail;
     }
     if (error.status === 403) {
       return `Refused. ${error.detail}`;

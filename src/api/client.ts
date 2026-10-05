@@ -60,6 +60,8 @@ export interface NotifyResponse {
   status: "ok";
   pushed: number;
   scheduled: number;
+  /** Pushes that failed once; the server keeps retrying them for up to a day. */
+  retrying?: number;
   contacts: number;
 }
 
@@ -155,6 +157,25 @@ export function notify(body: NotifyRequest): Promise<NotifyResponse> {
 }
 
 /** Development only. Returns 404 unless the server runs in stub mode. */
-export function devInbox(body: DevInboxRequest): Promise<DevInboxResponse> {
-  return request("POST", "/dev/inbox", body);
+export async function devInbox(body: DevInboxRequest): Promise<DevInboxResponse> {
+  const response = await request<DevInboxResponse>("POST", "/dev/inbox", body);
+  // On Android a real push carries `more` as a JSON string; accept both.
+  return {
+    notifications: response.notifications.map((item) => ({
+      ...item,
+      more: normalizeMore(item.more),
+    })),
+  };
+}
+
+function normalizeMore(more: unknown): string[] | undefined {
+  if (typeof more === "string") {
+    try {
+      const parsed: unknown = JSON.parse(more);
+      return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  return Array.isArray(more) ? more.filter((x): x is string => typeof x === "string") : undefined;
 }

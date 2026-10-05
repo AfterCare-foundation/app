@@ -165,11 +165,11 @@ export default function App() {
       if (__DEV__) {
         // Development log only. Counts are never shown in the UI.
         console.log(
-          `[notify] campaign ${outcome.campaignId}: contacts ${outcome.contacts}, pushed ${outcome.pushed}, scheduled ${outcome.scheduled}`,
+          `[notify] campaign ${outcome.campaignId}: contacts ${outcome.contacts}, pushed ${outcome.pushed}, scheduled ${outcome.scheduled}, retrying ${outcome.retrying}`,
         );
       }
       say(
-        outcome.pushed === 0 && outcome.scheduled === 0
+        outcome.pushed === 0 && outcome.scheduled === 0 && outcome.retrying === 0
           ? "Sent, but nobody else has scanned yet. Your campaign limit was not used."
           : "Your partners have been notified. Thanks for taking care of them.",
         9000,
