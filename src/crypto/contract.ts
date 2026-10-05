@@ -25,18 +25,6 @@ export const CONNECT_URL_PREFIX = "https://after-care.eu/connect#et=";
 
 const ENC_KEY_LABEL = utf8Encode("aftercare-enc-v1");
 
-/** `sti` strings suggested by the contract. The server does not validate. */
-export const STI_TYPES = [
-  "gonorrhoea",
-  "chlamydia",
-  "syphilis",
-  "hiv",
-  "mpox",
-  "hpv",
-  "other",
-] as const;
-export type StiType = (typeof STI_TYPES)[number];
-
 export type Platform = "ios" | "android";
 
 export interface AlertPayload {

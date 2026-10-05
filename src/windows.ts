@@ -34,7 +34,7 @@ export const LOOKBACK_DAYS: Readonly<Record<string, number>> = {
   hpv: 14,
 };
 
-/** Used for "Don't specify" and free-text "Other": the most common infections' period. */
+/** Used for "Don't specify" and infections without their own value: the most common infections' period. */
 export function lookbackDays(sti: string): number {
   const days = Object.prototype.hasOwnProperty.call(LOOKBACK_DAYS, sti) ? LOOKBACK_DAYS[sti] : undefined;
   return days ?? Math.max(LOOKBACK_DAYS.gonorrhoea ?? 14, LOOKBACK_DAYS.chlamydia ?? 14);

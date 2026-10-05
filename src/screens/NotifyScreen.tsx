@@ -10,28 +10,19 @@ import { GradientButton } from "../components/Buttons";
 import { SubHeader } from "../components/Chrome";
 import { HoldToConfirm } from "../components/HoldToConfirm";
 import { reportedText, stiTitle } from "../components/ExposureCard";
+import { STI_OPTIONS, UNSPECIFIED_STI, chipText } from "../sti";
 import { Panel } from "../components/Panel";
-import { STI_TYPES, type StiType } from "../crypto/contract";
 import { describeError, notifyContacts, type NotifyOutcome } from "../flows";
 import type { CardRecord, DeviceIdentity } from "../storage/secureStore";
 import { colors, fonts, gradients, radius, type } from "../theme";
 import { DAY_MS, MAX_AGE_DAYS, lookbackDays, notifyFrom, selectContacts } from "../windows";
 
-const OTHER_MAX_LENGTH = 40;
+// "unspecified" or the id of an option from sti.ts. "Don't specify" goes on the
+// wire as the generic `other`, which the recipient reads as "an STI".
+type Choice = "unspecified" | string;
 
-type Choice = "unspecified" | Exclude<StiType, "other"> | "other";
-
-// "Don't specify" goes on the wire as the contract's generic `other`, which
-// the recipient reads as "an STI". The "Other" choice sends the typed name.
-const NAMED_TYPES = STI_TYPES.filter((t): t is Exclude<StiType, "other"> => t !== "other");
-const CHOICES: readonly Choice[] = ["unspecified", ...NAMED_TYPES, "other"];
-
-function choiceLabel(choice: Choice): string {
-  if (choice === "unspecified") {
-    return "Don't specify";
-  }
-  return choice === "other" ? "Other" : stiTitle(choice);
-}
+const COMMON = STI_OPTIONS.filter((option) => option.common);
+const MORE = STI_OPTIONS.filter((option) => !option.common);
 
 const startOfDay = (d: Date): number => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
@@ -48,20 +39,33 @@ interface NotifyScreenProps {
   onSent: (outcome: NotifyOutcome) => void;
 }
 
+function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      style={[styles.chip, selected && styles.chipSelected]}
+    >
+      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProps) {
   const [choice, setChoice] = useState<Choice>("unspecified");
-  const [otherText, setOtherText] = useState("");
+  const [moreOpen, setMoreOpen] = useState(false);
   // Start of the day of the last negative test; null = not known.
   const [lastNegative, setLastNegative] = useState<number | null>(null);
   // What actually gets encrypted.
-  const typed = otherText.replace(/\s+/g, " ").trim();
-  const missingName = choice === "other" && typed === "";
-  const stiValue: string = choice === "unspecified" ? "other" : choice === "other" ? typed : choice;
+  const stiValue: string = choice === "unspecified" ? UNSPECIFIED_STI : choice;
   const contacts = useMemo(
     () => selectContacts(cards, { sti: stiValue, lastNegative }),
     [cards, stiValue, lastNegative],
   );
   const fromMs = notifyFrom({ sti: stiValue, lastNegative });
+  // An infection from "More…" moves up next to the common ones once picked.
+  const pickedExtra = MORE.find((option) => option.id === choice) ?? null;
   const [pickerOpen, setPickerOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -140,37 +144,33 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.sectionTitle}>What did you test positive for?</Text>
         <View style={styles.chips}>
-          {CHOICES.map((type) => {
-            const selected = type === choice;
-            return (
-              <Pressable
-                key={type}
-                onPress={() => setChoice(type)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected }}
-                style={[styles.chip, selected && styles.chipSelected]}
-              >
-                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{choiceLabel(type)}</Text>
-              </Pressable>
-            );
-          })}
+          <Chip label="Don't specify" selected={choice === "unspecified"} onPress={() => setChoice("unspecified")} />
+          {COMMON.map((option) => (
+            <Chip
+              key={option.id}
+              label={chipText(option)}
+              selected={choice === option.id}
+              onPress={() => setChoice(option.id)}
+            />
+          ))}
+          {pickedExtra ? <Chip label={chipText(pickedExtra)} selected onPress={() => undefined} /> : null}
+          <Chip label={moreOpen ? "Less" : "More…"} selected={false} onPress={() => setMoreOpen(!moreOpen)} />
         </View>
-
-        {choice === "other" ? (
-          <TextInput
-            value={otherText}
-            onChangeText={(t) => setOtherText(t.slice(0, OTHER_MAX_LENGTH))}
-            placeholder="Which infection?"
-            placeholderTextColor="rgba(156, 163, 175, 0.55)"
-            maxLength={OTHER_MAX_LENGTH}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="done"
-            accessibilityLabel="Name of the infection"
-            style={styles.otherInput}
-          />
+        {moreOpen ? (
+          <View style={styles.chips}>
+            {MORE.filter((option) => option.id !== choice).map((option) => (
+              <Chip
+                key={option.id}
+                label={chipText(option)}
+                selected={choice === option.id}
+                onPress={() => {
+                  setChoice(option.id);
+                  setMoreOpen(false);
+                }}
+              />
+            ))}
+          </View>
         ) : null}
-        {missingName ? <Text style={styles.warning}>Type the name to continue.</Text> : null}
 
         <Text style={styles.sectionTitle}>
           When were you last <Text style={styles.underline}>negative</Text>?
@@ -236,7 +236,7 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
           label="Notify Partners"
           colors={gradients.primary}
           busy={busy}
-          disabled={contacts.length === 0 || missingName}
+          disabled={contacts.length === 0}
           onPress={() => {
             setError(null);
             setConfirming(true);
@@ -312,17 +312,6 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     color: colors.text,
     fontFamily: fonts.semibold,
-  },
-  otherInput: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: radius.card - 8,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    color: colors.text,
-    fontFamily: fonts.regular,
-    fontSize: 14,
   },
   preview: {
     padding: 14,

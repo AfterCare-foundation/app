@@ -6,7 +6,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { apiBaseUrl, deleteDevice, health } from "./src/api/client";
 import { Screen, TabBar, type Tab } from "./src/components/Chrome";
-import { stiLabel } from "./src/components/ExposureCard";
+import { stiTitle } from "./src/components/ExposureCard";
 import { describeError, pullInbox, type InboxStatus, type NotifyOutcome } from "./src/flows";
 import { HistoryScreen } from "./src/screens/HistoryScreen";
 import { InfoScreen } from "./src/screens/InfoScreen";
@@ -128,7 +128,7 @@ export default function App() {
           const first = result.received[0];
           say(
             first?.sti
-              ? `New alert: ${stiLabel(first.sti)}.`
+              ? `New alert: ${stiTitle(first.sti)}.`
               : "New alert. No card on this phone could open the details.",
           );
         }

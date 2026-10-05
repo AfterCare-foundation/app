@@ -6,45 +6,19 @@ import { StyleSheet, Text, View } from "react-native";
 
 import type { AlertRecord } from "../storage/secureStore";
 import { colors, fonts, radius, type } from "../theme";
+import { findSti } from "../sti";
 import { GradientButton } from "./Buttons";
 import { HeartIcon } from "./Icons";
 import { Panel } from "./Panel";
 
-const STI_LABELS: Record<string, string> = {
-  gonorrhoea: "gonorrhoea",
-  chlamydia: "chlamydia",
-  syphilis: "syphilis",
-  hiv: "HIV",
-  mpox: "mpox",
-  hpv: "HPV",
-  other: "an STI",
-};
-
-export function stiLabel(sti: string): string {
-  // `sti` can be free text typed by the sender, so only trust own keys.
-  if (Object.prototype.hasOwnProperty.call(STI_LABELS, sti)) {
-    return STI_LABELS[sti] ?? sti;
-  }
-  // Another phone sent this text, so keep it short whatever it says.
-  return sti.length > 60 ? `${sti.slice(0, 60)}…` : sti;
-}
-
-/**
- * Same name for lists and chips, starting with a capital: "Gonorrhoea",
- * "HIV", "Mpox". The generic type reads "Unspecified STI"; typed names keep
- * their own spelling apart from the first letter.
- */
+/** Name for lists and chips: "Gonorrhoea", "HIV". Unknown or generic reads "Unspecified STI". */
 export function stiTitle(sti: string): string {
-  if (sti === "other") {
-    return "Unspecified STI";
-  }
-  const label = stiLabel(sti);
-  return label.charAt(0).toUpperCase() + label.slice(1);
+  return findSti(sti)?.label ?? "Unspecified STI";
 }
 
 /** The alert sentence. Disease names start with a capital; the generic type reads "an STI". */
 export function reportedText(sti: string): string {
-  const name = sti === "other" ? "an STI" : stiTitle(sti) || "…";
+  const name = findSti(sti)?.label ?? "an STI";
   return `Someone you connected with has reported ${name}. Get tested when you can.`;
 }
 
