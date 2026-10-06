@@ -209,30 +209,32 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
             <Text style={styles.label}>Scan the code</Text>
 
             <View style={styles.viewfinder}>
-              {cameraGranted ? (
-                <CameraView
-                  style={StyleSheet.absoluteFill}
-                  facing="back"
-                  barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-                  onBarcodeScanned={busy ? undefined : onBarcode}
-                />
-              ) : (
-                <View style={styles.permission}>
-                  <Text style={styles.permissionText}>
-                    {permission === null
-                      ? "Checking camera access…"
-                      : permission.canAskAgain
-                        ? "Allow camera access to scan the QR on your card half."
-                        : "Camera access is off. Enable it in Settings, or use Enter."}
-                  </Text>
-                  {permission?.canAskAgain !== false ? (
-                    <GhostButton
-                      label="Allow camera"
-                      onPress={() => void requestPermission()}
-                    />
-                  ) : null}
-                </View>
-              )}
+              <View style={styles.camera}>
+                {cameraGranted ? (
+                  <CameraView
+                    style={StyleSheet.absoluteFill}
+                    facing="back"
+                    barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+                    onBarcodeScanned={busy ? undefined : onBarcode}
+                  />
+                ) : (
+                  <View style={styles.permission}>
+                    <Text style={styles.permissionText}>
+                      {permission === null
+                        ? "Checking camera access…"
+                        : permission.canAskAgain
+                          ? "Allow camera access to scan the QR on your card half."
+                          : "Camera access is off. Enable it in Settings, or use Enter."}
+                    </Text>
+                    {permission?.canAskAgain !== false ? (
+                      <GhostButton
+                        label="Allow camera"
+                        onPress={() => void requestPermission()}
+                      />
+                    ) : null}
+                  </View>
+                )}
+              </View>
               <ScanFrame />
             </View>
           </>
@@ -291,18 +293,21 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     gap: 14,
   },
+  // The brackets sit on the outer edge; the camera is clipped to the box inside them.
   viewfinder: {
     aspectRatio: 1,
-    borderRadius: radius.card,
+    padding: 14,
+  },
+  camera: {
+    flex: 1,
+    borderRadius: 12,
     overflow: "hidden",
     backgroundColor: "#000",
-    borderWidth: 1,
-    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
   label: { ...type.slideTitle, color: colors.text, textAlign: "center" },
-  frame: { position: "absolute", top: 16, left: 16, right: 16, bottom: 16 },
+  frame: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   corner: {
     position: "absolute",
     backgroundColor: colors.teal,
