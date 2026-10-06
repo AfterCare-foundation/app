@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { ActionTile, GradientButton } from "../components/Buttons";
+import { ActionTile, GhostButton, GradientButton } from "../components/Buttons";
 import { Panel } from "../components/Panel";
 import { Header } from "../components/Chrome";
 import { ExposureCard } from "../components/ExposureCard";
@@ -29,6 +29,8 @@ export function HomeScreen({
 }: HomeScreenProps) {
   const fresh = alerts.filter((a) => a.acknowledgedAt === null);
   const current = fresh[0] ?? null;
+  // With an alert on screen its button is the one thing to press, so the other actions step back.
+  const calm = current !== null;
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -66,11 +68,11 @@ export function HomeScreen({
       {/* Used most: adding someone's code, then making one. */}
       <View style={styles.tiles}>
         <ActionTile
-          highlighted
+          highlighted={!calm}
           title="Add"
           subtitle="Scan or enter a code"
           onPress={onScan}
-          icon={<ScanIcon size={20} color="#fff" />}
+          icon={<ScanIcon size={20} color={calm ? colors.teal : "#fff"} />}
         />
         <ActionTile
           title="Create"
@@ -84,7 +86,11 @@ export function HomeScreen({
       <Panel tint="blue" style={styles.notifyBlock}>
         <Text style={styles.notifyTitle}>Tested positive?</Text>
         <Text style={styles.notifyDesc}>Let the people you met know. They will not learn who you are.</Text>
-        <GradientButton label="Notify partners" colors={gradients.primary} onPress={onNotify} />
+        {calm ? (
+          <GhostButton label="Notify partners" onPress={onNotify} />
+        ) : (
+          <GradientButton label="Notify partners" colors={gradients.primary} onPress={onNotify} />
+        )}
       </Panel>
     </ScrollView>
   );
