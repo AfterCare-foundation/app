@@ -48,7 +48,7 @@ export function Header() {
   return (
     <View style={[styles.header, { paddingTop: insets.top + 14 + TITLE_SIZE * 0.28 }]}>
       <View style={styles.lockup}>
-        <View style={{ marginTop: -TITLE_SIZE * 0.28 - 4 }}>
+        <View style={{ marginTop: -TITLE_SIZE * 0.28 }}>
           <Logo size={TITLE_SIZE * 1.3} />
         </View>
         <Wordmark fontSize={TITLE_SIZE} />
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   lockup: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 3,
+    gap: 8,
   },
   subHeader: {
     flexDirection: "row",
