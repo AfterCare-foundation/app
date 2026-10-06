@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   lockup: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 8,
+    gap: 3,
   },
   subHeader: {
     flexDirection: "row",
