@@ -22,6 +22,7 @@ import {
 
 import { GhostButton, GradientButton } from "../components/Buttons";
 import { SubHeader } from "../components/Chrome";
+import { Panel } from "../components/Panel";
 import { describeError, subscribeToCard } from "../flows";
 import type { CardRecord, DeviceIdentity } from "../storage/secureStore";
 import { colors, fonts, radius, type } from "../theme";
@@ -44,6 +45,8 @@ const CORNERS = ["tl", "tr", "bl", "br"] as const;
 // Teal corner brackets with a beam sweeping the frame, as in the website's scan step.
 function ScanFrame() {
   const sweep = useRef(new Animated.Value(0)).current;
+  // The frame fills the camera view, so the beam travels whatever height that turns out to be.
+  const [height, setHeight] = useState(250);
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
@@ -66,7 +69,11 @@ function ScanFrame() {
   }, [sweep]);
 
   return (
-    <View pointerEvents="none" style={styles.frame}>
+    <View
+      pointerEvents="none"
+      style={styles.frame}
+      onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
+    >
       {CORNERS.map((c) => (
         <Fragment key={c}>
           <View style={[styles.corner, styles.cornerH, cornerPos[c]]} />
@@ -85,7 +92,7 @@ function ScanFrame() {
               {
                 translateY: sweep.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [8, 190],
+                  outputRange: [8, Math.max(8, height - 10)],
                 }),
               },
             ],
@@ -142,7 +149,9 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
   // Sauna reader codes are short numbers; anything else (link or card token) goes to the card parser.
   const onEnter = useCallback(async () => {
     if (/^[\d\s-]{1,12}$/.test(pasted.trim())) {
-      setError("Sauna codes are coming soon. For now, paste a connect link or card code.");
+      setError(
+        "Sauna codes are coming soon. For now, paste a connect link or card code.",
+      );
       return;
     }
     await submit(pasted);
@@ -185,7 +194,11 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
                 accessibilityState={{ selected: active }}
                 style={[styles.toggleBtn, active && styles.toggleBtnActive]}
               >
-                <Text style={[styles.toggleText, active && styles.toggleTextActive]}>{m.label}</Text>
+                <Text
+                  style={[styles.toggleText, active && styles.toggleTextActive]}
+                >
+                  {m.label}
+                </Text>
               </Pressable>
             );
           })}
@@ -194,6 +207,7 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
         {mode === "scan" ? (
           <>
             <Text style={styles.label}>Scan the code</Text>
+
             <View style={styles.viewfinder}>
               {cameraGranted ? (
                 <CameraView
@@ -206,19 +220,21 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
                 <View style={styles.permission}>
                   <Text style={styles.permissionText}>
                     {permission === null
-                        ? "Checking camera access…"
-                        : permission.canAskAgain
-                          ? "Allow camera access to scan the QR on your card half."
-                          : "Camera access is off. Enable it in Settings, or use Enter."}
+                      ? "Checking camera access…"
+                      : permission.canAskAgain
+                        ? "Allow camera access to scan the QR on your card half."
+                        : "Camera access is off. Enable it in Settings, or use Enter."}
                   </Text>
                   {permission?.canAskAgain !== false ? (
-                    <GhostButton label="Allow camera" onPress={() => void requestPermission()} />
+                    <GhostButton
+                      label="Allow camera"
+                      onPress={() => void requestPermission()}
+                    />
                   ) : null}
                 </View>
               )}
               <ScanFrame />
             </View>
-            <Text style={styles.hint}>Align the QR within the frame</Text>
           </>
         ) : (
           <>
@@ -237,7 +253,8 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
               accessibilityLabel="Link or code"
             />
             <Text style={styles.hint}>
-              Paste a connect link or card code. Sauna reader codes are coming soon.
+              Paste a connect link or card code. Sauna reader codes are coming
+              soon.
             </Text>
             <GradientButton
               label="Connect"
@@ -250,14 +267,16 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {lastScan && !error ? (
-          <Text style={styles.scanned}>
-            Read a code. Registering…
-          </Text>
+          <Text style={styles.scanned}>Read a code. Registering…</Text>
         ) : null}
 
-        <Text style={styles.privacy}>
-          Only a hash of the card leaves this phone. The card itself is never sent.
-        </Text>
+        <Panel style={styles.privacy}>
+          <Text style={styles.privacyTitle}>Private by design</Text>
+          <Text style={styles.privacyText}>
+            Only a hash of the card leaves this phone. The card itself is never
+            sent.
+          </Text>
+        </Panel>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -283,7 +302,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   label: { ...type.slideTitle, color: colors.text, textAlign: "center" },
-  frame: { position: "absolute", width: 200, height: 200 },
+  frame: { position: "absolute", top: 16, left: 16, right: 16, bottom: 16 },
   corner: {
     position: "absolute",
     backgroundColor: colors.teal,
@@ -340,7 +359,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   toggleBtnActive: { backgroundColor: "rgba(244, 244, 246, 0.18)" },
-  toggleText: { fontFamily: fonts.regular, fontSize: 14, color: "rgba(244, 244, 246, 0.55)" },
+  toggleText: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    color: "rgba(244, 244, 246, 0.55)",
+  },
   toggleTextActive: { color: colors.text },
   input: {
     backgroundColor: colors.surface,
@@ -366,12 +389,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: "center",
   },
-  privacy: {
-    color: colors.textMuted,
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: "center",
-    marginTop: 6,
-  },
+  privacy: { padding: 16, gap: 4, marginTop: 6 },
+  privacyTitle: { ...type.cardTitle },
+  privacyText: { ...type.cardDesc },
 });
