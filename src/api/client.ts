@@ -102,6 +102,9 @@ function detailFromBody(body: unknown, fallback: string): string {
   return fallback;
 }
 
+// Polling retries every few seconds, so log only when the connection drops and when it returns.
+let unreachable = false;
+
 async function request<T>(method: "GET" | "POST" | "DELETE", path: string, body?: unknown): Promise<T> {
   const url = `${apiBaseUrl()}${path}`;
   let response: Response;
@@ -112,10 +115,18 @@ async function request<T>(method: "GET" | "POST" | "DELETE", path: string, body?
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch (error) {
-    if (__DEV__) {
-      console.warn(`[api] ${method} ${path} failed before a response:`, error);
+    if (__DEV__ && !unreachable) {
+      console.warn(`[api] ${method} ${path} failed before a response (further failures are not logged):`, error);
     }
+    unreachable = true;
     throw new ApiError(0, `Cannot reach ${url}. Is the server running?`);
+  }
+
+  if (unreachable) {
+    unreachable = false;
+    if (__DEV__) {
+      console.log(`[api] server reachable again (${method} ${path})`);
+    }
   }
 
   const text = await response.text();
