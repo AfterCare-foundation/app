@@ -295,6 +295,8 @@ const styles = StyleSheet.create({
   },
   // The brackets sit on the outer edge; the camera is clipped to the box inside them.
   viewfinder: {
+    alignSelf: "center",
+    width: "85%",
     aspectRatio: 1,
     padding: 14,
   },
