@@ -193,6 +193,14 @@ export default function App() {
     [reload],
   );
 
+  const onDismissAlert = useCallback(
+    async (alert: AlertRecord) => {
+      await acknowledgeAlert(alert.id);
+      await reload();
+    },
+    [reload],
+  );
+
   const onDeleteData = useCallback(async () => {
     if (!device) {
       return;
@@ -254,7 +262,11 @@ export default function App() {
       <NotifyScreen device={device} cards={cards} onBack={() => setRoute({ name: "home" })} onSent={onSent} />
     );
   } else if (tab === "history") {
-    body = <HistoryScreen alerts={alerts} sent={sent} />;
+    body = <HistoryScreen
+        alerts={alerts}
+        sent={sent}
+        onFindTest={() => void Linking.openURL(TEST_FINDER_URL)}
+      />;
   } else if (tab === "info") {
     body = <InfoScreen />;
   } else if (tab === "settings") {
@@ -278,6 +290,7 @@ export default function App() {
         onGenerate={() => setRoute({ name: "generate" })}
         onNotify={() => setRoute({ name: "notify" })}
         onAcknowledge={onAcknowledge}
+        onDismiss={onDismissAlert}
       />
     );
   }

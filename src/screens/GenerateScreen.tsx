@@ -8,11 +8,12 @@ import QRCode from "react-native-qrcode-svg";
 
 import { GhostButton, GradientButton } from "../components/Buttons";
 import { SubHeader } from "../components/Chrome";
+import { Panel } from "../components/Panel";
 import { connectUrl } from "../crypto/contract";
 import { randomToken } from "../crypto/random";
 import { describeError, subscribeToCard } from "../flows";
 import type { CardRecord, DeviceIdentity } from "../storage/secureStore";
-import { colors, fonts, radius } from "../theme";
+import { colors, fonts, radius, type } from "../theme";
 
 interface GenerateScreenProps {
   device: DeviceIdentity;
@@ -56,7 +57,7 @@ export function GenerateScreen({ device, onBack, onGenerated }: GenerateScreenPr
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.qrBox}>
           {url ? (
-            <QRCode value={url} size={220} backgroundColor="#ffffff" color="#0a0a10" />
+            <QRCode value={url} size={220} backgroundColor="#ffffff" color="#1b1040" />
           ) : busy ? (
             <ActivityIndicator color={colors.violet} />
           ) : (
@@ -71,16 +72,24 @@ export function GenerateScreen({ device, onBack, onGenerated }: GenerateScreenPr
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         {url ? (
-          <GhostButton label="Share link" onPress={() => void Share.share({ message: url })} />
+          <>
+            <GradientButton label="Done" onPress={onBack} />
+            <GhostButton label="Share link" onPress={() => void Share.share({ message: url })} />
+          </>
         ) : (
-          <GradientButton label="Try again" busy={busy} onPress={() => void generate()} />
+          <>
+            <GradientButton label="Try again" busy={busy} onPress={() => void generate()} />
+            <GhostButton label="Done" onPress={onBack} />
+          </>
         )}
-        <GhostButton label="Done" onPress={onBack} />
 
-        <Text style={styles.privacy}>
-          This code only means "these two phones met". It holds no name, number or location, and the server only
-          sees a hash of it.
-        </Text>
+        <Panel style={styles.privacy}>
+          <Text style={styles.privacyTitle}>Private by design</Text>
+          <Text style={styles.privacyText}>
+            This code only means "these two phones met". It holds no name, number or location, and the server only
+            sees a hash of it.
+          </Text>
+        </Panel>
       </ScrollView>
     </View>
   );
@@ -97,6 +106,11 @@ const styles = StyleSheet.create({
     height: 260,
     backgroundColor: "#ffffff",
     borderRadius: radius.card,
+    // Brand glow around the card; the code itself stays dark on white so it scans.
+    shadowColor: "#7d47e0",
+    shadowOpacity: 0.55,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 0 },
   },
   qrFallback: { color: "#0a0a10", fontFamily: fonts.regular },
   hint: {
@@ -113,12 +127,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: "center",
   },
-  privacy: {
-    color: colors.textMuted,
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: "center",
-    marginTop: 6,
-  },
+  privacy: { padding: 16, gap: 4, marginTop: 6 },
+  privacyTitle: { ...type.cardTitle },
+  privacyText: { ...type.cardDesc },
 });

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Header } from "../components/Chrome";
+import { TestFinderBlock } from "../components/ExposureCard";
 import { ArrowRightIcon } from "../components/Icons";
 import { Panel } from "../components/Panel";
 import { colors, fonts, type } from "../theme";
@@ -94,6 +95,8 @@ const FAQ = [
   },
 ];
 
+const TEST_FINDER = { title: "European Test Finder", desc: "testfinder.info", url: "https://testfinder.info/" };
+
 const CONTACT = { title: "Contact us", desc: "contact@after-care.eu", url: "mailto:contact@after-care.eu" };
 
 const LINKS = [
@@ -143,7 +146,7 @@ export function InfoScreen() {
         Add a code when you meet someone. If either of you tests positive later, one tap tells the other, anonymously.
       </Text>
 
-      <Text style={[styles.title, styles.firstTitle]}>How it works.</Text>
+      <Text style={[styles.title, styles.firstTitle]}>How it works</Text>
       <View style={styles.toggle} accessibilityRole="tablist">
         {USE_CASES.map((uc) => {
           const active = uc.id === useCase;
@@ -174,7 +177,7 @@ export function InfoScreen() {
         ))}
       </View>
 
-      <Text style={styles.title}>What stays private.</Text>
+      <Text style={styles.title}>What stays private</Text>
       <View style={styles.list}>
         {PRIVACY.map((item) => (
           <Panel key={item.title} style={styles.card}>
@@ -184,7 +187,7 @@ export function InfoScreen() {
         ))}
       </View>
 
-      <Text style={styles.title}>Questions.</Text>
+      <Text style={styles.title}>Questions</Text>
       <View style={styles.list}>
         {FAQ.map((item) => {
           const open = openFaq === item.q;
@@ -204,14 +207,18 @@ export function InfoScreen() {
         })}
       </View>
 
-      <Text style={styles.title}>Learn more.</Text>
+      <View style={styles.finder}>
+        <TestFinderBlock onFindTest={() => void openLink(TEST_FINDER)} />
+      </View>
+
+      <Text style={styles.title}>Learn more</Text>
       <View style={styles.list}>
         {LINKS.map((link) => (
           <LinkRow key={link.url} link={link} />
         ))}
       </View>
 
-      <Text style={styles.title}>Contact.</Text>
+      <Text style={styles.title}>Contact</Text>
       <LinkRow link={CONTACT} />
 
       <Text style={styles.tagline}>Take care with AfterCare 💜</Text>
@@ -224,6 +231,7 @@ const styles = StyleSheet.create({
   title: { ...type.sectionTitle, marginTop: 32 },
   firstTitle: { marginTop: 18 },
   list: { gap: 10 },
+  finder: { marginTop: 18 },
   card: { padding: 16, gap: 4 },
   cardTitle: { ...type.cardTitle },
   cardDesc: { ...type.cardDesc },

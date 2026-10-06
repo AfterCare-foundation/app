@@ -1,13 +1,23 @@
 // Everything that has happened on this phone, newest first: alerts you have
 // received (arrow in) and notifications you sent (arrow out), each with a date.
 
+import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Header } from "../components/Chrome";
 import { ArrowInIcon, ArrowOutIcon } from "../components/Icons";
-import { formatDateTime, stiTitle } from "../components/ExposureCard";
+import {
+  TestFinderBlock,
+  formatDateTime,
+  stiTitle,
+} from "../components/ExposureCard";
 import { Panel } from "../components/Panel";
-import type { AlertRecord, SentRecord } from "../storage/secureStore";
+import {
+  loadFinderDismissedAt,
+  saveFinderDismissedAt,
+  type AlertRecord,
+  type SentRecord,
+} from "../storage/secureStore";
 import { colors, type } from "../theme";
 
 interface Entry {
@@ -20,10 +30,29 @@ interface Entry {
 export function HistoryScreen({
   alerts,
   sent,
+  onFindTest,
 }: {
   alerts: AlertRecord[];
   sent: SentRecord[];
+  onFindTest: () => void;
 }) {
+  const [dismissedAt, setDismissedAt] = useState<string | null | undefined>(
+    undefined,
+  ); // undefined while loading, so the block does not flash
+  useEffect(() => {
+    void loadFinderDismissedAt().then(setDismissedAt);
+  }, []);
+  const newestAlert = alerts.reduce<string | null>(
+    (latest, a) =>
+      latest === null || a.receivedAt > latest ? a.receivedAt : latest,
+    null,
+  );
+  // Hidden until a newer alert arrives.
+  const showFinder =
+    dismissedAt !== undefined &&
+    newestAlert !== null &&
+    (dismissedAt === null || newestAlert > dismissedAt);
+
   const entries: Entry[] = [
     ...alerts.map((a): Entry => ({
       id: `r-${a.id}`,
@@ -43,6 +72,18 @@ export function HistoryScreen({
     <ScrollView contentContainerStyle={styles.content}>
       <Header />
       <Text style={styles.title}>History</Text>
+      {/* Once for all alerts: the same finder serves every one of them. */}
+      {showFinder ? (
+        <TestFinderBlock
+          onFindTest={onFindTest}
+          onDismiss={() => {
+            if (newestAlert) {
+              setDismissedAt(newestAlert);
+              void saveFinderDismissedAt(newestAlert);
+            }
+          }}
+        />
+      ) : null}
       {entries.length === 0 ? (
         <Panel style={styles.empty}>
           <Text style={styles.emptyText}>

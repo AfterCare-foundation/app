@@ -247,6 +247,7 @@ export async function clearLocalData(): Promise<void> {
   await SecureStore.deleteItemAsync(KEY_SENT, OPTIONS);
   await SecureStore.deleteItemAsync(KEY_DEVICE, OPTIONS);
   await SecureStore.deleteItemAsync(KEY_ICON, OPTIONS);
+  await SecureStore.deleteItemAsync(KEY_FINDER_DISMISSED, OPTIONS);
 }
 
 export type AppIconChoice = "playful" | "discreet";
@@ -260,4 +261,15 @@ export async function loadIconChoice(): Promise<AppIconChoice> {
 
 export async function saveIconChoice(choice: AppIconChoice): Promise<void> {
   await SecureStore.setItemAsync(KEY_ICON, choice, OPTIONS);
+}
+
+const KEY_FINDER_DISMISSED = "settings.finderDismissedAt";
+
+/** Time of the newest alert when the History "Need a test?" block was dismissed; a newer alert brings it back. */
+export async function loadFinderDismissedAt(): Promise<string | null> {
+  return SecureStore.getItemAsync(KEY_FINDER_DISMISSED, OPTIONS);
+}
+
+export async function saveFinderDismissedAt(receivedAt: string): Promise<void> {
+  await SecureStore.setItemAsync(KEY_FINDER_DISMISSED, receivedAt, OPTIONS);
 }

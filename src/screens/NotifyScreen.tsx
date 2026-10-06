@@ -9,7 +9,7 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } fr
 import { GradientButton } from "../components/Buttons";
 import { SubHeader } from "../components/Chrome";
 import { HoldToConfirm } from "../components/HoldToConfirm";
-import { reportedText, stiTitle } from "../components/ExposureCard";
+import { ReportedText, stiTitle } from "../components/ExposureCard";
 import { STI_OPTIONS, UNSPECIFIED_STI, chipText } from "../sti";
 import { Panel } from "../components/Panel";
 import { describeError, notifyContacts, type NotifyOutcome } from "../flows";
@@ -222,7 +222,7 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
           <Text style={styles.previewLabel}>They will see</Text>
           <Text style={styles.previewLock}>You have a new message. Open the app to read it.</Text>
           <Text style={styles.previewIn}>
-            Inside the app: "{reportedText(stiValue)}"
+            Inside the app: "<ReportedText sti={stiValue} />"
           </Text>
         </Panel>
 
