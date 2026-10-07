@@ -175,7 +175,7 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
         <Text style={styles.sectionTitle}>
           When were you last <Text style={styles.underline}>negative</Text>?
         </Text>
-        <Text style={styles.sectionHint}>Your last negative test, or the day you finished treatment.</Text>
+        <Text style={styles.sectionHint}>Your last negative test for this infection, or the day you finished treatment.</Text>
         <View style={styles.chips}>
           <Chip
             label="I'm not sure"
