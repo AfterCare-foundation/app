@@ -10,7 +10,7 @@ import { GradientButton } from "../components/Buttons";
 import { SubHeader } from "../components/Chrome";
 import { HoldToConfirm } from "../components/HoldToConfirm";
 import { ReportedText, stiTitle } from "../components/ExposureCard";
-import { STI_OPTIONS, UNSPECIFIED_STI, chipText } from "../sti";
+import { STI_OPTIONS, UNSPECIFIED_STI, chipText, findSti } from "../sti";
 import { Panel } from "../components/Panel";
 import { describeError, notifyContacts, type NotifyOutcome } from "../flows";
 import type { CardRecord, DeviceIdentity } from "../storage/secureStore";
@@ -64,6 +64,8 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
     [cards, stiValue, lastNegative],
   );
   const fromMs = notifyFrom({ sti: stiValue, lastNegative });
+  // Empty for "Don't specify", so the hint simply leaves the name out.
+  const chosenName = findSti(stiValue)?.label ?? "";
   // An infection from "More…" moves up next to the common ones once picked.
   const pickedExtra = MORE.find((option) => option.id === choice) ?? null;
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -127,6 +129,13 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
             <Text style={styles.cardLabel}>{stiTitle(stiValue)}</Text>
             <Text style={styles.cardMeta}>{since}</Text>
           </Panel>
+          <Panel tint="blue" style={styles.preview}>
+            <Text style={styles.previewLabel}>They will see</Text>
+            <Text style={styles.previewLock}>You have a new message. Open the app to read it.</Text>
+            <Text style={styles.previewIn}>
+              Inside the app: "<ReportedText sti={stiValue} />"
+            </Text>
+          </Panel>
           <Text style={styles.warning}>This cannot be undone.</Text>
           <HoldToConfirm label="Confirm" busy={busy} onConfirm={() => void send()} />
           <Pressable onPress={() => setConfirming(false)} accessibilityRole="button" style={styles.cancel}>
@@ -172,10 +181,18 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
           </View>
         ) : null}
 
-        <Text style={styles.sectionTitle}>
+        <Text style={[styles.sectionTitle, styles.spaced]}>
           When were you last <Text style={styles.underline}>negative</Text>?
         </Text>
-        <Text style={styles.sectionHint}>Your last negative test for this infection, or the day you finished treatment.</Text>
+        <Text style={styles.sectionHint}>
+          The date of the last negative{" "}
+          {chosenName ? (
+            <>
+              <Text style={styles.underline}>{chosenName}</Text>{" "}
+            </>
+          ) : null}
+          test result or completed treatment.
+        </Text>
         <View style={styles.chips}>
           <Chip
             label="I'm not sure"
@@ -211,24 +228,17 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
           </Panel>
         ) : null}
 
-        <Panel style={styles.cardBox}>
+        <Panel style={{ ...styles.cardBox, ...styles.spaced }}>
           <Text style={styles.cardLabel}>{contacts.length === 0 ? "No contacts to notify" : `${since} will be notified`}</Text>
           {lastNegative === null ? (
             <Text style={styles.cardMeta}>{`Standard period: ${Math.min(lookbackDays(stiValue), MAX_AGE_DAYS)} days.`}</Text>
           ) : null}
         </Panel>
 
-        <Panel tint="blue" style={styles.preview}>
-          <Text style={styles.previewLabel}>They will see</Text>
-          <Text style={styles.previewLock}>You have a new message. Open the app to read it.</Text>
-          <Text style={styles.previewIn}>
-            Inside the app: "<ReportedText sti={stiValue} />"
-          </Text>
-        </Panel>
-
         <GradientButton
           label="Notify Partners"
           colors={gradients.primary}
+          style={styles.spaced}
           busy={busy}
           disabled={contacts.length === 0}
           onPress={() => {
@@ -257,6 +267,8 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     gap: 14,
   },
+  // Extra air between the three blocks of the form, on top of the normal gap.
+  spaced: { marginTop: 14 },
   pickerPanel: { padding: 8, alignItems: "center" },
   cardBox: {
     padding: 14,
