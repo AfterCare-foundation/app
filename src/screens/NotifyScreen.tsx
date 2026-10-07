@@ -214,7 +214,7 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
         <Panel style={styles.cardBox}>
           <Text style={styles.cardLabel}>{contacts.length === 0 ? "No contacts to notify" : `${since} will be notified`}</Text>
           {lastNegative === null ? (
-            <Text style={styles.cardMeta}>{`Standard period: ${lookbackDays(stiValue)} days.`}</Text>
+            <Text style={styles.cardMeta}>{`Standard period: ${Math.min(lookbackDays(stiValue), MAX_AGE_DAYS)} days.`}</Text>
           ) : null}
         </Panel>
 

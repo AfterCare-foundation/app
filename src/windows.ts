@@ -17,8 +17,8 @@ import type { CardRecord } from "./storage/secureStore";
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Server subscriptions expire after 60 days, so older contacts cannot be reached. */
-export const MAX_AGE_DAYS = 60;
+/** Server subscriptions expire after 6 months, so older contacts cannot be reached. Keep in step with the backend's SUBSCRIPTION_TTL_DAYS. */
+export const MAX_AGE_DAYS = 180;
 
 /** `POST /notify` accepts at most this many contacts per campaign. */
 export const MAX_CONTACTS_PER_CAMPAIGN = 100;
@@ -49,13 +49,17 @@ export const LOOKBACK_DAYS: Readonly<Record<string, number>> = {
   gonorrhoea: 90,
   // [DSTIG] 6 months. [IUSTI] 6 months.
   chlamydia: 180,
-  // [DSTIG] since the likely infection, up to 2 years. [IUSTI] 3 months to 2 years by stage.
+  // [DSTIG] examine partners of the last 3 months; notify partners since the likely
+  // time of infection, up to 2 years, possibly lifetime partners. [IUSTI] 3 months to
+  // 2 years by stage. Capped to MAX_AGE_DAYS in practice.
   syphilis: 730,
   // [IUSTI] 3 months in recent infection, or since the last negative test. [DSTIG] gives no period.
   hiv: 90,
-  // [DSTIG] and [IUSTI] say "current partners" and give no number. OUR ASSUMPTION: 30 days.
+  // [DSTIG] "focus on current partners in closed dyadic or manageable sexual networks".
+  // [IUSTI] "current partner(s)". Neither gives a number. OUR ASSUMPTION: 30 days.
   mycoplasma: 30,
-  // [DSTIG] mainly current partners, partly the last few weeks. [IUSTI] 2 months.
+  // [DSTIG] "above all current partners, in part a look back at the last few weeks"
+  // (no number). [IUSTI] 2 months, which is the value used.
   trichomoniasis: 60,
   // [IUSTI] 21 days from last contact.
   mpox: 21,

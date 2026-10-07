@@ -49,7 +49,11 @@ export function HomeScreen({
 
       {current ? (
         <View style={styles.alertArea}>
-          <ExposureCard alert={current} onDone={() => onDismiss(current)} />
+          <ExposureCard
+            alert={current}
+            onDone={() => onDismiss(current)}
+            contactAt={cards.find((c) => c.etHash === current.etHash)?.scannedAt ?? null}
+          />
           <TestFinderBlock onFindTest={() => onAcknowledge(current)} />
           {fresh.length > 1 ? (
             <Text style={styles.moreAlerts}>

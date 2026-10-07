@@ -20,19 +20,20 @@ function card(id: string, scannedDaysAgo: number, notifiedSti: string | string[]
 }
 
 const ids = (cards: CardRecord[]) => cards.map((c) => c.etHash);
-const cards = [card("a", 1), card("b", 6), card("c", 13), card("d", 20), card("e", 45), card("f", 70)];
+const cards = [card("a", 1), card("b", 6), card("c", 13), card("d", 20), card("e", 45), card("f", 70), card("g", 200)];
 
 test("unknown negative test: the standard lookback counted back from today", () => {
   assert.deepEqual(ids(selectContacts(cards, { sti: "mpox", lastNegative: null }, NOW)), ["a", "b", "c", "d"]);
 });
 
-test("a lookback longer than the server keeps codes stops at the 60 day expiry", () => {
-  assert.deepEqual(ids(selectContacts(cards, { sti: "chlamydia", lastNegative: null }, NOW)), [
+test("a lookback longer than the server keeps codes stops at the 6 month expiry", () => {
+  assert.deepEqual(ids(selectContacts(cards, { sti: "syphilis", lastNegative: null }, NOW)), [
     "a",
     "b",
     "c",
     "d",
     "e",
+    "f",
   ]);
 });
 
@@ -49,13 +50,14 @@ test("a recent negative test narrows the list", () => {
   assert.deepEqual(ids(selectContacts(cards, { sti: "chlamydia", lastNegative: daysAgo(7) }, NOW)), ["a", "b"]);
 });
 
-test("a very old negative test stops at the server's 60 day expiry", () => {
-  assert.deepEqual(ids(selectContacts(cards, { sti: "hiv", lastNegative: daysAgo(200) }, NOW)), [
+test("a very old negative test stops at the server's 6 month expiry", () => {
+  assert.deepEqual(ids(selectContacts(cards, { sti: "hiv", lastNegative: daysAgo(300) }, NOW)), [
     "a",
     "b",
     "c",
     "d",
     "e",
+    "f",
   ]);
 });
 

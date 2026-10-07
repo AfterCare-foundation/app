@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { AlertRecord } from "../storage/secureStore";
 import { colors, fonts, radius, type } from "../theme";
+import { preventionNote } from "../prevention";
 import { findSti } from "../sti";
 import { GhostButton, GradientButton } from "./Buttons";
 import { BellIcon } from "./Icons";
@@ -35,9 +36,12 @@ interface ExposureCardProps {
   alert: AlertRecord;
   /** "OK": mark the alert as seen. */
   onDone: () => void;
+  /** When this phone saved the card the alert came through, or null when unknown. */
+  contactAt?: string | null;
 }
 
-export function ExposureCard({ alert, onDone }: ExposureCardProps) {
+export function ExposureCard({ alert, onDone, contactAt = null }: ExposureCardProps) {
+  const note = alert.sti ? preventionNote(alert.sti, contactAt) : null;
   return (
     <Panel tint="blue" style={styles.card}>
       <View style={styles.badge}>
@@ -49,6 +53,7 @@ export function ExposureCard({ alert, onDone }: ExposureCardProps) {
       <Text style={styles.body}>
         {alert.sti ? <ReportedText sti={alert.sti} /> : alert.alert}
       </Text>
+      {note ? <Text style={styles.prevention}>{note}</Text> : null}
       <GradientButton label="OK" onPress={onDone} style={styles.button} />
     </Panel>
   );
@@ -139,6 +144,12 @@ const styles = StyleSheet.create({
   body: {
     ...type.slideDesc,
     color: colors.textSoft,
+    textAlign: "center",
+    paddingHorizontal: 4,
+  },
+  prevention: {
+    ...type.cardDesc,
+    color: colors.text,
     textAlign: "center",
     paddingHorizontal: 4,
   },

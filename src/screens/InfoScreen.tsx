@@ -68,7 +68,7 @@ const STEPS: Record<UseCase, Step[]> = {
 const PRIVACY = [
   { title: "On your phone", desc: "Your codes, contacts and history stay on this phone." },
   { title: "On our server", desc: "No name, email or phone number. What a notification says is encrypted, and the server cannot read it." },
-  { title: "Gone after 60 days", desc: "Old notifications are removed from the server automatically." },
+  { title: "Gone after 6 months", desc: "Old notifications are removed from the server automatically." },
   { title: "Yours to erase", desc: "Delete everything at any time in Settings." },
 ];
 
