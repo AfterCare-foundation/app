@@ -46,7 +46,6 @@ export interface DeleteDeviceRequest {
 export interface Delivery {
   et_hash: string;
   encrypted_payload: string;
-  scheduled_at?: string;
 }
 
 export interface NotifyRequest {
@@ -59,9 +58,8 @@ export interface NotifyRequest {
 export interface NotifyResponse {
   status: "ok";
   pushed: number;
-  scheduled: number;
   /** Pushes that failed once; the server keeps retrying them for up to a day. */
-  retrying?: number;
+  retrying: number;
   contacts: number;
 }
 

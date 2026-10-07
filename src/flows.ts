@@ -35,8 +35,6 @@ export async function subscribeToCard(device: DeviceIdentity, scanned: string): 
 export interface NotifyOutcome {
   /** Devices reached right now. */
   pushed: number;
-  /** Contacts the server held back for later delivery. */
-  scheduled: number;
   /** Pushes the server is retrying for up to a day. */
   retrying: number;
   /** Contacts this send covered. */
@@ -67,10 +65,10 @@ export async function notifyContacts(
       encrypted_payload: encryptAlert(cardToken(card), sti, randomNonce()),
     })),
   });
-  const retrying = result.retrying ?? 0;
+  const retrying = result.retrying;
   // Nobody else is on those codes yet: the server gave the slot back, so do
   // not mark anyone as notified and let a later tap reach them.
-  const delivered = result.pushed + result.scheduled + retrying > 0;
+  const delivered = result.pushed + retrying > 0;
   if (delivered) {
     const notifiedAt = new Date().toISOString();
     for (const card of contacts) {
@@ -84,7 +82,6 @@ export async function notifyContacts(
   }
   return {
     pushed: result.pushed,
-    scheduled: result.scheduled,
     retrying,
     contacts: contacts.length,
     campaignId,
