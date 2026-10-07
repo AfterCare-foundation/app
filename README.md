@@ -1,2 +1,131 @@
-# app
-AfterCare notifications app
+# AfterCare app
+
+Mobile app for [AfterCare](https://after-care.eu/): anonymous STI exposure notification. People connect by scanning a paper card. Later, if someone tests positive, they can warn their connections without names, phone numbers or an account.
+
+This repo is the **mobile app** (Expo / React Native / TypeScript). The notification server is a separate repo, [AfterCare backend](https://github.com/AfterCare-foundation/backend). Both are open source under [AGPL-3.0](LICENSE).
+
+**Status:** club (paper card) flow only. In development, not production-ready.
+
+## What the app does
+
+- **Add**: scan or paste a connection code from someone's card.
+- **Create**: show your own code to be scanned.
+- **Notify partners**: after a positive test, warn the people you connected with. Pick the infection and when you were last negative.
+- **Alerts**: if someone you connected with reports an infection, the app shows an alert. Alerts are kept in History.
+
+Keys and connection codes stay on the phone (in the secure store). Only hashes and encrypted payloads are sent to the server. The cryptographic contract is documented in the backend repo (`docs/CRYPTO.md`); the app side is in `src/crypto/`.
+
+## Requirements
+
+- Node.js 20 or newer and npm
+- The **Expo Go** app on your phone (App Store / Google Play), and/or Xcode (iOS Simulator) or Android Studio (emulator)
+
+## Setup
+
+```bash
+npm install
+```
+
+### Pointing the app at a server
+
+The app talks to the AfterCare backend. By default it uses `http://127.0.0.1:8000` (see `src/api/client.ts`). To use another server, for example a hosted dev one, create a git-ignored `.env.local` in this folder:
+
+```bash
+EXPO_PUBLIC_API_URL=https://your-dev-backend.example.com
+```
+
+Restart Metro after changing it (`npx expo start --clear`). `.env*` files are git-ignored, so don't commit server addresses or credentials.
+
+To run the backend locally, follow the backend repo's README. A real phone can't reach `127.0.0.1` on your computer, so for phone testing use a hosted dev server or your computer's LAN address.
+
+## Run and test with Expo Go
+
+```bash
+npm start
+```
+
+This starts Metro and prints a QR code. Then pick one:
+
+### On a real phone
+
+1. Install **Expo Go** and open it.
+2. **Same Wi-Fi as your computer:** scan the QR code (iOS: the Camera app; Android: Expo Go), or enter `exp://<your-computer-LAN-IP>:8081` manually.
+3. **Different network, or Wi-Fi that blocks device-to-device traffic** (office, guest, firewall): use a tunnel instead.
+
+   ```bash
+   npm install -g @expo/ngrok   # one time
+   npx expo start --tunnel
+   ```
+
+   Open the printed `exp://….exp.direct` link in Expo Go. The link changes on every start. Keep the dev server running and the computer awake while testing.
+
+The camera is needed for scanning cards. Allow the permission when asked. Without a camera you can paste a code instead.
+
+### iOS Simulator
+
+```bash
+npm run ios
+```
+
+or press `i` in the Metro terminal. The simulator has **no camera**, so scanning only works by pasting a code.
+
+### Android emulator
+
+```bash
+npm run android
+```
+
+or press `a` in the Metro terminal.
+
+### Trying a full flow
+
+You need two installs (two phones, or a phone and a simulator), one acting as each person:
+
+1. On device A open **Create** to show a code. On device B open **Add** and scan (or paste) it.
+2. On device A choose **Notify partners**, pick an infection and a date, and confirm.
+3. Device B gets an alert within a few seconds. The app polls the server while it is open.
+
+### Troubleshooting
+
+- **App won't open or shows a red error screen:** shake the device (or press `r` in Metro) to reload. If Metro seems stuck, run `npx expo start --clear`.
+- **"Cannot reach server":** check `EXPO_PUBLIC_API_URL`, that the server is up, and that the phone has internet.
+- **Phone can't find the LAN address:** a firewall or VPN may be blocking it. Use `--tunnel`.
+- **Tunnel fails to start:** install `@expo/ngrok` (see above) and try again.
+- **Changes don't show up:** Fast Refresh sometimes stalls. Reload the app, or close Expo Go and reopen the project link.
+
+## Scripts
+
+| Command | What it does |
+| --- | --- |
+| `npm start` | Start Metro / Expo dev server |
+| `npm run ios` / `npm run android` | Start and open in a simulator / emulator |
+| `npm test` | Unit tests (crypto contract vectors, notify windows) |
+| `npm run typecheck` | TypeScript check for the app and tests |
+
+Run `npm test` and `npm run typecheck` before sending changes.
+
+## Project layout
+
+```
+App.tsx            navigation and app-level state
+src/screens/       Home, Add (Scan), Create (Generate), Notify, History, Info, Settings
+src/components/    shared UI (buttons, panels, logo, exposure card)
+src/crypto/        hashing and encryption (must match the backend contract)
+src/storage/       secure on-device storage
+src/api/           server client
+src/sti.ts         list of infections shown in the app
+src/windows.ts     which contacts to notify for a given date
+test/              unit tests
+```
+
+## Push notifications
+
+Push is not wired up yet. The app uses a stub push token and polls the server for alerts while it is open. Real push needs a development build (EAS), because Expo Go can't receive it for a custom app, plus Apple and Google credentials. Don't commit those credentials.
+
+## Security
+
+Please don't report vulnerabilities in public issues. See [SECURITY.md](SECURITY.md).
+
+## License
+
+[AGPL-3.0](LICENSE)
