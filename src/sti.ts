@@ -20,7 +20,9 @@ export interface StiOption {
 // gonorrhoea 9.9%, syphilis 4.3%), RKI/LAGeSo surveillance for Berlin (syphilis
 // 35.7 per 100,000 in 2024, most cases in MSM). HIV is a chip despite low
 // prevalence because notifying is time-sensitive (post-exposure treatment).
-// Mpox (Berlin-concentrated, declining), herpes and HPV sit under "More…".
+// Mpox (Berlin-concentrated, declining) sits under "More…". Herpes and HPV are
+// left out: past partners gain nothing from being told (IUSTI 2024 European
+// guideline on the management of partners, page 6).
 export const STI_OPTIONS: readonly StiOption[] = [
   { id: "chlamydia", label: "Chlamydia", common: true },
   { id: "gonorrhoea", label: "Gonorrhoea", common: true },
@@ -28,8 +30,6 @@ export const STI_OPTIONS: readonly StiOption[] = [
   { id: "mycoplasma", label: "Mycoplasma genitalium", chipLabel: "Mycoplasma", common: true },
   { id: "hiv", label: "HIV", common: true },
   { id: "mpox", label: "Mpox", common: false },
-  { id: "herpes", label: "Genital Herpes", chipLabel: "Herpes", common: false },
-  { id: "hpv", label: "HPV", common: false },
   { id: "hepatitis_a", label: "Hepatitis A", common: false },
   { id: "hepatitis_b", label: "Hepatitis B", common: false },
   { id: "hepatitis_c", label: "Hepatitis C", common: false },

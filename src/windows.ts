@@ -23,21 +23,54 @@ export const MAX_AGE_DAYS = 60;
 /** `POST /notify` accepts at most this many contacts per campaign. */
 export const MAX_CONTACTS_PER_CAMPAIGN = 100;
 
-// PLACEHOLDER: 14 days for every infection until the clinical research is
-// done. Replace the values here; nothing else depends on them being equal.
+// Partner notification lookback, counted back from the positive result. We
+// launch in Germany, so DSTIG is the primary source; where it gives no period,
+// IUSTI is used. Both agree where they overlap. Values above MAX_AGE_DAYS are
+// cut to it when contacts are selected.
+//
+// Sources:
+//   [DSTIG]  Deutsche STI-Gesellschaft, "Leitfaden STI-Therapie", 5th edition,
+//            September 2026, table 3 "Partner*innenmanagement, Abstinenz und ToC":
+//            https://dstig.de/wp-content/uploads/2026/09/DSTIG-Leitfaden_Aufl05_2026_09_NEU.pdf
+//   [AWMF]   S2k guideline "Sexuell uebertragbare Infektionen (STI) - Beratung,
+//            Diagnostik, Therapie" (059-006), section 5.4; it names no periods
+//            and refers to the guidelines per infection:
+//            https://register.awmf.org/de/leitlinien/detail/059-006
+//   [IUSTI]  IUSTI 2024 European guidelines for the management of partners of
+//            persons with sexually transmitted infections, table 1:
+//            https://files.magicapp.org/guideline/7f8e15c7-071b-45a8-9b33-6fd65f31da17/published_guideline_8829-1_1.pdf
+//
+// Herpes and HPV are not offered at all: neither source recommends notifying
+// past partners (IUSTI 2024, page 6).
+// Hepatitis A, B and C have no fixed period in either source ("according to
+// the estimated time of infection") and use the fallback in lookbackDays().
 export const LOOKBACK_DAYS: Readonly<Record<string, number>> = {
-  gonorrhoea: 14,
-  chlamydia: 14,
-  syphilis: 14,
-  hiv: 14,
-  mpox: 14,
-  hpv: 14,
+  // [DSTIG] 3 months. [IUSTI] 3 months.
+  gonorrhoea: 90,
+  // [DSTIG] 6 months. [IUSTI] 6 months.
+  chlamydia: 180,
+  // [DSTIG] since the likely infection, up to 2 years. [IUSTI] 3 months to 2 years by stage.
+  syphilis: 730,
+  // [IUSTI] 3 months in recent infection, or since the last negative test. [DSTIG] gives no period.
+  hiv: 90,
+  // [DSTIG] and [IUSTI] say "current partners" and give no number. OUR ASSUMPTION: 30 days.
+  mycoplasma: 30,
+  // [DSTIG] mainly current partners, partly the last few weeks. [IUSTI] 2 months.
+  trichomoniasis: 60,
+  // [IUSTI] 21 days from last contact.
+  mpox: 21,
+  // [IUSTI] 1 week before symptom onset.
+  shigella: 7,
+  // [IUSTI] 2 months before diagnosis.
+  scabies: 60,
+  // [IUSTI] 3 months before diagnosis.
+  lice: 90,
 };
 
 /** Used for "Don't specify" and infections without their own value: the most common infections' period. */
 export function lookbackDays(sti: string): number {
   const days = Object.prototype.hasOwnProperty.call(LOOKBACK_DAYS, sti) ? LOOKBACK_DAYS[sti] : undefined;
-  return days ?? Math.max(LOOKBACK_DAYS.gonorrhoea ?? 14, LOOKBACK_DAYS.chlamydia ?? 14);
+  return days ?? Math.max(LOOKBACK_DAYS.gonorrhoea ?? 90, LOOKBACK_DAYS.chlamydia ?? 180);
 }
 
 /** Latest time any contact was notified from this phone, or null. */

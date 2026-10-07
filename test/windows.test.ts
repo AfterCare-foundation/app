@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { CardRecord } from "../src/storage/secureStore.ts";
-import { DAY_MS, MAX_CONTACTS_PER_CAMPAIGN, lookbackDays, notifyFrom, selectContacts } from "../src/windows.ts";
+import { DAY_MS, MAX_AGE_DAYS, MAX_CONTACTS_PER_CAMPAIGN, lookbackDays, notifyFrom, selectContacts } from "../src/windows.ts";
 
 const NOW = Date.UTC(2026, 9, 3, 12, 0, 0);
 const daysAgo = (d: number) => NOW - d * DAY_MS;
@@ -23,7 +23,17 @@ const ids = (cards: CardRecord[]) => cards.map((c) => c.etHash);
 const cards = [card("a", 1), card("b", 6), card("c", 13), card("d", 20), card("e", 45), card("f", 70)];
 
 test("unknown negative test: the standard lookback counted back from today", () => {
-  assert.deepEqual(ids(selectContacts(cards, { sti: "gonorrhoea", lastNegative: null }, NOW)), ["a", "b", "c"]);
+  assert.deepEqual(ids(selectContacts(cards, { sti: "mpox", lastNegative: null }, NOW)), ["a", "b", "c", "d"]);
+});
+
+test("a lookback longer than the server keeps codes stops at the 60 day expiry", () => {
+  assert.deepEqual(ids(selectContacts(cards, { sti: "chlamydia", lastNegative: null }, NOW)), [
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+  ]);
 });
 
 test("known negative test: contacts from that day on, not before", () => {
@@ -64,10 +74,15 @@ test("free text matches regardless of case and spaces", () => {
   assert.equal(selectContacts(withSent, { sti: "scabies", lastNegative: null }, NOW).length, 0);
 });
 
-test("unknown infection types use the gonorrhoea and chlamydia period", () => {
-  assert.equal(lookbackDays("other"), lookbackDays("gonorrhoea"));
-  assert.equal(lookbackDays("constructor"), lookbackDays("gonorrhoea"));
-  assert.equal(notifyFrom({ sti: "other", lastNegative: null }, NOW), NOW - lookbackDays("other") * DAY_MS);
+test("unknown infection types use the longer of the gonorrhoea and chlamydia periods", () => {
+  const longer = Math.max(lookbackDays("gonorrhoea"), lookbackDays("chlamydia"));
+  assert.equal(lookbackDays("other"), longer);
+  assert.equal(lookbackDays("constructor"), longer);
+  assert.equal(lookbackDays("hepatitis_b"), longer);
+  assert.equal(
+    notifyFrom({ sti: "other", lastNegative: null }, NOW),
+    NOW - Math.min(lookbackDays("other"), MAX_AGE_DAYS) * DAY_MS,
+  );
 });
 
 test("the per campaign cap keeps the newest contacts", () => {
