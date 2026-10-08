@@ -40,6 +40,8 @@ export interface DeviceIdentity {
   pushIdHash: string;
   platform: ApiPlatform;
   createdAt: string;
+  /** Set after the first successful /subscribe. Until then the server has never heard of this device. */
+  subscribedAt?: string;
 }
 
 export interface CardRecord {
@@ -122,6 +124,11 @@ export async function loadOrCreateDevice(): Promise<DeviceIdentity> {
   };
   await writeJson(KEY_DEVICE, identity);
   return identity;
+}
+
+/** Saves the identity again, after its push token was replaced on the server. */
+export async function saveDevice(identity: DeviceIdentity): Promise<void> {
+  await writeJson(KEY_DEVICE, identity);
 }
 
 /** Older saves kept one `notifiedSti`; turn it into the list. */

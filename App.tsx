@@ -7,7 +7,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { apiBaseUrl, deleteDevice, health } from "./src/api/client";
 import { Screen, TabBar, type Tab } from "./src/components/Chrome";
 import { stiTitle } from "./src/components/ExposureCard";
-import { describeError, pullInbox, type InboxStatus, type NotifyOutcome } from "./src/flows";
+import { currentPushToken, describeError, pullInbox, syncPushToken, type InboxStatus, type NotifyOutcome } from "./src/flows";
 import { HistoryScreen } from "./src/screens/HistoryScreen";
 import { InfoScreen } from "./src/screens/InfoScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
@@ -76,12 +76,17 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const identity = await loadOrCreateDevice();
+      const loaded = await loadOrCreateDevice();
       if (cancelled) {
         return;
       }
-      setDevice(identity);
+      setDevice(loaded);
       await reload();
+      // Tell the server if the OS handed out a new push token since the last launch.
+      const synced = await syncPushToken(loaded, await currentPushToken(loaded));
+      if (!cancelled && synced.pushToken !== loaded.pushToken) {
+        setDevice(synced);
+      }
     })();
     return () => {
       cancelled = true;

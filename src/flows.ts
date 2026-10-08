@@ -1,15 +1,17 @@
 // The three things this version does: subscribe to a card, notify one card,
 // and pull the development inbox. Screens call these and render the result.
 
-import { ApiError, devInbox, notify, subscribe } from "./api/client";
-import { decryptAlert, encryptAlert, etHash, parseConnectInput } from "./crypto/contract";
+import { ApiError, devInbox, notify, subscribe, updatePushId } from "./api/client";
+import { decryptAlert, encryptAlert, etHash, parseConnectInput, pushIdHash } from "./crypto/contract";
 import { randomNonce, randomUuid } from "./crypto/random";
 import {
   cardToken,
   listCards,
   saveSent,
   saveAlert,
+  loadOrCreateDevice,
   saveCard,
+  saveDevice,
   updateCard,
   type AlertRecord,
   type CardRecord,
@@ -29,6 +31,9 @@ export async function subscribeToCard(device: DeviceIdentity, scanned: string): 
     platform: device.platform,
     device_credential: device.credentialHex,
   });
+  if (!device.subscribedAt) {
+    await saveDevice({ ...(await loadOrCreateDevice()), subscribedAt: new Date().toISOString() });
+  }
   return saveCard(token);
 }
 
@@ -86,6 +91,53 @@ export async function notifyContacts(
     contacts: contacts.length,
     campaignId,
   };
+}
+
+/**
+ * The push token the OS hands out right now. Push is not wired up yet (see the README), so this
+ * is the stub token, which never changes. When real push arrives, return the APNs / FCM token
+ * here and call `syncPushToken` again from the OS token-refresh callback.
+ */
+export async function currentPushToken(device: DeviceIdentity): Promise<string> {
+  return device.pushToken;
+}
+
+/**
+ * Keeps the server's copy of this phone's push token fresh. Run at every launch and on every
+ * token refresh. `device.pushToken` is the token the server last accepted. If the OS now reports
+ * another one, POST /update-push-id moves the subscriptions across, and the stored token changes
+ * only once that call succeeded, so a failure is simply retried on the next launch. A fresh
+ * install has no old token on the server and never calls this: it just subscribes as a new device.
+ * Returns the identity to use from now on.
+ */
+export async function syncPushToken(passed: DeviceIdentity, current: string): Promise<DeviceIdentity> {
+  const device = await loadOrCreateDevice(); // the caller's copy may predate the first subscribe
+  if (current === device.pushToken) {
+    return device;
+  }
+  const next: DeviceIdentity = { ...device, pushToken: current, pushIdHash: pushIdHash(current) };
+  if (!device.subscribedAt) {
+    // The server has never seen this device (it answers 403 for unknown ones, by design),
+    // so there is nothing to move: just remember the new token for the first /subscribe.
+    await saveDevice(next);
+    return next;
+  }
+  try {
+    await updatePushId({
+      old_push_id_hash: device.pushIdHash,
+      new_push_id_hash: next.pushIdHash,
+      new_push_token: current,
+      new_platform: device.platform,
+      device_credential: device.credentialHex,
+    });
+  } catch (error) {
+    if (__DEV__) {
+      console.warn("[push] token update failed, will retry at the next launch (a 403 here is a real problem, not a normal case):", error);
+    }
+    return device;
+  }
+  await saveDevice(next);
+  return next;
 }
 
 export type InboxStatus = "ok" | "unavailable" | "offline";

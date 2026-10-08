@@ -48,6 +48,14 @@ export interface Delivery {
   encrypted_payload: string;
 }
 
+export interface UpdatePushIdRequest {
+  old_push_id_hash: string;
+  new_push_id_hash: string;
+  new_push_token: string;
+  new_platform: Platform;
+  device_credential: string;
+}
+
 export interface NotifyRequest {
   sender_push_id_hash: string;
   device_credential: string;
@@ -159,6 +167,11 @@ export function subscribe(body: SubscribeRequest): Promise<{ status: "ok" }> {
 /** Erases this device and everything the server holds for it (GDPR Art. 17). */
 export function deleteDevice(body: DeleteDeviceRequest): Promise<unknown> {
   return request("DELETE", "/subscribe", body);
+}
+
+/** The OS gave this phone a new push token: move its subscriptions to it, keeping their expiry. */
+export function updatePushId(body: UpdatePushIdRequest): Promise<{ status: "ok" }> {
+  return request("POST", "/update-push-id", body);
 }
 
 export function notify(body: NotifyRequest): Promise<NotifyResponse> {

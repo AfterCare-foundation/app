@@ -138,6 +138,8 @@ test/              unit tests
 
 Push is not wired up yet. The app uses a stub push token and polls the server for alerts while it is open. Real push needs a development build (EAS), because Expo Go can't receive it for a custom app, plus Apple and Google credentials. Don't commit those credentials.
 
+The token-refresh logic is already in place (`syncPushToken` in `src/flows.ts`): at every launch the app compares the OS push token with the one the server last accepted and calls `POST /update-push-id` when they differ. With the stub token nothing ever differs. When real push is added, `currentPushToken` must return the APNs / FCM token, and `syncPushToken` must also run from the OS token-refresh callback.
+
 ## Security
 
 Please don't report vulnerabilities in public issues. See [SECURITY.md](SECURITY.md).
