@@ -2,9 +2,11 @@
 //
 // The user is never asked "who". It follows from the infection and the last
 // date they are sure they were healthy:
-//   - last negative test known: contacts saved on or after that day;
+//   - last negative test (or completed treatment) known: contacts saved on or
+//     after that day, but never further back than the standard lookback;
 //   - not known: the standard lookback period for that infection, counted
 //     back from today (a freshly received positive result is assumed).
+// In every case nothing goes back further than the server keeps contacts.
 // Contacts already notified about the same infection are skipped. A generic
 // "Don't specify" notice carries less than a named one, so it is skipped for
 // anyone already told about any infection.
@@ -112,8 +114,10 @@ export interface NotifyCriteria {
 /** The moment contacts must be newer than. */
 export function notifyFrom(criteria: NotifyCriteria, now: number = Date.now()): number {
   const floor = now - MAX_AGE_DAYS * DAY_MS;
-  const start =
-    criteria.lastNegative === null ? now - lookbackDays(criteria.sti) * DAY_MS : criteria.lastNegative;
+  // The standard period is the longest anyone is looked back for, whatever the date picked:
+  // a negative test from before it adds nothing, so the period starts at the later of the two.
+  const standard = now - lookbackDays(criteria.sti) * DAY_MS;
+  const start = criteria.lastNegative === null ? standard : Math.max(standard, criteria.lastNegative);
   return Math.max(floor, start);
 }
 

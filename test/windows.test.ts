@@ -46,6 +46,16 @@ test("known negative test: contacts from that day on, not before", () => {
   ]);
 });
 
+test("a negative test older than the standard period does not widen it", () => {
+  // mpox looks back 21 days; a test from 100 days ago must not reach further.
+  assert.deepEqual(ids(selectContacts(cards, { sti: "mpox", lastNegative: daysAgo(100) }, NOW)), [
+    "a",
+    "b",
+    "c",
+    "d",
+  ]);
+});
+
 test("a recent negative test narrows the list", () => {
   assert.deepEqual(ids(selectContacts(cards, { sti: "chlamydia", lastNegative: daysAgo(7) }, NOW)), ["a", "b"]);
 });

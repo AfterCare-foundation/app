@@ -15,7 +15,7 @@ import { Panel } from "../components/Panel";
 import { describeError, notifyContacts, type NotifyOutcome } from "../flows";
 import type { CardRecord, DeviceIdentity } from "../storage/secureStore";
 import { colors, fonts, gradients, radius, type } from "../theme";
-import { DAY_MS, MAX_AGE_DAYS, lookbackDays, notifyFrom, selectContacts } from "../windows";
+import { MAX_AGE_DAYS, lookbackDays, notifyFrom, selectContacts } from "../windows";
 
 // "unspecified" or the id of an option from sti.ts. "Don't specify" goes on the
 // wire as the generic `other`, which the recipient reads as "an STI".
@@ -74,13 +74,12 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
   const [error, setError] = useState<string | null>(null);
 
   const today = new Date();
-  const minDate = new Date(today.getTime() - MAX_AGE_DAYS * DAY_MS);
 
   const onPickDate = (_event: unknown, date?: Date) => {
     if (date) {
-      // Never in the future, never older than the server keeps contacts.
-      const day = Math.min(startOfDay(date), startOfDay(new Date()));
-      setLastNegative(Math.max(day, startOfDay(minDate)));
+      // Never in the future. Any past date is accepted, however old: windows.ts limits
+      // who is reached to what the server keeps, so an old test never blocks sending.
+      setLastNegative(Math.min(startOfDay(date), startOfDay(new Date())));
     }
   };
   const chooseDate = () => {
@@ -93,7 +92,6 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
         value: current,
         mode: "date",
         maximumDate: today,
-        minimumDate: minDate,
         onChange: onPickDate,
       });
     }
@@ -217,7 +215,6 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
               mode="date"
               display="inline"
               maximumDate={today}
-              minimumDate={minDate}
               onChange={(event, date) => {
                 onPickDate(event, date);
                 setPickerOpen(false);

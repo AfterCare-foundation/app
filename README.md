@@ -10,10 +10,25 @@ This repo is the **mobile app** (Expo / React Native / TypeScript). The notifica
 
 - **Add**: scan or paste a connection code from someone's card.
 - **Create**: show your own code to be scanned.
-- **Notify partners**: after a positive test, warn the people you connected with. Pick the infection and when you were last negative.
-- **Alerts**: if someone you connected with reports an infection, the app shows an alert. Alerts are kept in History.
+- **Notify partners**: after a positive test, warn the people you connected with. Pick the infection and the date of your last negative test or completed treatment for it. The app works out whom to notify from that, and the notification is sent immediately. You check a preview of what they will see on the confirmation screen.
+- **Alerts**: if someone you connected with reports an infection, the app shows an alert. Alerts are kept in History. For HIV, chlamydia and syphilis the alert adds a line about time-limited prevention (HIV PEP, Doxy-PEP), shown only if the contact was less than 72 hours ago.
+- **Test finder**: an alert points to the European Test Finder. The same link is on History and Info.
 
 Keys and connection codes stay on the phone (in the secure store). Only hashes and encrypted payloads are sent to the server. The cryptographic contract is documented in the backend repo (`docs/CRYPTO.md`); the app side is in `src/crypto/`.
+
+## Who gets notified
+
+Notify never asks "who". The infection and the date decide, and the rules are in `src/windows.ts`:
+
+- With a date (last negative test or completed treatment): contacts saved on or after that day, but never further back than the infection's standard lookback. Any past date can be picked, and an older one simply gives the standard period.
+- Without a date: a per-infection lookback counted back from today. The periods come from the German STI Society (DSTIG) and the IUSTI 2024 European partner-management guideline. Each value in `LOOKBACK_DAYS` names its source, and the links are in that file.
+- Contacts already told about the same infection are skipped, and at most 100 contacts go in one send.
+- Nothing is scheduled. Every notification is sent immediately, and the app never sends `scheduled_at`. When a test becomes reliable is for the recipient's clinic to say.
+- Herpes and HPV are not offered, because neither guideline recommends notifying past partners for them.
+
+The server keeps each code for **6 months** (180 days), so contacts older than that can't be reached. `MAX_AGE_DAYS` in `src/windows.ts` must stay in step with the backend's `SUBSCRIPTION_TTL_DAYS`.
+
+The infection list, lookback values and the prevention lines are health content. Have them reviewed by clinicians before changing them.
 
 ## Requirements
 
@@ -82,7 +97,7 @@ or press `a` in the Metro terminal.
 You need two installs (two phones, or a phone and a simulator), one acting as each person:
 
 1. On device A open **Create** to show a code. On device B open **Add** and scan (or paste) it.
-2. On device A choose **Notify partners**, pick an infection and a date, and confirm.
+2. On device A choose **Notify partners**, pick an infection and a date, check the preview and confirm.
 3. Device B gets an alert within a few seconds. The app polls the server while it is open.
 
 ### Troubleshooting
@@ -99,7 +114,7 @@ You need two installs (two phones, or a phone and a simulator), one acting as ea
 | --- | --- |
 | `npm start` | Start Metro / Expo dev server |
 | `npm run ios` / `npm run android` | Start and open in a simulator / emulator |
-| `npm test` | Unit tests (crypto contract vectors, notify windows) |
+| `npm test` | Unit tests (crypto contract vectors, notify windows, prevention lines) |
 | `npm run typecheck` | TypeScript check for the app and tests |
 
 Run `npm test` and `npm run typecheck` before sending changes.
@@ -114,7 +129,8 @@ src/crypto/        hashing and encryption (must match the backend contract)
 src/storage/       secure on-device storage
 src/api/           server client
 src/sti.ts         list of infections shown in the app
-src/windows.ts     which contacts to notify for a given date
+src/windows.ts     which contacts to notify, lookback periods and their sources
+src/prevention.ts  PEP and Doxy-PEP lines shown under an alert
 test/              unit tests
 ```
 
