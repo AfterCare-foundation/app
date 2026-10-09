@@ -8,7 +8,7 @@ import { chooseIcon, currentIconChoice } from "../appIcon";
 import { Header } from "../components/Chrome";
 import { ArrowRightIcon } from "../components/Icons";
 import { Panel } from "../components/Panel";
-import type { InboxStatus } from "../flows";
+import type { InboxStatus, PullStats } from "../flows";
 import { ICON_PREVIEWS } from "../iconPreviews";
 import type { AppIconChoice, DeviceIdentity } from "../storage/secureStore";
 import { colors, fonts, radius, type } from "../theme";
@@ -25,6 +25,7 @@ interface SettingsScreenProps {
   serverOk: boolean | null;
   serverUrl: string;
   inboxStatus: InboxStatus | null;
+  pullStats: PullStats | null;
   onDeleteData: () => Promise<void>;
   onResetInstall: () => void;
 }
@@ -34,6 +35,7 @@ export function SettingsScreen({
   serverOk,
   serverUrl,
   inboxStatus,
+  pullStats,
   onDeleteData,
   onResetInstall,
 }: SettingsScreenProps) {
@@ -136,6 +138,12 @@ export function SettingsScreen({
             <Text style={styles.devLine}>
               Inbox {inboxStatus ?? "idle"} · device {device ? device.pushIdHash.slice(0, 8) : "…"} ·{" "}
               {device?.platform ?? ""}
+            </Text>
+            <Text style={styles.devLine}>
+              Last fetch{" "}
+              {pullStats
+                ? `${pullStats.at.slice(11, 19)} UTC · returned ${pullStats.fetched} · saved ${pullStats.saved} · unreadable ${pullStats.unreadable} · confirmed ${pullStats.confirmed}`
+                : "none yet"}
             </Text>
             <Pressable onPress={onResetInstall} accessibilityRole="button" style={styles.devButton}>
               <Text style={styles.devButtonText}>Reset this install</Text>

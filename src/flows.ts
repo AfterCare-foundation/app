@@ -145,9 +145,23 @@ export async function syncPushToken(passed: DeviceIdentity, current: string): Pr
 
 export type InboxStatus = "ok" | "unavailable" | "offline";
 
+/** What the last mailbox fetch did, for the developer panel. No message contents. */
+export interface PullStats {
+  at: string;
+  /** Messages the server returned. */
+  fetched: number;
+  /** Messages no stored card could open. They stay on the server. */
+  unreadable: number;
+  /** Messages saved as new alerts. */
+  saved: number;
+  /** Messages the server was told to delete. */
+  confirmed: number;
+}
+
 export interface InboxPull {
   status: InboxStatus;
   received: AlertRecord[];
+  stats: PullStats;
 }
 
 const GENERIC_ALERT = "You have a new message. Open the app to read it.";
@@ -172,6 +186,7 @@ export function pullInbox(device: DeviceIdentity): Promise<InboxPull> {
 async function pullInboxNow(device: DeviceIdentity): Promise<InboxPull> {
   const request = { push_id_hash: device.pushIdHash, device_credential: device.credentialHex };
   const received: AlertRecord[] = [];
+  const stats: PullStats = { at: new Date().toISOString(), fetched: 0, unreadable: 0, saved: 0, confirmed: 0 };
   try {
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
       const { notifications } = await fetchInbox(request);
@@ -180,8 +195,12 @@ async function pullInboxNow(device: DeviceIdentity): Promise<InboxPull> {
       }
       const { saved, confirmIds } = await saveMessages(notifications);
       received.push(...saved);
+      stats.fetched += notifications.length;
+      stats.saved += saved.length;
+      stats.unreadable += notifications.length - confirmIds.length;
       if (confirmIds.length > 0) {
         await confirmInbox({ ...request, ids: confirmIds });
+        stats.confirmed += confirmIds.length;
       }
       // A full page means there may be more. If nothing could be confirmed, asking again
       // would return the same page.
@@ -191,12 +210,12 @@ async function pullInboxNow(device: DeviceIdentity): Promise<InboxPull> {
     }
   } catch (error) {
     if (error instanceof ApiError && error.status === 0) {
-      return { status: "offline", received };
+      return { status: "offline", received, stats };
     }
     // 403: the server does not know this device yet, which is normal before the first subscribe.
-    return { status: "unavailable", received };
+    return { status: "unavailable", received, stats };
   }
-  return { status: "ok", received };
+  return { status: "ok", received, stats };
 }
 
 /**

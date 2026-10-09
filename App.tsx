@@ -13,6 +13,7 @@ import {
   pullInbox,
   syncPushToken,
   type InboxStatus,
+  type PullStats,
   type NotifyOutcome,
 } from "./src/flows";
 import {
@@ -68,6 +69,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("home");
   const [serverOk, setServerOk] = useState<boolean | null>(null);
   const [inboxStatus, setInboxStatus] = useState<InboxStatus | null>(null);
+  const [pullStats, setPullStats] = useState<PullStats | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const messageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -175,6 +177,7 @@ export default function App() {
           return;
         }
         setInboxStatus(result.status);
+        setPullStats(result.stats);
         if (result.received.length > 0) {
           await reload();
           void clearDeliveredPushes();
@@ -334,6 +337,7 @@ export default function App() {
         serverOk={serverOk}
         serverUrl={apiBaseUrl()}
         inboxStatus={inboxStatus}
+        pullStats={pullStats}
         onDeleteData={onDeleteData}
         onResetInstall={onResetInstall}
       />
