@@ -12,6 +12,9 @@ interface HomeScreenProps {
   cards: CardRecord[];
   alerts: AlertRecord[];
   message: string | null;
+  /** Notifications are off for AfterCare, so alerts cannot reach this phone. */
+  pushBlocked: boolean;
+  onOpenSettings: () => void;
   onScan: () => void;
   onGenerate: () => void;
   onNotify: () => void;
@@ -23,6 +26,8 @@ export function HomeScreen({
   cards,
   alerts,
   message,
+  pushBlocked,
+  onOpenSettings,
   onScan,
   onGenerate,
   onNotify,
@@ -40,6 +45,14 @@ export function HomeScreen({
       keyboardShouldPersistTaps="handled"
     >
       <Header />
+
+      {pushBlocked ? (
+        <Pressable onPress={onOpenSettings} accessibilityRole="button" style={styles.warning}>
+          <Text style={styles.warningText}>
+            Notifications are off, so you will not be told about an exposure. Tap to turn them on in Settings.
+          </Text>
+        </Pressable>
+      ) : null}
 
       {message ? (
         <View style={styles.message}>
@@ -139,6 +152,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   messageText: {
+    color: colors.text,
+    fontFamily: fonts.regular,
+    fontSize: 13.5,
+    textAlign: "center",
+  },
+  warning: {
+    backgroundColor: "rgba(251, 191, 36, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.4)",
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  warningText: {
     color: colors.text,
     fontFamily: fonts.regular,
     fontSize: 13.5,

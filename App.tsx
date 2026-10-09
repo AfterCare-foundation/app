@@ -20,6 +20,8 @@ import {
   installNotificationHandler,
   onPushTokenChange,
   onPushWake,
+  openNotificationSettings,
+  pushIsBlocked,
   pushSupported,
 } from "./src/push";
 import { HistoryScreen } from "./src/screens/HistoryScreen";
@@ -109,6 +111,19 @@ export default function App() {
     };
   }, [reload]);
 
+  // Notifications switched off for AfterCare: checked on open, on coming to the front, and after a scan.
+  const [pushBlocked, setPushBlocked] = useState(false);
+  const checkPush = useCallback(() => void pushIsBlocked().then(setPushBlocked), []);
+  useEffect(() => {
+    checkPush();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        checkPush();
+      }
+    });
+    return () => sub.remove();
+  }, [checkPush]);
+
   // The OS replacing the push token: tell the server.
   useEffect(() => {
     if (!device) {
@@ -195,6 +210,7 @@ export default function App() {
   const onSubscribed = useCallback(
     async (card: CardRecord, alreadyKnown: boolean) => {
       await reload();
+      checkPush();
       setRoute({ name: "home" });
       say(
         alreadyKnown
@@ -202,7 +218,7 @@ export default function App() {
           : "Card scanned. You can now safely discard it.",
       );
     },
-    [reload, say],
+    [reload, say, checkPush],
   );
 
   const onSent = useCallback(
@@ -328,6 +344,8 @@ export default function App() {
         cards={cards}
         alerts={alerts}
         message={message}
+        pushBlocked={pushBlocked}
+        onOpenSettings={openNotificationSettings}
         onScan={() => setRoute({ name: "scan" })}
         onGenerate={() => setRoute({ name: "generate" })}
         onNotify={() => setRoute({ name: "notify" })}

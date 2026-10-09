@@ -3,7 +3,7 @@
 
 import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as Notifications from "expo-notifications";
-import { Platform } from "react-native";
+import { Alert, Linking, Platform } from "react-native";
 
 export const pushSupported =
   Platform.OS === "ios" && Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
@@ -23,6 +23,35 @@ export function installNotificationHandler(): void {
   });
 }
 
+/** Tells the user why the next iOS prompt matters, then continues. The system prompt only appears once. */
+function explainPermission(): Promise<void> {
+  return new Promise((resolve) => {
+    Alert.alert(
+      "Allow notifications",
+      "AfterCare can only warn you through notifications. Without them you will not find out that a contact told you about an infection. On the next screen, please choose Allow.",
+      [{ text: "Continue", onPress: () => resolve() }],
+      { cancelable: false },
+    );
+  });
+}
+
+/** True when notifications can work here but the user has turned them off for AfterCare. */
+export async function pushIsBlocked(): Promise<boolean> {
+  return true; // TEMP-SCREENSHOT
+  if (!pushSupported) {
+    return false;
+  }
+  try {
+    return (await Notifications.getPermissionsAsync()).status === "denied";
+  } catch {
+    return false;
+  }
+}
+
+export function openNotificationSettings(): void {
+  void Linking.openSettings();
+}
+
 /**
  * The APNs token for this phone, or null when push is not available. With `ask` the iOS
  * permission prompt may appear; without it a phone that has not allowed notifications yet
@@ -35,6 +64,7 @@ export async function requestPushToken(ask: boolean): Promise<string | null> {
   try {
     let permission = await Notifications.getPermissionsAsync();
     if (permission.status !== "granted" && ask && permission.canAskAgain) {
+      await explainPermission();
       permission = await Notifications.requestPermissionsAsync();
     }
     if (permission.status !== "granted") {

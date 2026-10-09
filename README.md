@@ -138,7 +138,7 @@ test/              unit tests
 
 iOS builds from EAS (`eas build --platform ios --profile testflight`) use real push through `expo-notifications` and the native APNs token (`src/push.ts`). Expo Go and Android keep a stub push token, because real push needs a build with the push entitlement, and ask the server's mailbox on a timer while the app is open. Android (FCM) is not set up. Don't commit Apple or Google credentials.
 
-- **Permission:** iOS asks when the user first scans a code (`subscribeToCard`), not at launch.
+- **Permission:** iOS asks when the user first scans a code (`subscribeToCard`), not at launch. A short message explains why first, because iOS shows its own prompt only once. If notifications are off for AfterCare, Home shows a banner that opens iOS Settings. It is rechecked when the app comes to the front.
 - **Mailbox:** a push is only a wake-up with generic lock-screen text. The messages wait on the server. The app calls `POST /inbox` when it opens, comes to the front, or a push arrives or is tapped, decrypts each message with the matching card, saves it on the phone, and only then calls `POST /inbox/confirm`. A message no card can open stays on the server (dropped after 7 days) and is fetched again. See `pullInbox` in `src/flows.ts`.
 - **Dismissed pushes:** nothing is lost, because the ciphertext is in the mailbox, not in the push.
 - **Token changes:** `syncPushToken` in `src/flows.ts` compares the OS token with the one the server last accepted, at launch and when the OS reports a new one, and calls `POST /update-push-id`. It is skipped until the first successful `/subscribe`.
