@@ -16,6 +16,8 @@ export const colors = {
   violetLight: "#a78bfa",
   teal: "#2dd4bf",
   danger: "#f87171",
+  dangerTint: "rgba(248, 113, 113, 0.12)",
+  dangerBorder: "rgba(248, 113, 113, 0.5)",
 } as const;
 
 export const gradients = {

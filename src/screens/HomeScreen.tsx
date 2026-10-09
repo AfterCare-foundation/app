@@ -49,7 +49,7 @@ export function HomeScreen({
       {pushBlocked ? (
         <Pressable onPress={onOpenSettings} accessibilityRole="button" style={styles.warning}>
           <Text style={styles.warningText}>
-            Notifications are off, so you will not be told about an exposure. Tap to turn them on in Settings.
+            Notifications are off. You will not be told if someone reports an exposure. Tap to turn them on.
           </Text>
         </Pressable>
       ) : null}
@@ -158,9 +158,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   warning: {
-    backgroundColor: "rgba(251, 191, 36, 0.12)",
+    backgroundColor: colors.dangerTint,
     borderWidth: 1,
-    borderColor: "rgba(251, 191, 36, 0.4)",
+    borderColor: colors.dangerBorder,
     borderRadius: 14,
     paddingVertical: 10,
     paddingHorizontal: 14,

@@ -17,7 +17,7 @@
       "bundleIdentifier": "eu.after-care.app",
       "supportsTablet": false,
       "config": {
-        "usesNonExemptEncryption": true
+        "usesNonExemptEncryption": false
       },
       "infoPlist": {
         "NSCameraUsageDescription": "AfterCare uses the camera to scan the QR code on your card.",

@@ -37,7 +37,6 @@ function explainPermission(): Promise<void> {
 
 /** True when notifications can work here but the user has turned them off for AfterCare. */
 export async function pushIsBlocked(): Promise<boolean> {
-  return true; // TEMP-SCREENSHOT
   if (!pushSupported) {
     return false;
   }
