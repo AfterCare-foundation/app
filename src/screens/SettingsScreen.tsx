@@ -126,7 +126,7 @@ export function SettingsScreen({
         </Panel>
       </Pressable>
 
-      {__DEV__ ? (
+      {__DEV__ || process.env.EXPO_PUBLIC_DEV_TOOLS === "true" ? (
         <>
           <Text style={styles.sectionLabel}>Developer</Text>
           <Panel style={styles.dev}>

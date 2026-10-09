@@ -1,0 +1,18 @@
+{
+  "cli": {
+    "version": ">= 24.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "testflight": {
+      "autoIncrement": true,
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_DEV_TOOLS": "true"
+      }
+    }
+  },
+  "submit": {
+    "testflight": {}
+  }
+}
