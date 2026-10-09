@@ -136,9 +136,12 @@ test/              unit tests
 
 ## Push notifications
 
-Push is not wired up yet. The app uses a stub push token and polls the server for alerts while it is open. Real push needs a development build (EAS), because Expo Go can't receive it for a custom app, plus Apple and Google credentials. Don't commit those credentials.
+iOS builds from EAS (`eas build --platform ios --profile testflight`) use real push through `expo-notifications` and the native APNs token (`src/push.ts`). Expo Go and Android keep a stub push token and poll the server's dev inbox while the app is open, because real push needs a build with the push entitlement. Android (FCM) is not set up. Don't commit Apple or Google credentials.
 
-The token-refresh logic is already in place (`syncPushToken` in `src/flows.ts`): at every launch the app compares the OS push token with the one the server last accepted and calls `POST /update-push-id` when they differ. With the stub token nothing ever differs. When real push is added, `currentPushToken` must return the APNs / FCM token, and `syncPushToken` must also run from the OS token-refresh callback.
+- **Permission:** iOS asks when the user first scans a code (`subscribeToCard`), not at launch.
+- **Reading a push:** the server sends a generic alert plus the ciphertext in `enc` (and `more`). The app reads it when a push arrives while the app is open, when the user taps it, and from the notification list when the app comes to the front. Handled pushes are removed from the list and are saved once.
+- **Limit:** a push the user dismissed from the notification list without opening the app is never read, so its ciphertext is lost. Fixing that needs a server-side change (a silent push or a notification service extension).
+- **Token changes:** `syncPushToken` in `src/flows.ts` compares the OS token with the one the server last accepted, at launch and when the OS reports a new one, and calls `POST /update-push-id`. It is skipped until the first successful `/subscribe`.
 
 ## Security
 

@@ -4,6 +4,7 @@
 import Constants from "expo-constants";
 
 import type { Platform } from "../crypto/contract";
+import { normalizeMore } from "../pushPayload";
 
 const FALLBACK_BASE_URL = "http://127.0.0.1:8000";
 
@@ -188,16 +189,4 @@ export async function devInbox(body: DevInboxRequest): Promise<DevInboxResponse>
       more: normalizeMore(item.more),
     })),
   };
-}
-
-function normalizeMore(more: unknown): string[] | undefined {
-  if (typeof more === "string") {
-    try {
-      const parsed: unknown = JSON.parse(more);
-      return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : undefined;
-    } catch {
-      return undefined;
-    }
-  }
-  return Array.isArray(more) ? more.filter((x): x is string => typeof x === "string") : undefined;
 }

@@ -7,7 +7,17 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { apiBaseUrl, deleteDevice, health } from "./src/api/client";
 import { Screen, TabBar, type Tab } from "./src/components/Chrome";
 import { stiTitle } from "./src/components/ExposureCard";
-import { currentPushToken, describeError, pullInbox, syncPushToken, type InboxStatus, type NotifyOutcome } from "./src/flows";
+import {
+  currentPushToken,
+  describeError,
+  pullInbox,
+  storeIncoming,
+  syncPushToken,
+  type InboxStatus,
+  type NotifyOutcome,
+} from "./src/flows";
+import { installNotificationHandler, onPushArrived, onPushTokenChange, takeDeliveredPushes } from "./src/push";
+import type { PushItem } from "./src/pushPayload";
 import { HistoryScreen } from "./src/screens/HistoryScreen";
 import { InfoScreen } from "./src/screens/InfoScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
@@ -30,6 +40,8 @@ import {
 import { colors, fonts } from "./src/theme";
 
 type Route = { name: "home" } | { name: "scan" } | { name: "generate" } | { name: "notify" };
+
+installNotificationHandler();
 
 const INBOX_POLL_MS = 4000;
 const HEALTH_POLL_MS = 15000;
@@ -92,6 +104,47 @@ export default function App() {
       cancelled = true;
     };
   }, [reload]);
+
+  // Real pushes: the OS token changing, a push arriving while the app is open or tapped open,
+  // and pushes still waiting in the notification list when the app comes to the front.
+  useEffect(() => {
+    if (!device) {
+      return;
+    }
+    const handle = async (items: PushItem[]) => {
+      const received = await storeIncoming(items);
+      if (received.length === 0) {
+        return;
+      }
+      await reload();
+      const first = received[0];
+      say(
+        first?.sti
+          ? `New alert: ${stiTitle(first.sti)}.`
+          : "New alert. No card on this phone could open the details.",
+      );
+    };
+    const drain = () => void takeDeliveredPushes().then(handle);
+    drain();
+    const stopTokens = onPushTokenChange((token) => {
+      void syncPushToken(device, token).then((next) => {
+        if (next.pushToken !== device.pushToken) {
+          setDevice(next);
+        }
+      });
+    });
+    const stopArrivals = onPushArrived((item) => void handle([item]));
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        drain();
+      }
+    });
+    return () => {
+      stopTokens();
+      stopArrivals();
+      sub.remove();
+    };
+  }, [device, reload, say]);
 
   // Server reachability.
   useEffect(() => {

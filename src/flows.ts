@@ -2,12 +2,15 @@
 // and pull the development inbox. Screens call these and render the result.
 
 import { ApiError, devInbox, notify, subscribe, updatePushId } from "./api/client";
+import { requestPushToken } from "./push";
+import type { PushItem } from "./pushPayload";
 import { decryptAlert, encryptAlert, etHash, parseConnectInput, pushIdHash } from "./crypto/contract";
 import { randomNonce, randomUuid } from "./crypto/random";
 import {
   cardToken,
   listCards,
   saveSent,
+  listAlerts,
   saveAlert,
   loadOrCreateDevice,
   saveCard,
@@ -24,14 +27,16 @@ export { ApiError };
 export async function subscribeToCard(device: DeviceIdentity, scanned: string): Promise<CardRecord> {
   const token = parseConnectInput(scanned);
   const hash = etHash(token);
+  // First contact is the moment to ask for notification permission, so subscribe with the real token.
+  const current = await syncPushToken(device, (await requestPushToken(true)) ?? device.pushToken);
   await subscribe({
     et_hash: hash,
-    push_id_hash: device.pushIdHash,
-    push_token: device.pushToken,
-    platform: device.platform,
-    device_credential: device.credentialHex,
+    push_id_hash: current.pushIdHash,
+    push_token: current.pushToken,
+    platform: current.platform,
+    device_credential: current.credentialHex,
   });
-  if (!device.subscribedAt) {
+  if (!current.subscribedAt) {
     await saveDevice({ ...(await loadOrCreateDevice()), subscribedAt: new Date().toISOString() });
   }
   return saveCard(token);
@@ -94,12 +99,11 @@ export async function notifyContacts(
 }
 
 /**
- * The push token the OS hands out right now. Push is not wired up yet (see the README), so this
- * is the stub token, which never changes. When real push arrives, return the APNs / FCM token
- * here and call `syncPushToken` again from the OS token-refresh callback.
+ * The push token the OS hands out right now, without prompting. Without real push (Expo Go,
+ * Android, or notifications not allowed yet) it is the stored token, which never changes.
  */
 export async function currentPushToken(device: DeviceIdentity): Promise<string> {
-  return device.pushToken;
+  return (await requestPushToken(false)) ?? device.pushToken;
 }
 
 /**
@@ -168,13 +172,30 @@ export async function pullInbox(device: DeviceIdentity): Promise<InboxPull> {
     return { status: "unavailable", received: [] };
   }
 
-  if (notifications.length === 0) {
-    return { status: "ok", received: [] };
-  }
+  return { status: "ok", received: await storeIncoming(notifications) };
+}
 
+let storing: Promise<unknown> = Promise.resolve();
+
+/**
+ * Tries every stored card token on each message and saves what arrived. Messages come from the
+ * dev inbox or from real pushes, possibly at the same moment, so calls run one at a time and a
+ * ciphertext that is already saved is skipped.
+ */
+export function storeIncoming(items: PushItem[]): Promise<AlertRecord[]> {
+  const run = storing.then(() => storeIncomingNow(items));
+  storing = run.catch(() => undefined);
+  return run;
+}
+
+async function storeIncomingNow(items: PushItem[]): Promise<AlertRecord[]> {
+  if (items.length === 0) {
+    return [];
+  }
   const cards = await listCards();
+  const known = await listAlerts();
   const received: AlertRecord[] = [];
-  for (const item of notifications) {
+  for (const item of items) {
     // One push can carry several ciphertexts (the server bundles them per
     // device). Several contacts or senders reporting the same infection
     // become one alert; different infections stay separate.
@@ -194,14 +215,23 @@ export async function pullInbox(device: DeviceIdentity): Promise<InboxPull> {
     }
     if (found.size === 0) {
       // Nothing decrypts. Keep the message anyway, as before.
-      received.push(await saveAlert({ alert: item.alert, enc: item.enc, etHash: null, sti: null }));
+      if (!known.some((a) => a.enc === item.enc)) {
+        const saved = await saveAlert({ alert: item.alert, enc: item.enc, etHash: null, sti: null });
+        received.push(saved);
+        known.push(saved);
+      }
       continue;
     }
     for (const match of found.values()) {
-      received.push(await saveAlert({ alert: item.alert, ...match }));
+      if (known.some((a) => a.enc === match.enc && a.sti === match.sti)) {
+        continue;
+      }
+      const saved = await saveAlert({ alert: item.alert, ...match });
+      received.push(saved);
+      known.push(saved);
     }
   }
-  return { status: "ok", received };
+  return received;
 }
 
 export function describeError(error: unknown): string {
