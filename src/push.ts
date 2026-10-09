@@ -5,8 +5,6 @@ import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
-import { pushItemFrom, type PushItem } from "./pushPayload";
-
 export const pushSupported =
   Platform.OS === "ios" && Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
 
@@ -65,60 +63,30 @@ export function onPushTokenChange(callback: (token: string) => void): () => void
   return () => subscription.remove();
 }
 
-function itemFrom(notification: Notifications.Notification): PushItem | null {
-  const { content, trigger } = notification.request;
-  const payload = trigger && "payload" in trigger ? trigger.payload : undefined;
-  return pushItemFrom([content.data, payload], content.body ?? "");
-}
-
-/** Pushes still sitting in the notification list, read and then cleared. */
-export async function takeDeliveredPushes(): Promise<PushItem[]> {
-  if (!pushSupported) {
-    return [];
-  }
-  const items: PushItem[] = [];
-  try {
-    for (const notification of await Notifications.getPresentedNotificationsAsync()) {
-      const item = itemFrom(notification);
-      if (item) {
-        items.push(item);
-        await Notifications.dismissNotificationAsync(notification.request.identifier);
-      }
-    }
-  } catch {
-    // Not fatal: the next launch looks again.
-  }
-  return items;
-}
-
 /**
- * Pushes that arrive while the app is open, and the one the user tapped to open it.
- * Returns the function that stops listening.
+ * Calls back when a push arrives while the app is open, or the user taps one. The push only
+ * wakes the app: the messages themselves come from the server's mailbox.
  */
-export function onPushArrived(callback: (item: PushItem) => void): () => void {
+export function onPushWake(callback: () => void): () => void {
   if (!pushSupported) {
     return () => {};
   }
-  const received = Notifications.addNotificationReceivedListener((notification) => {
-    const item = itemFrom(notification);
-    if (item) {
-      callback(item);
-    }
-  });
-  const tapped = Notifications.addNotificationResponseReceivedListener((response) => {
-    const item = itemFrom(response.notification);
-    if (item) {
-      callback(item);
-    }
-  });
-  void Notifications.getLastNotificationResponseAsync().then((response) => {
-    const item = response ? itemFrom(response.notification) : null;
-    if (item) {
-      callback(item);
-    }
-  });
+  const received = Notifications.addNotificationReceivedListener(callback);
+  const tapped = Notifications.addNotificationResponseReceivedListener(callback);
   return () => {
     received.remove();
     tapped.remove();
   };
+}
+
+/** Removes delivered AfterCare notifications from the list once their messages are saved. */
+export async function clearDeliveredPushes(): Promise<void> {
+  if (!pushSupported) {
+    return;
+  }
+  try {
+    await Notifications.dismissAllNotificationsAsync();
+  } catch {
+    // Not fatal.
+  }
 }

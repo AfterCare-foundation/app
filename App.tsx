@@ -11,13 +11,17 @@ import {
   currentPushToken,
   describeError,
   pullInbox,
-  storeIncoming,
   syncPushToken,
   type InboxStatus,
   type NotifyOutcome,
 } from "./src/flows";
-import { installNotificationHandler, onPushArrived, onPushTokenChange, takeDeliveredPushes } from "./src/push";
-import type { PushItem } from "./src/pushPayload";
+import {
+  clearDeliveredPushes,
+  installNotificationHandler,
+  onPushTokenChange,
+  onPushWake,
+  pushSupported,
+} from "./src/push";
 import { HistoryScreen } from "./src/screens/HistoryScreen";
 import { InfoScreen } from "./src/screens/InfoScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
@@ -105,46 +109,19 @@ export default function App() {
     };
   }, [reload]);
 
-  // Real pushes: the OS token changing, a push arriving while the app is open or tapped open,
-  // and pushes still waiting in the notification list when the app comes to the front.
+  // The OS replacing the push token: tell the server.
   useEffect(() => {
     if (!device) {
       return;
     }
-    const handle = async (items: PushItem[]) => {
-      const received = await storeIncoming(items);
-      if (received.length === 0) {
-        return;
-      }
-      await reload();
-      const first = received[0];
-      say(
-        first?.sti
-          ? `New alert: ${stiTitle(first.sti)}.`
-          : "New alert. No card on this phone could open the details.",
-      );
-    };
-    const drain = () => void takeDeliveredPushes().then(handle);
-    drain();
-    const stopTokens = onPushTokenChange((token) => {
+    return onPushTokenChange((token) => {
       void syncPushToken(device, token).then((next) => {
         if (next.pushToken !== device.pushToken) {
           setDevice(next);
         }
       });
     });
-    const stopArrivals = onPushArrived((item) => void handle([item]));
-    const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active") {
-        drain();
-      }
-    });
-    return () => {
-      stopTokens();
-      stopArrivals();
-      sub.remove();
-    };
-  }, [device, reload, say]);
+  }, [device]);
 
   // Server reachability.
   useEffect(() => {
@@ -163,7 +140,9 @@ export default function App() {
     };
   }, []);
 
-  // Development inbox: poll while the app is in the foreground.
+  // The server's mailbox. A push only wakes the app, so the messages are fetched when the app
+  // opens or comes to the front and when a push arrives or is tapped. Without real push
+  // (Expo Go, Android) a timer keeps asking while the app is open.
   useEffect(() => {
     if (!device) {
       return;
@@ -183,6 +162,7 @@ export default function App() {
         setInboxStatus(result.status);
         if (result.received.length > 0) {
           await reload();
+          void clearDeliveredPushes();
           const first = result.received[0];
           say(
             first?.sti
@@ -195,7 +175,8 @@ export default function App() {
       }
     };
     void poll();
-    const id = setInterval(() => void poll(), INBOX_POLL_MS);
+    const id = pushSupported ? null : setInterval(() => void poll(), INBOX_POLL_MS);
+    const stopWake = onPushWake(() => void poll());
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
         void poll();
@@ -203,7 +184,10 @@ export default function App() {
     });
     return () => {
       active = false;
-      clearInterval(id);
+      if (id) {
+        clearInterval(id);
+      }
+      stopWake();
       sub.remove();
     };
   }, [device, reload, say]);

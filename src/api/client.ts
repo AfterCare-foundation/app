@@ -4,7 +4,6 @@
 import Constants from "expo-constants";
 
 import type { Platform } from "../crypto/contract";
-import { normalizeMore } from "../pushPayload";
 
 const FALLBACK_BASE_URL = "http://127.0.0.1:8000";
 
@@ -72,21 +71,20 @@ export interface NotifyResponse {
   contacts: number;
 }
 
-export interface DevInboxRequest {
+export interface InboxRequest {
   push_id_hash: string;
   device_credential: string;
 }
 
-export interface InboxNotification {
-  alert: string;
-  /** First ciphertext. */
+/** One waiting message: the ciphertext a sender's phone made for one of our cards. */
+export interface InboxMessage {
+  id: string;
   enc: string;
-  /** Further ciphertexts bundled into the same push (same device, several contacts or senders). */
-  more?: string[];
 }
 
-export interface DevInboxResponse {
-  notifications: InboxNotification[];
+export interface InboxResponse {
+  /** Oldest first, at most 200. Fetching deletes nothing. */
+  notifications: InboxMessage[];
 }
 
 function detailFromBody(body: unknown, fallback: string): string {
@@ -179,14 +177,12 @@ export function notify(body: NotifyRequest): Promise<NotifyResponse> {
   return request("POST", "/notify", body);
 }
 
-/** Development only. Returns 404 unless the server runs in stub mode. */
-export async function devInbox(body: DevInboxRequest): Promise<DevInboxResponse> {
-  const response = await request<DevInboxResponse>("POST", "/dev/inbox", body);
-  // On Android a real push carries `more` as a JSON string; accept both.
-  return {
-    notifications: response.notifications.map((item) => ({
-      ...item,
-      more: normalizeMore(item.more),
-    })),
-  };
+/** The mailbox: ciphertexts waiting for this device. Deletes nothing. */
+export function fetchInbox(body: InboxRequest): Promise<InboxResponse> {
+  return request("POST", "/inbox", body);
+}
+
+/** Deletes messages the app has saved on the phone (1 to 200 ids). */
+export function confirmInbox(body: InboxRequest & { ids: string[] }): Promise<{ status: "ok"; deleted: number }> {
+  return request("POST", "/inbox/confirm", body);
 }

@@ -1,10 +1,9 @@
 // The three things this version does: subscribe to a card, notify one card,
 // and pull the development inbox. Screens call these and render the result.
 
-import { ApiError, devInbox, notify, subscribe, updatePushId } from "./api/client";
+import { ApiError, confirmInbox, fetchInbox, notify, subscribe, updatePushId, type InboxMessage } from "./api/client";
 import { requestPushToken } from "./push";
-import type { PushItem } from "./pushPayload";
-import { decryptAlert, encryptAlert, etHash, parseConnectInput, pushIdHash } from "./crypto/contract";
+import { decryptAlertWithKey, encryptAlert, encryptionKey, etHash, parseConnectInput, pushIdHash } from "./crypto/contract";
 import { randomNonce, randomUuid } from "./crypto/random";
 import {
   cardToken,
@@ -151,87 +150,87 @@ export interface InboxPull {
   received: AlertRecord[];
 }
 
-/**
- * Pulls the stub-mode inbox and tries every stored card token on each
- * message. The pull clears the server copy, so everything is saved locally
- * even when no token decrypts it.
- */
-export async function pullInbox(device: DeviceIdentity): Promise<InboxPull> {
-  let notifications;
-  try {
-    ({ notifications } = await devInbox({
-      push_id_hash: device.pushIdHash,
-      device_credential: device.credentialHex,
-    }));
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 0) {
-      return { status: "offline", received: [] };
-    }
-    // 404: inbox is off (not development + stub). 403: device unknown yet,
-    // which is normal before the first subscribe.
-    return { status: "unavailable", received: [] };
-  }
+const GENERIC_ALERT = "You have a new message. Open the app to read it.";
+const INBOX_PAGE = 200;
+const MAX_ROUNDS = 10;
 
-  return { status: "ok", received: await storeIncoming(notifications) };
-}
-
-let storing: Promise<unknown> = Promise.resolve();
+let pulling: Promise<unknown> = Promise.resolve();
 
 /**
- * Tries every stored card token on each message and saves what arrived. Messages come from the
- * dev inbox or from real pushes, possibly at the same moment, so calls run one at a time and a
- * ciphertext that is already saved is skipped.
+ * Fetches the server's mailbox, saves what a stored card can open, and only then confirms those
+ * messages so the server deletes them. A message no card opens stays on the server (it is
+ * dropped there after 7 days) and comes back on the next fetch. Pushes only wake the app, so
+ * this runs on every app open, on a push, and on a timer when real push is not available.
+ * Calls run one at a time.
  */
-export function storeIncoming(items: PushItem[]): Promise<AlertRecord[]> {
-  const run = storing.then(() => storeIncomingNow(items));
-  storing = run.catch(() => undefined);
+export function pullInbox(device: DeviceIdentity): Promise<InboxPull> {
+  const run = pulling.then(() => pullInboxNow(device));
+  pulling = run.catch(() => undefined);
   return run;
 }
 
-async function storeIncomingNow(items: PushItem[]): Promise<AlertRecord[]> {
-  if (items.length === 0) {
-    return [];
-  }
-  const cards = await listCards();
-  const known = await listAlerts();
+async function pullInboxNow(device: DeviceIdentity): Promise<InboxPull> {
+  const request = { push_id_hash: device.pushIdHash, device_credential: device.credentialHex };
   const received: AlertRecord[] = [];
-  for (const item of items) {
-    // One push can carry several ciphertexts (the server bundles them per
-    // device). Several contacts or senders reporting the same infection
-    // become one alert; different infections stay separate.
-    const found = new Map<string, { enc: string; etHash: string; sti: string }>();
-    for (const enc of [item.enc, ...(item.more ?? [])]) {
-      for (const card of cards) {
-        try {
-          const payload = decryptAlert(cardToken(card), enc);
-          if (!found.has(payload.sti)) {
-            found.set(payload.sti, { enc, etHash: card.etHash, sti: payload.sti });
-          }
-          break;
-        } catch {
-          // Not this card.
-        }
+  try {
+    for (let round = 0; round < MAX_ROUNDS; round += 1) {
+      const { notifications } = await fetchInbox(request);
+      if (notifications.length === 0) {
+        break;
+      }
+      const { saved, confirmIds } = await saveMessages(notifications);
+      received.push(...saved);
+      if (confirmIds.length > 0) {
+        await confirmInbox({ ...request, ids: confirmIds });
+      }
+      // A full page means there may be more. If nothing could be confirmed, asking again
+      // would return the same page.
+      if (notifications.length < INBOX_PAGE || confirmIds.length === 0) {
+        break;
       }
     }
-    if (found.size === 0) {
-      // Nothing decrypts. Keep the message anyway, as before.
-      if (!known.some((a) => a.enc === item.enc)) {
-        const saved = await saveAlert({ alert: item.alert, enc: item.enc, etHash: null, sti: null });
-        received.push(saved);
-        known.push(saved);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 0) {
+      return { status: "offline", received };
+    }
+    // 403: the server does not know this device yet, which is normal before the first subscribe.
+    return { status: "unavailable", received };
+  }
+  return { status: "ok", received };
+}
+
+/**
+ * Tries every stored card token on each message. A message that is already saved (a confirm that
+ * failed earlier) is confirmed again without saving twice. Several contacts reporting the same
+ * infection (or one person reaching you through several cards) become one alert; different infections stay separate.
+ */
+async function saveMessages(messages: InboxMessage[]): Promise<{ saved: AlertRecord[]; confirmIds: string[] }> {
+  // One key derivation per card for the whole batch, not one per attempt.
+  const keyed = (await listCards()).map((card) => ({ card, key: encryptionKey(cardToken(card)) }));
+  const known = await listAlerts();
+  const saved: AlertRecord[] = [];
+  const confirmIds: string[] = [];
+  for (const message of messages) {
+    let match: { etHash: string; sti: string } | null = null;
+    for (const { card, key } of keyed) {
+      try {
+        match = { etHash: card.etHash, sti: decryptAlertWithKey(key, message.enc).sti };
+        break;
+      } catch {
+        // Not this card.
       }
+    }
+    if (!match) {
       continue;
     }
-    for (const match of found.values()) {
-      if (known.some((a) => a.enc === match.enc && a.sti === match.sti)) {
-        continue;
-      }
-      const saved = await saveAlert({ alert: item.alert, ...match });
-      received.push(saved);
-      known.push(saved);
+    if (!known.some((a) => a.enc === message.enc || (a.sti === match.sti && !a.acknowledgedAt))) {
+      const record = await saveAlert({ alert: GENERIC_ALERT, enc: message.enc, ...match });
+      saved.push(record);
+      known.push(record);
     }
+    confirmIds.push(message.id);
   }
-  return received;
+  return { saved, confirmIds };
 }
 
 export function describeError(error: unknown): string {

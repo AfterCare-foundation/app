@@ -17,6 +17,7 @@ import {
   connectUrl,
   credentialHex,
   decryptAlert,
+  decryptAlertWithKey,
   encryptAlert,
   encryptionKey,
   etHash,
@@ -156,4 +157,28 @@ test("random nonces produce different ciphertexts for the same STI", () => {
   const nonce2 = Uint8Array.from({ length: 12 }, (_, i) => 0x10 + i);
   assert.notEqual(encryptAlert(TOKEN, "hpv", NONCE), encryptAlert(TOKEN, "hpv", nonce2));
   assert.deepEqual(decryptAlert(TOKEN, encryptAlert(TOKEN, "hpv", nonce2)), { v: 1, sti: "hpv" });
+});
+
+test("worst case: 200 messages tried against 100 cards with cached keys", () => {
+  const tokens = Array.from({ length: 100 }, (_, c) => Uint8Array.from({ length: 16 }, (_, i) => (c * 7 + i) & 0xff));
+  const messages = Array.from({ length: 200 }, (_, m) =>
+    encryptAlert(tokens[m % 100]!, "chlamydia", Uint8Array.from({ length: 12 }, (_, i) => (m + i) & 0xff)),
+  );
+  const started = performance.now();
+  const keys = tokens.map((token) => encryptionKey(token));
+  let opened = 0;
+  for (const enc of messages) {
+    for (const key of keys) {
+      try {
+        decryptAlertWithKey(key, enc);
+        opened += 1;
+        break;
+      } catch {
+        // Not this card.
+      }
+    }
+  }
+  const ms = performance.now() - started;
+  assert.equal(opened, 200);
+  console.log(`# worst case (about 10,000 attempts) took ${ms.toFixed(0)} ms in Node; measure on a phone`);
 });

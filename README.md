@@ -136,11 +136,11 @@ test/              unit tests
 
 ## Push notifications
 
-iOS builds from EAS (`eas build --platform ios --profile testflight`) use real push through `expo-notifications` and the native APNs token (`src/push.ts`). Expo Go and Android keep a stub push token and poll the server's dev inbox while the app is open, because real push needs a build with the push entitlement. Android (FCM) is not set up. Don't commit Apple or Google credentials.
+iOS builds from EAS (`eas build --platform ios --profile testflight`) use real push through `expo-notifications` and the native APNs token (`src/push.ts`). Expo Go and Android keep a stub push token, because real push needs a build with the push entitlement, and ask the server's mailbox on a timer while the app is open. Android (FCM) is not set up. Don't commit Apple or Google credentials.
 
 - **Permission:** iOS asks when the user first scans a code (`subscribeToCard`), not at launch.
-- **Reading a push:** the server sends a generic alert plus the ciphertext in `enc` (and `more`). The app reads it when a push arrives while the app is open, when the user taps it, and from the notification list when the app comes to the front. Handled pushes are removed from the list and are saved once.
-- **Limit:** a push the user dismissed from the notification list without opening the app is never read, so its ciphertext is lost. Fixing that needs a server-side change (a silent push or a notification service extension).
+- **Mailbox:** a push is only a wake-up with generic lock-screen text. The messages wait on the server. The app calls `POST /inbox` when it opens, comes to the front, or a push arrives or is tapped, decrypts each message with the matching card, saves it on the phone, and only then calls `POST /inbox/confirm`. A message no card can open stays on the server (dropped after 7 days) and is fetched again. See `pullInbox` in `src/flows.ts`.
+- **Dismissed pushes:** nothing is lost, because the ciphertext is in the mailbox, not in the push.
 - **Token changes:** `syncPushToken` in `src/flows.ts` compares the OS token with the one the server last accepted, at launch and when the OS reports a new one, and calls `POST /update-push-id`. It is skipped until the first successful `/subscribe`.
 
 ## Security

@@ -84,13 +84,20 @@ export function encryptAlert(
 
 /** Reverse of `encryptAlert`. Throws if the token is wrong or data is bad. */
 export function decryptAlert(token: Uint8Array, encryptedPayload: string): AlertPayload {
+  return decryptAlertWithKey(encryptionKey(token), encryptedPayload);
+}
+
+/**
+ * Same as `decryptAlert` with the key already derived. Trying one message against many cards
+ * derives each card's key once and calls this for every attempt.
+ */
+export function decryptAlertWithKey(key: Uint8Array, encryptedPayload: string): AlertPayload {
   const blob = base64ToBytes(encryptedPayload);
   if (blob.length < NONCE_BYTES + TAG_BYTES) {
     throw new Error("encrypted_payload too short");
   }
   const nonce = blob.subarray(0, NONCE_BYTES);
   const sealed = blob.subarray(NONCE_BYTES);
-  const key = encryptionKey(token);
   const plain = gcm(key, nonce).decrypt(sealed);
   const parsed: unknown = JSON.parse(utf8Decode(plain));
   if (
