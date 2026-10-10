@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { AlertRecord } from "../storage/secureStore";
 import { colors, fonts, radius, type } from "../theme";
-import { preventionNote } from "../prevention";
+import { pepLine } from "../advice";
 import { findSti } from "../sti";
 import { GhostButton, GradientButton } from "./Buttons";
 import { BellIcon } from "./Icons";
@@ -41,7 +41,8 @@ interface ExposureCardProps {
 }
 
 export function ExposureCard({ alert, onDone, contactAt = null }: ExposureCardProps) {
-  const note = alert.sti ? preventionNote(alert.sti, contactAt) : null;
+  // Worked out when the alert is shown, so the deadline reflects the time that has passed.
+  const pep = alert.sti ? pepLine(alert.sti, contactAt) : null;
   return (
     <Panel tint="blue" style={styles.card}>
       <View style={styles.badge}>
@@ -53,7 +54,7 @@ export function ExposureCard({ alert, onDone, contactAt = null }: ExposureCardPr
       <Text style={styles.body}>
         {alert.sti ? <ReportedText sti={alert.sti} /> : alert.alert}
       </Text>
-      {note ? <Text style={styles.prevention}>{note}</Text> : null}
+      {pep ? <Text style={styles.prevention}>{pep}</Text> : null}
       <GradientButton label="OK" onPress={onDone} style={styles.button} />
     </Panel>
   );
@@ -154,8 +155,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   finder: {
-    padding: 16,
-    gap: 6,
+    padding: 20,
+    gap: 10,
   },
   stiName: {
     textDecorationLine: "underline",

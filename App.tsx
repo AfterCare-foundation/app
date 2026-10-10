@@ -16,6 +16,7 @@ import {
   type PullStats,
   type NotifyOutcome,
 } from "./src/flows";
+import { cancelAllRetestReminders, cancelRetestReminder, scheduleRetestReminders } from "./src/reminders";
 import {
   clearDeliveredPushes,
   installNotificationHandler,
@@ -35,6 +36,7 @@ import { ScanScreen } from "./src/screens/ScanScreen";
 import {
   acknowledgeAlert,
   clearLocalData,
+  dismissRetest,
   listAlerts,
   listCards,
   listSent,
@@ -49,6 +51,17 @@ import { colors, fonts } from "./src/theme";
 type Route = { name: "home" } | { name: "scan" } | { name: "generate" } | { name: "notify" };
 
 installNotificationHandler();
+
+/** Marks an alert as seen and schedules its retest reminders, counted from the day its card was saved. */
+async function openAlert(alert: AlertRecord): Promise<void> {
+  const opened = await acknowledgeAlert(alert.id);
+  if (!opened) {
+    return;
+  }
+  const cards = await listCards();
+  const scannedAt = cards.find((c) => c.etHash === opened.etHash)?.scannedAt ?? null;
+  await scheduleRetestReminders(opened, scannedAt);
+}
 
 const INBOX_POLL_MS = 4000;
 const HEALTH_POLL_MS = 15000;
@@ -116,10 +129,13 @@ export default function App() {
   // Notifications switched off for AfterCare: checked on open, on coming to the front, and after a scan.
   const [pushBlocked, setPushBlocked] = useState(false);
   const checkPush = useCallback(() => void pushIsBlocked().then(setPushBlocked), []);
+  // Retest reminders depend on the date, so Home is told the time again whenever the app comes to the front.
+  const [now, setNow] = useState(Date.now());
   useEffect(() => {
     checkPush();
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
+        setNow(Date.now());
         checkPush();
       }
     });
@@ -246,7 +262,7 @@ export default function App() {
 
   const onAcknowledge = useCallback(
     async (alert: AlertRecord) => {
-      await acknowledgeAlert(alert.id);
+      await openAlert(alert);
       await reload();
       // European Test Finder (ECDC, run from the Capital Region of Denmark).
       void Linking.openURL(TEST_FINDER_URL);
@@ -256,7 +272,16 @@ export default function App() {
 
   const onDismissAlert = useCallback(
     async (alert: AlertRecord) => {
-      await acknowledgeAlert(alert.id);
+      await openAlert(alert);
+      await reload();
+    },
+    [reload],
+  );
+
+  const onDismissRetest = useCallback(
+    async (alert: AlertRecord, days: number) => {
+      await dismissRetest(alert.id, days);
+      void cancelRetestReminder(alert.id, days);
       await reload();
     },
     [reload],
@@ -273,6 +298,7 @@ export default function App() {
       return;
     }
     await clearLocalData();
+    void cancelAllRetestReminders();
     const identity = await loadOrCreateDevice();
     setDevice(identity);
     await reload();
@@ -291,6 +317,7 @@ export default function App() {
           style: "destructive",
           onPress: async () => {
             await clearLocalData();
+    void cancelAllRetestReminders();
             const identity = await loadOrCreateDevice();
             setDevice(identity);
             await reload();
@@ -355,6 +382,9 @@ export default function App() {
         onNotify={() => setRoute({ name: "notify" })}
         onAcknowledge={onAcknowledge}
         onDismiss={onDismissAlert}
+        now={now}
+        onTest={() => void Linking.openURL(TEST_FINDER_URL)}
+        onDismissRetest={onDismissRetest}
       />
     );
   }

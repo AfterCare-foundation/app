@@ -2,13 +2,17 @@
 // and pull the development inbox. Screens call these and render the result.
 
 import { ApiError, confirmInbox, fetchInbox, notify, subscribe, updatePushId, type InboxMessage } from "./api/client";
+import { ADVICE } from "./advice";
 import { requestPushToken } from "./push";
+import { cancelRetestReminder } from "./reminders";
+import { UNSPECIFIED_STI } from "./sti";
 import { decryptAlertWithKey, encryptAlert, encryptionKey, etHash, parseConnectInput, pushIdHash } from "./crypto/contract";
 import { randomNonce, randomUuid } from "./crypto/random";
 import {
   cardToken,
   listCards,
   saveSent,
+  dismissRetest,
   listAlerts,
   saveAlert,
   loadOrCreateDevice,
@@ -88,6 +92,7 @@ export async function notifyContacts(
       });
     }
     await saveSent(sti);
+    await settleRetests(sti);
   }
   return {
     pushed: result.pushed,
@@ -95,6 +100,29 @@ export async function notifyContacts(
     contacts: contacts.length,
     campaignId,
   };
+}
+
+/**
+ * The user has just told their contacts about an infection, so they tested positive for it: a
+ * retest reminder for an earlier alert about the same infection no longer applies. Hides the
+ * reminders and cancels the scheduled notifications, for alerts opened or not. Alerts that
+ * arrive later are new exposures and get their own. "Don't specify" names no infection, so it
+ * settles nothing.
+ */
+async function settleRetests(sti: string): Promise<void> {
+  const stages = sti === UNSPECIFIED_STI ? [] : (ADVICE[sti]?.retestDays ?? []);
+  if (stages.length === 0) {
+    return;
+  }
+  for (const alert of await listAlerts()) {
+    if (alert.sti !== sti) {
+      continue;
+    }
+    await dismissRetest(alert.id, Math.max(...stages));
+    for (const days of stages) {
+      await cancelRetestReminder(alert.id, days);
+    }
+  }
 }
 
 /**

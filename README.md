@@ -11,7 +11,7 @@ This repo is the **mobile app** (Expo / React Native / TypeScript). The notifica
 - **Add**: scan or paste a connection code from someone's card.
 - **Create**: show your own code to be scanned.
 - **Notify partners**: after a positive test, warn the people you connected with. Pick the infection and the date of your last negative test or completed treatment for it. The app works out whom to notify from that, and the notification is sent immediately. You check a preview of what they will see on the confirmation screen.
-- **Alerts**: if someone you connected with reports an infection, the app shows an alert. Alerts are kept in History. For HIV, chlamydia and syphilis the alert adds a line about time-limited prevention (HIV PEP, Doxy-PEP), shown only if the contact was less than 72 hours ago.
+- **Alerts**: if someone you connected with reports an infection, the app shows an alert. Alerts are kept in History. The alert card is short: who reported what, and "Get tested when you can". Only for HIV and mpox it adds one line about PEP or a vaccine while the 72-hour or 14-day deadline can still be met (`pepLine` in `src/advice.ts`). The rest of the timing advice is not shown on it. When a retest is due, the Home screen shows the same exposure card as a new alert (same text, same "Need a test?" block), until the user taps OK. A retest is not labelled as one. The phone also schedules a local notification for it (`src/reminders.ts`, same generic text as a real alert push: "You have a new message. Open the app to read it."). Nothing goes to the server. Each alert gets a random delay of 0 to 72 hours, chosen when it is opened, that is added to the reminder times, so the time does not give the contact day away. Reminders never fire before 10:00 or after 20:00 local time. OK, deleting data and resetting the install cancel them. So does notifying partners about the same infection afterwards: someone who tested positive does not need a retest (`settleRetests` in `src/flows.ts`). It is worked out on the phone from the day the card was saved, when the alert is opened. That date is never shown and never sent to the server, and the alert text carries no retest date.
 - **Test finder**: an alert points to the European Test Finder. The same link is on History and Info.
 
 Keys and connection codes stay on the phone (in the secure store). Only hashes and encrypted payloads are sent to the server. The cryptographic contract is documented in the backend repo (`docs/CRYPTO.md`); the app side is in `src/crypto/`.
@@ -28,7 +28,7 @@ Notify never asks "who". The infection and the date decide, and the rules are in
 
 The server keeps each code for **6 months** (180 days), so contacts older than that can't be reached. `MAX_AGE_DAYS` in `src/windows.ts` must stay in step with the backend's `SUBSCRIPTION_TTL_DAYS`.
 
-The infection list, lookback values and the prevention lines are health content. Have them reviewed by clinicians before changing them.
+The infection list, lookback values and the timing advice in `src/advice.ts` is health content. Have them reviewed by clinicians before changing them.
 
 ## Requirements
 
@@ -114,7 +114,7 @@ You need two installs (two phones, or a phone and a simulator), one acting as ea
 | --- | --- |
 | `npm start` | Start Metro / Expo dev server |
 | `npm run ios` / `npm run android` | Start and open in a simulator / emulator |
-| `npm test` | Unit tests (crypto contract vectors, notify windows, prevention lines) |
+| `npm test` | Unit tests (crypto contract vectors, notify windows, timing advice) |
 | `npm run typecheck` | TypeScript check for the app and tests |
 
 Run `npm test` and `npm run typecheck` before sending changes.
@@ -130,7 +130,7 @@ src/storage/       secure on-device storage
 src/api/           server client
 src/sti.ts         list of infections shown in the app
 src/windows.ts     which contacts to notify, lookback periods and their sources
-src/prevention.ts  PEP and Doxy-PEP lines shown under an alert
+src/advice.ts      timing advice and retest dates (one table per infection, with sources); the alert card shows only the PEP line
 test/              unit tests
 ```
 

@@ -21,7 +21,8 @@ import {
   type Platform as ApiPlatform,
 } from "../crypto/contract";
 import { bytesToBase64, base64ToBytes } from "../crypto/encoding";
-import { randomCredential, randomUuid } from "../crypto/random";
+import { MAX_RETEST_DELAY_MS } from "../advice";
+import { randomCredential, randomDelayMs, randomUuid } from "../crypto/random";
 
 const OPTIONS: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
@@ -66,6 +67,10 @@ export interface AlertRecord {
   sti: string | null;
   /** Set when the user taps the card's button. Local only. */
   acknowledgedAt: string | null;
+  /** The retest reminder with this many days has been dismissed (see advice.ts `retestDue`). */
+  retestDismissedDays?: number;
+  /** Random delay (0 to 72 hours) added to every retest reminder of this alert. Chosen when it is opened. */
+  retestDelayMs?: number;
 }
 
 /** One line of the local "I notified people" log. No contacts, no counts. */
@@ -219,9 +224,20 @@ export async function acknowledgeAlert(id: string): Promise<AlertRecord | null> 
   if (!alert) {
     return null;
   }
-  const next = { ...alert, acknowledgedAt: new Date().toISOString() };
+  const next = {
+    ...alert,
+    acknowledgedAt: new Date().toISOString(),
+    retestDelayMs: alert.retestDelayMs ?? randomDelayMs(MAX_RETEST_DELAY_MS),
+  };
   await writeJson(`alert.${id}`, next);
   return next;
+}
+
+export async function dismissRetest(id: string, days: number): Promise<void> {
+  const alert = await readJson<AlertRecord>(`alert.${id}`);
+  if (alert) {
+    await writeJson(`alert.${id}`, { ...alert, retestDismissedDays: days });
+  }
 }
 
 export async function listSent(): Promise<SentRecord[]> {

@@ -2,6 +2,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { ActionTile, GradientButton } from "../components/Buttons";
 import { Panel } from "../components/Panel";
+import { retestDue } from "../advice";
 import { Header } from "../components/Chrome";
 import { ExposureCard, TestFinderBlock } from "../components/ExposureCard";
 import { BellIcon, QrIcon, ScanIcon } from "../components/Icons";
@@ -20,6 +21,10 @@ interface HomeScreenProps {
   onNotify: () => void;
   onAcknowledge: (alert: AlertRecord) => void;
   onDismiss: (alert: AlertRecord) => void;
+  /** The current time, refreshed when the app comes to the front, for the retest reminders. */
+  now: number;
+  onTest: () => void;
+  onDismissRetest: (alert: AlertRecord, days: number) => void;
 }
 
 export function HomeScreen({
@@ -33,14 +38,34 @@ export function HomeScreen({
   onNotify,
   onAcknowledge,
   onDismiss,
+  now,
+  onTest,
+  onDismissRetest,
 }: HomeScreenProps) {
   const fresh = alerts.filter((a) => a.acknowledgedAt === null);
   const current = fresh[0] ?? null;
+  // Opened alerts whose retest day has come. They are shown exactly like a new alert, so the
+  // user (and anyone looking) cannot tell a retest from a first alert.
+  const reminders = alerts.flatMap((alert) => {
+    if (!alert.sti) {
+      return [];
+    }
+    const scannedAt = cards.find((c) => c.etHash === alert.etHash)?.scannedAt ?? null;
+    const days = retestDue(alert.sti, scannedAt, alert.acknowledgedAt, alert.retestDismissedDays ?? 0, now, alert.retestDelayMs ?? 0);
+    return days === null ? [] : [{ alert, days }];
+  });
+
+  const retest = reminders[0] ?? null;
+  const shown = current
+    ? { alert: current, onDone: () => onDismiss(current), onFindTest: () => onAcknowledge(current) }
+    : retest
+      ? { alert: retest.alert, onDone: () => onDismissRetest(retest.alert, retest.days), onFindTest: onTest }
+      : null;
 
   return (
     <ScrollView
       contentContainerStyle={
-        current ? [styles.content, styles.contentFill] : styles.content
+        shown ? [styles.content, styles.contentFill] : styles.content
       }
       keyboardShouldPersistTaps="handled"
     >
@@ -60,14 +85,14 @@ export function HomeScreen({
         </View>
       ) : null}
 
-      {current ? (
+      {shown ? (
         <View style={styles.alertArea}>
           <ExposureCard
-            alert={current}
-            onDone={() => onDismiss(current)}
-            contactAt={cards.find((c) => c.etHash === current.etHash)?.scannedAt ?? null}
+            alert={shown.alert}
+            onDone={shown.onDone}
+            contactAt={cards.find((c) => c.etHash === shown.alert.etHash)?.scannedAt ?? null}
           />
-          <TestFinderBlock onFindTest={() => onAcknowledge(current)} />
+          <TestFinderBlock onFindTest={shown.onFindTest} />
           {fresh.length > 1 ? (
             <Text style={styles.moreAlerts}>
               {fresh.length - 1} more{" "}
@@ -90,7 +115,7 @@ export function HomeScreen({
       )}
 
       {/* With an alert on screen nothing else is offered; the actions come back once it is dismissed. */}
-      {current ? null : (
+      {shown ? null : (
         <>
           {/* Used most: adding someone's code, then making one. */}
           <View style={styles.tiles}>
@@ -140,7 +165,7 @@ const styles = StyleSheet.create({
   alertArea: {
     flex: 1,
     justifyContent: "center",
-    gap: 16,
+    gap: 28,
     paddingBottom: 48,
   },
   message: {
