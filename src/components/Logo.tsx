@@ -54,8 +54,8 @@ export function Logo({ size = 40 }: { size?: number }) {
           y2={160.72781}
           gradientTransform={OFFSET}
         >
-          <Stop offset="0" stopColor="#8b5cf6" />
-          <Stop offset="1" stopColor="#7d47e0" />
+          <Stop offset="0" stopColor="#7d47e0" />
+          <Stop offset="1" stopColor="#4b32ab" />
         </LinearGradient>
       </Defs>
       <G transform={OFFSET}>

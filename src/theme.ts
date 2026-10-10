@@ -21,7 +21,7 @@ export const colors = {
 } as const;
 
 export const gradients = {
-  wordmark: ["#8b5cf6", "#2dd4bf"] as const,
+  wordmark: ["#7d47e0", "#2dd4bf"] as const,
   primary: ["#8b5cf6", "#2dd4bf"] as const,
   notify: ["#8b5cf6", "#6d28d9"] as const,
   sent: ["#20b486", "#138a72"] as const,
