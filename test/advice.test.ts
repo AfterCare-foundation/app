@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ADVICE, adviceLines, pepLine, reminderTime, retestDue, retestNotifications } from "../src/advice.ts";
+import { ADVICE, adviceLines, pepLine, retestDueStage, reminderTime, retestDue, retestNotifications } from "../src/advice.ts";
 
 const SCAN = "2026-10-07T15:30:00Z"; // the contact is taken to be on this day, never after the save time
 const at = (iso: string) => new Date(iso).getTime();
@@ -132,4 +132,13 @@ test("alert card line: only HIV and mpox, only while the deadline can be met", (
   assert.equal(pepLine("mpox", SCAN, at("2026-10-22T00:00:00Z")), null);
   assert.equal(pepLine("gonorrhoea", SCAN, at("2026-10-08T00:00:00Z")), null);
   assert.equal(pepLine("hiv", null), null);
+});
+
+test("a due retest reports its scheduled time, not the time it is noticed", () => {
+  const opened = "2026-10-08T10:00:00Z";
+  const stage = retestDueStage("gonorrhoea", SCAN, opened, 0, at("2026-12-01T00:00:00Z"));
+  assert.equal(stage?.days, 21);
+  // 28 Oct 00:00 UTC, moved into the 10:00 to 20:00 window of local time
+  assert.ok((stage?.at ?? 0) >= at("2026-10-27T00:00:00Z") && (stage?.at ?? 0) <= at("2026-10-29T12:00:00Z"));
+  assert.equal(retestDueStage("gonorrhoea", SCAN, opened, 21, at("2026-12-01T00:00:00Z")), null);
 });

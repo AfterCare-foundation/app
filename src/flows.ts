@@ -2,7 +2,7 @@
 // and pull the development inbox. Screens call these and render the result.
 
 import { ApiError, confirmInbox, fetchInbox, notify, subscribe, updatePushId, type InboxMessage } from "./api/client";
-import { ADVICE } from "./advice";
+import { ADVICE, retestDueStage } from "./advice";
 import { requestPushToken } from "./push";
 import { cancelRetestReminder } from "./reminders";
 import { UNSPECIFIED_STI } from "./sti";
@@ -12,6 +12,7 @@ import {
   cardToken,
   listCards,
   saveSent,
+  deleteAlert,
   dismissRetest,
   listAlerts,
   saveAlert,
@@ -109,6 +110,40 @@ export async function notifyContacts(
  * arrive later are new exposures and get their own. "Don't specify" names no infection, so it
  * settles nothing.
  */
+/**
+ * Turns every retest that has come due into an ordinary unread alert: it shows on Home exactly
+ * like a new alert, with the same text, and gets a "Received" entry in History. Nothing marks it
+ * as a retest in the UI. The stage is then dismissed on the alert it follows, so each stage
+ * fires once. Returns how many alerts were raised. Call when the app opens or comes to the front.
+ */
+export async function raiseDueRetests(now: number = Date.now()): Promise<number> {
+  const alerts = await listAlerts();
+  const cards = await listCards();
+  let raised = 0;
+  for (const alert of alerts) {
+    if (!alert.sti || alert.retestOf || !alert.acknowledgedAt) {
+      continue;
+    }
+    const scannedAt = cards.find((c) => c.etHash === alert.etHash)?.scannedAt ?? null;
+    const due = retestDueStage(alert.sti, scannedAt, alert.acknowledgedAt, alert.retestDismissedDays ?? 0, now, alert.retestDelayMs ?? 0);
+    if (due === null) {
+      continue;
+    }
+    const unread = (await listAlerts()).some((a) => a.sti === alert.sti && !a.acknowledgedAt);
+    if (!unread) {
+      // Dated at the scheduled time, and carrying the original payload: it looks like the alert again.
+      await saveAlert(
+        { alert: GENERIC_ALERT, enc: alert.enc, etHash: alert.etHash, sti: alert.sti, retestOf: alert.id },
+        new Date(due.at).toISOString(),
+      );
+      raised += 1;
+    }
+    await dismissRetest(alert.id, due.days);
+    await cancelRetestReminder(alert.id, due.days);
+  }
+  return raised;
+}
+
 async function settleRetests(sti: string): Promise<void> {
   const stages = sti === UNSPECIFIED_STI ? [] : (ADVICE[sti]?.retestDays ?? []);
   if (stages.length === 0) {
@@ -116,6 +151,13 @@ async function settleRetests(sti: string): Promise<void> {
   }
   for (const alert of await listAlerts()) {
     if (alert.sti !== sti) {
+      continue;
+    }
+    if (alert.retestOf) {
+      // A retest alert nobody has opened yet is no longer needed.
+      if (!alert.acknowledgedAt) {
+        await deleteAlert(alert.id);
+      }
       continue;
     }
     await dismissRetest(alert.id, Math.max(...stages));

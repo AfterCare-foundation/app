@@ -71,6 +71,8 @@ export interface AlertRecord {
   retestDismissedDays?: number;
   /** Random delay (0 to 72 hours) added to every retest reminder of this alert. Chosen when it is opened. */
   retestDelayMs?: number;
+  /** Set on an alert the phone raised itself for a retest (id of the alert it follows). Looks like any other alert. */
+  retestOf?: string;
 }
 
 /** One line of the local "I notified people" log. No contacts, no counts. */
@@ -205,11 +207,13 @@ export async function listAlerts(): Promise<AlertRecord[]> {
 
 export async function saveAlert(
   alert: Omit<AlertRecord, "id" | "receivedAt" | "acknowledgedAt">,
+  /** For an alert raised on the phone: when it was due, instead of now. */
+  receivedAt: string = new Date().toISOString(),
 ): Promise<AlertRecord> {
   const record: AlertRecord = {
     ...alert,
     id: randomUuid(),
-    receivedAt: new Date().toISOString(),
+    receivedAt,
     acknowledgedAt: null,
   };
   await writeJson(`alert.${record.id}`, record);
@@ -217,6 +221,13 @@ export async function saveAlert(
   ids.push(record.id);
   await writeIndex(KEY_ALERTS, ids);
   return record;
+}
+
+/** Removes one alert from the phone. Only used for a retest alert that became pointless. */
+export async function deleteAlert(id: string): Promise<void> {
+  const ids = await readIndex(KEY_ALERTS);
+  await writeIndex(KEY_ALERTS, ids.filter((x) => x !== id));
+  await SecureStore.deleteItemAsync(`alert.${id}`, OPTIONS);
 }
 
 export async function acknowledgeAlert(id: string): Promise<AlertRecord | null> {

@@ -216,10 +216,23 @@ export function retestDue(
   now: number = Date.now(),
   delayMs: number = 0,
 ): number | null {
-  let due: number | null = null;
+  return retestDueStage(sti, scannedAt, acknowledgedAt, dismissedDays, now, delayMs)?.days ?? null;
+}
+
+/** Like `retestDue`, with the moment the reminder was due (the scheduled time, not the time it is noticed). */
+export function retestDueStage(
+  sti: string,
+  scannedAt: string | null,
+  acknowledgedAt: string | null,
+  dismissedDays: number,
+  now: number = Date.now(),
+  delayMs: number = 0,
+): { days: number; at: number } | null {
+  let due: { days: number; at: number } | null = null;
   for (const stage of retestStages(sti, scannedAt, acknowledgedAt)) {
-    if (stage.days > dismissedDays && reminderTime(stage.baseMs + delayMs) <= now) {
-      due = stage.days;
+    const at = reminderTime(stage.baseMs + delayMs);
+    if (stage.days > dismissedDays && at <= now) {
+      due = { days: stage.days, at };
     }
   }
   return due;

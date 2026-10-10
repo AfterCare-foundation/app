@@ -11,12 +11,13 @@ import {
   currentPushToken,
   describeError,
   pullInbox,
+  raiseDueRetests,
   syncPushToken,
   type InboxStatus,
   type PullStats,
   type NotifyOutcome,
 } from "./src/flows";
-import { cancelAllRetestReminders, cancelRetestReminder, scheduleRetestReminders } from "./src/reminders";
+import { cancelAllRetestReminders, scheduleRetestReminders } from "./src/reminders";
 import {
   clearDeliveredPushes,
   installNotificationHandler,
@@ -36,7 +37,6 @@ import { ScanScreen } from "./src/screens/ScanScreen";
 import {
   acknowledgeAlert,
   clearLocalData,
-  dismissRetest,
   listAlerts,
   listCards,
   listSent,
@@ -55,8 +55,8 @@ installNotificationHandler();
 /** Marks an alert as seen and schedules its retest reminders, counted from the day its card was saved. */
 async function openAlert(alert: AlertRecord): Promise<void> {
   const opened = await acknowledgeAlert(alert.id);
-  if (!opened) {
-    return;
+  if (!opened || opened.retestOf) {
+    return; // a retest alert has no retest of its own
   }
   const cards = await listCards();
   const scannedAt = cards.find((c) => c.etHash === opened.etHash)?.scannedAt ?? null;
@@ -129,18 +129,22 @@ export default function App() {
   // Notifications switched off for AfterCare: checked on open, on coming to the front, and after a scan.
   const [pushBlocked, setPushBlocked] = useState(false);
   const checkPush = useCallback(() => void pushIsBlocked().then(setPushBlocked), []);
-  // Retest reminders depend on the date, so Home is told the time again whenever the app comes to the front.
-  const [now, setNow] = useState(Date.now());
+  // A retest that has come due becomes an ordinary unread alert. Checked on open and on coming to the front.
+  const raiseRetests = useCallback(
+    () => void raiseDueRetests().then((raised) => (raised > 0 ? reload() : undefined)),
+    [reload],
+  );
   useEffect(() => {
     checkPush();
+    raiseRetests();
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
-        setNow(Date.now());
+        raiseRetests();
         checkPush();
       }
     });
     return () => sub.remove();
-  }, [checkPush]);
+  }, [checkPush, raiseRetests]);
 
   // The OS replacing the push token: tell the server.
   useEffect(() => {
@@ -278,15 +282,6 @@ export default function App() {
     [reload],
   );
 
-  const onDismissRetest = useCallback(
-    async (alert: AlertRecord, days: number) => {
-      await dismissRetest(alert.id, days);
-      void cancelRetestReminder(alert.id, days);
-      await reload();
-    },
-    [reload],
-  );
-
   const onDeleteData = useCallback(async () => {
     if (!device) {
       return;
@@ -382,9 +377,6 @@ export default function App() {
         onNotify={() => setRoute({ name: "notify" })}
         onAcknowledge={onAcknowledge}
         onDismiss={onDismissAlert}
-        now={now}
-        onTest={() => void Linking.openURL(TEST_FINDER_URL)}
-        onDismissRetest={onDismissRetest}
       />
     );
   }
