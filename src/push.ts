@@ -8,16 +8,16 @@ import { Alert, Linking, Platform } from "react-native";
 export const pushSupported =
   Platform.OS === "ios" && Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
 
-/** The app shows alerts itself, so a push that arrives while it is open stays silent. */
+/** A push shows as a normal notification (banner, list, sound) even while the app is open: an alert must not be missed. */
 export function installNotificationHandler(): void {
   if (!pushSupported) {
     return;
   }
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
-      shouldShowBanner: false,
-      shouldShowList: false,
-      shouldPlaySound: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
       shouldSetBadge: false,
     }),
   });
