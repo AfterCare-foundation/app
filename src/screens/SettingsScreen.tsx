@@ -2,22 +2,21 @@
 // A developer section appears only in development builds.
 
 import { useEffect, useState } from "react";
-import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View, type ImageSourcePropType } from "react-native";
 
 import { chooseIcon, currentIconChoice } from "../appIcon";
 import { Header } from "../components/Chrome";
 import { ArrowRightIcon } from "../components/Icons";
 import { Panel } from "../components/Panel";
 import type { InboxStatus, PullStats } from "../flows";
-import { ICON_PREVIEWS } from "../iconPreviews";
 import type { AppIconChoice, DeviceIdentity } from "../storage/secureStore";
 import { colors, fonts, radius, type } from "../theme";
 
 const PRIVACY_URL = "https://www.after-care.eu/privacy";
 
-const ICONS: readonly { id: AppIconChoice; label: string; image: { uri: string } }[] = [
-  { id: "playful", label: "Playful", image: ICON_PREVIEWS.playful },
-  { id: "discreet", label: "Discreet", image: ICON_PREVIEWS.discreet },
+const ICONS: readonly { id: AppIconChoice; label: string; image: ImageSourcePropType }[] = [
+  { id: "playful", label: "Playful", image: require("../../assets/icon-preview-playful.png") },
+  { id: "discreet", label: "Discreet", image: require("../../assets/icon-preview-discreet.png") },
 ];
 
 interface SettingsScreenProps {

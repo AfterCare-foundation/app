@@ -56,6 +56,12 @@
         }
       ],
       "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "AfterCare uses Face ID to keep your private data from being opened by someone else."
+        }
+      ],
       "expo-notifications",
       "expo-font",
       "@react-native-community/datetimepicker",

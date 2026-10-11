@@ -5,6 +5,7 @@ import { Alert, AppState, Linking, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { apiBaseUrl, deleteDevice, health } from "./src/api/client";
+import { useAppLock } from "./src/appLock";
 import { Screen, TabBar, type Tab } from "./src/components/Chrome";
 import { stiTitle } from "./src/components/ExposureCard";
 import {
@@ -31,6 +32,7 @@ import { HistoryScreen } from "./src/screens/HistoryScreen";
 import { InfoScreen } from "./src/screens/InfoScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { HomeScreen } from "./src/screens/HomeScreen";
+import { LockScreen, PrivacyCover } from "./src/screens/LockScreen";
 import { GenerateScreen } from "./src/screens/GenerateScreen";
 import { NotifyScreen } from "./src/screens/NotifyScreen";
 import { ScanScreen } from "./src/screens/ScanScreen";
@@ -74,6 +76,7 @@ export default function App() {
     [fonts.semibold]: require("./assets/fonts/Poppins-SemiBold.ttf"),
   });
 
+  const lock = useAppLock();
   const [device, setDevice] = useState<DeviceIdentity | null>(null);
   const [cards, setCards] = useState<CardRecord[]>([]);
   const [alerts, setAlerts] = useState<AlertRecord[]>([]);
@@ -129,6 +132,14 @@ export default function App() {
   // Notifications switched off for AfterCare: checked on open, on coming to the front, and after a scan.
   const [pushBlocked, setPushBlocked] = useState(false);
   const checkPush = useCallback(() => void pushIsBlocked().then(setPushBlocked), []);
+  // No phone code or biometrics: the app cannot lock itself. Warn, but do not block.
+  const noPasscode = lock.noPasscode;
+  useEffect(() => {
+    if (noPasscode) {
+      say("For your privacy, set a device passcode. Without one, anyone who picks up your phone can open AfterCare.", 10000);
+    }
+  }, [noPasscode, say]);
+
   // A retest that has come due becomes an ordinary unread alert. Checked on open and on coming to the front.
   const raiseRetests = useCallback(
     () => void raiseDueRetests().then((raised) => (raised > 0 ? reload() : undefined)),
@@ -333,6 +344,19 @@ export default function App() {
     );
   }
 
+  // Locked (or still deciding): nothing private is drawn. The inbox keeps being fetched meanwhile.
+  if (lock.state !== "open") {
+    return (
+      <SafeAreaProvider>
+        <Screen>
+          <StatusBar style="light" />
+          {lock.state === "locked" ? <LockScreen onUnlock={() => void lock.unlock()} /> : null}
+          {lock.covered ? <PrivacyCover /> : null}
+        </Screen>
+      </SafeAreaProvider>
+    );
+  }
+
   let body;
   if (route.name === "scan") {
     body = <ScanScreen device={device} onBack={() => setRoute({ name: "home" })} onSubscribed={onSubscribed} />;
@@ -392,6 +416,7 @@ export default function App() {
             onSelect={setTab}
           />
         ) : null}
+        {lock.covered ? <PrivacyCover /> : null}
       </Screen>
     </SafeAreaProvider>
   );
