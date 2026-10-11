@@ -3,6 +3,7 @@
 
 import Constants, { ExecutionEnvironment } from "expo-constants";
 
+import { ignoreInactive } from "./appLock";
 import { loadIconChoice, saveIconChoice, type AppIconChoice } from "./storage/secureStore";
 
 /** Name given to the discreet icon in app.json; the default (playful) icon is `null`. */
@@ -40,16 +41,36 @@ export function iconSwitchingAvailable(): boolean {
 
 export async function currentIconChoice(): Promise<AppIconChoice> {
   const module = native();
-  if (module?.supportsAlternateIcons) {
-    return module.getAppIconName() === DISCREET_NAME ? "discreet" : "playful";
-  }
-  return loadIconChoice();
+  const choice: AppIconChoice = module?.supportsAlternateIcons
+    ? module.getAppIconName() === DISCREET_NAME
+      ? "discreet"
+      : "playful"
+    : await loadIconChoice();
+  cachedChoice = choice;
+  return choice;
+}
+
+// Read at startup so the lock screen and privacy cover can draw the chosen icon without waiting.
+let cachedChoice: AppIconChoice = "playful";
+void currentIconChoice();
+
+/** The icon currently chosen, as last read or set. */
+export function cachedIconChoice(): AppIconChoice {
+  return cachedChoice;
 }
 
 export async function chooseIcon(choice: AppIconChoice): Promise<void> {
   const module = native();
   if (module?.supportsAlternateIcons) {
-    await module.setAlternateAppIcon(choice === "discreet" ? DISCREET_NAME : null);
+    // iOS shows its own "icon changed" alert, which makes the app inactive for a moment. That is
+    // not the user leaving, so the privacy cover must not hide the screen meanwhile.
+    ignoreInactive(true);
+    try {
+      await module.setAlternateAppIcon(choice === "discreet" ? DISCREET_NAME : null);
+    } finally {
+      setTimeout(() => ignoreInactive(false), 1500);
+    }
   }
+  cachedChoice = choice;
   await saveIconChoice(choice);
 }

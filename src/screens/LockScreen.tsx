@@ -1,62 +1,63 @@
 // Shown instead of the app while it is locked, and as a plain cover while the app is not in the
-// foreground (so the app switcher never shows alerts or history). Nothing private is drawn here.
+// foreground (so the app switcher never shows alerts or history). Nothing private is drawn here:
+// only the logo, like a loading screen. Face ID starts by itself; if it was cancelled, tapping the
+// screen asks again.
 
-import { StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, View } from "react-native";
 
-import { GradientButton } from "../components/Buttons";
-import { Header } from "../components/Chrome";
-import { colors, fonts } from "../theme";
+import { cachedIconChoice } from "../appIcon";
+
+import { Logo } from "../components/Logo";
+import { colors } from "../theme";
+
+const LOGO_SIZE = 150;
+
+/** The big mark: the app logo, or the plain "A" icon when the discreet icon is chosen. */
+function Mark() {
+  if (cachedIconChoice() === "discreet") {
+    return (
+      <Image
+        source={require("../../assets/icon-discreet.png")}
+        style={styles.discreet}
+        accessibilityLabel="AfterCare"
+      />
+    );
+  }
+  return <Logo size={LOGO_SIZE} />;
+}
 
 export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   return (
-    <View style={styles.fill}>
-      <Header />
-      <View style={styles.center}>
-        <Text style={styles.title}>AfterCare is locked</Text>
-        <Text style={styles.body}>Unlock with Face ID or your phone code to see your alerts and history.</Text>
-        <GradientButton label="Unlock" onPress={onUnlock} style={styles.button} />
-      </View>
-    </View>
+    <Pressable
+      style={styles.center}
+      onPress={onUnlock}
+      accessibilityRole="button"
+      accessibilityLabel="Unlock AfterCare"
+    >
+      <Mark />
+    </Pressable>
   );
 }
 
-/** Only the header: used while the app is inactive or in the background. */
+/** Used while the app is inactive or in the background. */
 export function PrivacyCover() {
   return (
-    <View style={[StyleSheet.absoluteFill, styles.cover]} pointerEvents="none">
-      <Header />
+    <View style={[StyleSheet.absoluteFill, styles.center, styles.cover]} pointerEvents="none">
+      <Mark />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  fill: {
-    flex: 1,
-  },
   center: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 32,
-    paddingBottom: 96,
-    gap: 12,
   },
-  title: {
-    color: colors.text,
-    fontFamily: fonts.semibold,
-    fontSize: 20,
-    textAlign: "center",
-  },
-  body: {
-    color: colors.textMuted,
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: "center",
-  },
-  button: {
-    alignSelf: "stretch",
-    marginTop: 12,
+  discreet: {
+    width: LOGO_SIZE,
+    height: LOGO_SIZE,
+    borderRadius: LOGO_SIZE * 0.22,
   },
   cover: {
     backgroundColor: colors.bg,

@@ -76,11 +76,13 @@ export default function App() {
     [fonts.semibold]: require("./assets/fonts/Poppins-SemiBold.ttf"),
   });
 
-  const lock = useAppLock();
   const [device, setDevice] = useState<DeviceIdentity | null>(null);
   const [cards, setCards] = useState<CardRecord[]>([]);
   const [alerts, setAlerts] = useState<AlertRecord[]>([]);
   const [sent, setSent] = useState<SentRecord[]>([]);
+  // The lock has nothing to protect on a fresh install; null until the first load is done.
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const lock = useAppLock(dataLoaded ? cards.length + alerts.length + sent.length > 0 : null);
   const [route, setRoute] = useState<Route>({ name: "home" });
   const [tab, setTab] = useState<Tab>("home");
   const [serverOk, setServerOk] = useState<boolean | null>(null);
@@ -118,6 +120,7 @@ export default function App() {
       }
       setDevice(loaded);
       await reload();
+      setDataLoaded(true);
       // Tell the server if the OS handed out a new push token since the last launch.
       const synced = await syncPushToken(loaded, await currentPushToken(loaded));
       if (!cancelled && synced.pushToken !== loaded.pushToken) {
@@ -133,7 +136,7 @@ export default function App() {
   const [pushBlocked, setPushBlocked] = useState(false);
   const checkPush = useCallback(() => void pushIsBlocked().then(setPushBlocked), []);
   // No phone code or biometrics: the app cannot lock itself. Warn, but do not block.
-  const noPasscode = lock.noPasscode;
+  const noPasscode = lock.noPasscode && cards.length + alerts.length + sent.length > 0;
   useEffect(() => {
     if (noPasscode) {
       say("For your privacy, set a device passcode. Without one, anyone who picks up your phone can open AfterCare.", 10000);

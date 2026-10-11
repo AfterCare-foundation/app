@@ -3,7 +3,9 @@
 // is no app password: the operating system does the check (tech spec, "Authentication").
 //
 // States: "checking" (first launch, deciding), "locked" (asking), "open".
-// The app locks at launch, and again after it has been in the background for LOCK_AFTER_MS.
+// The app locks at launch, and again whenever it has been in the background (see lockPolicy.ts).
+// It locks only when there is something to protect (a card, an alert or a sent notification), so a
+// fresh install opens straight into the app with no Face ID prompt.
 // If the phone has no code or biometrics set up there is nothing to check against, so the app
 // stays open and `noPasscode` is true so the caller can warn.
 
@@ -34,7 +36,14 @@ async function lockAvailable(): Promise<boolean> {
   }
 }
 
-export function useAppLock(): {
+let inactiveIgnored = false;
+
+/** While true, a plain "inactive" state (a system alert) does not show the privacy cover. */
+export function ignoreInactive(on: boolean): void {
+  inactiveIgnored = on;
+}
+
+export function useAppLock(hasData: boolean | null): {
   state: LockState;
   /** True while the app is not in the foreground: the screen should show a cover for the app switcher. */
   covered: boolean;
@@ -47,6 +56,8 @@ export function useAppLock(): {
   const [noPasscode, setNoPasscode] = useState(false);
   const leftAt = useRef<number | null>(null);
   const asking = useRef(false);
+  const hasDataRef = useRef(false);
+  hasDataRef.current = hasData === true;
 
   const unlock = useCallback(async () => {
     if (asking.current) {
@@ -74,35 +85,37 @@ export function useAppLock(): {
     }
   }, []);
 
-  // First launch.
+  // First launch: decided once, as soon as it is known whether there is anything to protect.
+  const decided = useRef(false);
   useEffect(() => {
-    let cancelled = false;
+    if (hasData === null || decided.current) {
+      return;
+    }
+    decided.current = true;
     void lockAvailable().then((available) => {
-      if (cancelled) {
-        return;
-      }
       if (!available) {
         setNoPasscode(!IN_EXPO_GO);
+        setState("open");
+        return;
+      }
+      if (!hasData) {
         setState("open");
         return;
       }
       setState("locked");
       void unlock();
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [unlock]);
+  }, [hasData, unlock]);
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (next) => {
-      setCovered(next !== "active");
+      setCovered(next === "background" || (next === "inactive" && !inactiveIgnored));
       if (next === "background") {
         leftAt.current = Date.now();
       } else if (next === "active") {
         const away = leftAt.current;
         leftAt.current = null;
-        if (shouldLock(away, Date.now())) {
+        if (hasDataRef.current && shouldLock(away, Date.now())) {
           setState((current) => (current === "checking" ? current : "locked"));
           void unlock();
         }
