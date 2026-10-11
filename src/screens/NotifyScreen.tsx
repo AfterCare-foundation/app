@@ -105,6 +105,8 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
         console.log(
           `[notify] ${stiValue}, from ${new Date(fromMs).toISOString()}, last negative ${lastNegative === null ? "unknown" : new Date(lastNegative).toISOString()}: ${contacts.length} contacts selected`,
         );
+        // Scan times only (no hashes or tokens), to see where the contacts came from.
+        console.log(`[notify] scanned at: ${contacts.map((c) => c.scannedAt.slice(0, 16)).join(", ")}`);
       }
       const outcome = await notifyContacts(device, contacts, stiValue);
       onSent(outcome);
