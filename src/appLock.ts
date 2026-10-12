@@ -1,13 +1,15 @@
-// App lock: the content opens only after Face ID, Touch ID or the phone code, so someone who
-// picks up the phone cannot read the alerts and history. Nothing is stored by AfterCare and there
-// is no app password: the operating system does the check (tech spec, "Authentication").
+// App lock: the private screens (History, and Home while it shows an alert) open only after Face ID,
+// Touch ID or the phone code, so someone who picks up the phone cannot read them. Everything else
+// (Home without an alert, Add, Create, Info, Settings) opens freely, so most launches ask nothing.
+// Nothing is stored by AfterCare and there is no app password: the operating system does the check
+// (tech spec, "Authentication").
 //
-// States: "checking" (first launch, deciding), "locked" (asking), "open".
-// The app locks at launch, and again whenever it has been in the background (see lockPolicy.ts).
-// It locks only when there is something to protect (a card, an alert or a sent notification), so a
-// fresh install opens straight into the app with no Face ID prompt.
-// If the phone has no code or biometrics set up there is nothing to check against, so the app
-// stays open and `noPasscode` is true so the caller can warn.
+// `locked` is true until the check passes. The app locks again whenever it has been in the
+// background (see lockPolicy.ts). It locks only when there is something to protect (a card, an
+// alert or a sent notification). The caller says through `wanted` that a private screen is on
+// show; the prompt then appears by itself, and tapping the locked screen asks again.
+// If the phone has no code or biometrics there is nothing to check against, so nothing is locked
+// and `noPasscode` is true so the caller can warn.
 
 import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -15,8 +17,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 
 import { shouldLock } from "./lockPolicy";
-
-export type LockState = "checking" | "locked" | "open";
 
 /**
  * Expo Go is only for development: its prompt would read "for Expo Go" and it is not the real
@@ -43,17 +43,23 @@ export function ignoreInactive(on: boolean): void {
   inactiveIgnored = on;
 }
 
-export function useAppLock(hasData: boolean | null): {
-  state: LockState;
+export function useAppLock(
+  hasData: boolean | null,
+  wanted: boolean,
+): {
+  /** The private screens must stay hidden. */
+  locked: boolean;
   /** True while the app is not in the foreground: the screen should show a cover for the app switcher. */
   covered: boolean;
   /** The phone has no code or biometrics, so the app cannot lock. Never true in Expo Go. */
   noPasscode: boolean;
   unlock: () => Promise<void>;
 } {
-  const [state, setState] = useState<LockState>("checking");
+  const [locked, setLocked] = useState(true);
+  const [ready, setReady] = useState(false);
   const [covered, setCovered] = useState(false);
   const [noPasscode, setNoPasscode] = useState(false);
+  const [activations, setActivations] = useState(0);
   const leftAt = useRef<number | null>(null);
   const asking = useRef(false);
   const hasDataRef = useRef(false);
@@ -66,9 +72,9 @@ export function useAppLock(hasData: boolean | null): {
     asking.current = true;
     try {
       if (!(await lockAvailable())) {
-        // The code was removed while the app was locked: there is nothing to ask.
+        // No code on the phone: there is nothing to ask.
         setNoPasscode(!IN_EXPO_GO);
-        setState("open");
+        setLocked(false);
         return;
       }
       const result = await LocalAuthentication.authenticateAsync({
@@ -76,10 +82,10 @@ export function useAppLock(hasData: boolean | null): {
         cancelLabel: "Cancel",
       });
       if (result.success) {
-        setState("open");
+        setLocked(false);
       }
     } catch {
-      // Stay locked; the button asks again.
+      // Stay locked; tapping the screen asks again.
     } finally {
       asking.current = false;
     }
@@ -95,17 +101,13 @@ export function useAppLock(hasData: boolean | null): {
     void lockAvailable().then((available) => {
       if (!available) {
         setNoPasscode(!IN_EXPO_GO);
-        setState("open");
-        return;
+        setLocked(false);
+      } else if (!hasData) {
+        setLocked(false);
       }
-      if (!hasData) {
-        setState("open");
-        return;
-      }
-      setState("locked");
-      void unlock();
+      setReady(true);
     });
-  }, [hasData, unlock]);
+  }, [hasData]);
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (next) => {
@@ -115,14 +117,21 @@ export function useAppLock(hasData: boolean | null): {
       } else if (next === "active") {
         const away = leftAt.current;
         leftAt.current = null;
-        if (hasDataRef.current && shouldLock(away, Date.now())) {
-          setState((current) => (current === "checking" ? current : "locked"));
-          void unlock();
+        if (!IN_EXPO_GO && hasDataRef.current && shouldLock(away, Date.now())) {
+          setLocked(true);
         }
+        setActivations((n) => n + 1);
       }
     });
     return () => sub.remove();
-  }, [unlock]);
+  }, []);
 
-  return { state, covered, noPasscode, unlock };
+  // A private screen is on show and locked: ask, once per appearance or return to the app.
+  useEffect(() => {
+    if (ready && wanted && locked) {
+      void unlock();
+    }
+  }, [ready, wanted, locked, activations, unlock]);
+
+  return { locked, covered, noPasscode, unlock };
 }

@@ -2,12 +2,12 @@
 
 /**
  * How long the app may stay in the background before it asks for Face ID or the phone code again.
- * Zero: every time the app leaves the foreground (the phone locks, another app opens, the user goes
- * to Safari from "Find a test") it locks. The health data shown here is too sensitive for a grace
- * period, and Face ID is quick. System dialogs (camera or notification permission) do not count,
- * because they only make the app inactive, not backgrounded.
+ * One minute: a quick look at another app (or a call, or a message) and back does not ask again,
+ * but a phone put down or handed over locks the private screens almost at once. System dialogs
+ * (camera or notification permission) do not count at all, because they only make the app
+ * inactive, not backgrounded.
  */
-export const LOCK_AFTER_MS = 0;
+export const LOCK_AFTER_MS = 60_000;
 
 /**
  * `leftAt` is when the app went to the background (null if it has not). The app locks once it has

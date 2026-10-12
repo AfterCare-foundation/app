@@ -6,7 +6,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { apiBaseUrl, deleteDevice, health } from "./src/api/client";
 import { useAppLock } from "./src/appLock";
-import { Screen, TabBar, type Tab } from "./src/components/Chrome";
+import { Screen, SubHeader, TabBar, type Tab } from "./src/components/Chrome";
 import { stiTitle } from "./src/components/ExposureCard";
 import {
   currentPushToken,
@@ -82,9 +82,16 @@ export default function App() {
   const [sent, setSent] = useState<SentRecord[]>([]);
   // The lock has nothing to protect on a fresh install; null until the first load is done.
   const [dataLoaded, setDataLoaded] = useState(false);
-  const lock = useAppLock(dataLoaded ? cards.length + alerts.length + sent.length > 0 : null);
   const [route, setRoute] = useState<Route>({ name: "home" });
   const [tab, setTab] = useState<Tab>("home");
+  // Private screens: Notify (its selections are private), History once it holds something, and Home
+  // while it shows an alert. Everything else opens freely.
+  const showsAlert = alerts.some((a) => a.acknowledgedAt === null);
+  const historyHasEntries = alerts.length + sent.length > 0;
+  const privateScreen =
+    route.name === "notify" ||
+    (route.name === "home" && ((tab === "history" && historyHasEntries) || (tab === "home" && showsAlert)));
+  const lock = useAppLock(dataLoaded ? cards.length + alerts.length + sent.length > 0 : null, privateScreen);
   const [serverOk, setServerOk] = useState<boolean | null>(null);
   const [inboxStatus, setInboxStatus] = useState<InboxStatus | null>(null);
   const [pullStats, setPullStats] = useState<PullStats | null>(null);
@@ -347,21 +354,15 @@ export default function App() {
     );
   }
 
-  // Locked (or still deciding): nothing private is drawn. The inbox keeps being fetched meanwhile.
-  if (lock.state !== "open") {
-    return (
-      <SafeAreaProvider>
-        <Screen>
-          <StatusBar style="light" />
-          {lock.state === "locked" ? <LockScreen onUnlock={() => void lock.unlock()} /> : null}
-          {lock.covered ? <PrivacyCover /> : null}
-        </Screen>
-      </SafeAreaProvider>
-    );
-  }
-
   let body;
-  if (route.name === "scan") {
+  if (privateScreen && lock.locked) {
+    body = (
+      <>
+        {route.name === "notify" ? <SubHeader title="" onBack={() => setRoute({ name: "home" })} /> : null}
+        <LockScreen onUnlock={() => void lock.unlock()} />
+      </>
+    );
+  } else if (route.name === "scan") {
     body = <ScanScreen device={device} onBack={() => setRoute({ name: "home" })} onSubscribed={onSubscribed} />;
   } else if (route.name === "generate") {
     body = (

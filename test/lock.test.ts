@@ -3,10 +3,15 @@ import test from "node:test";
 
 import { LOCK_AFTER_MS, shouldLock } from "../src/lockPolicy.ts";
 
-test("the default is an immediate lock", () => {
-  assert.equal(LOCK_AFTER_MS, 0);
-  assert.equal(shouldLock(1_000, 1_000), true);
-  assert.equal(shouldLock(1_000, 1_050), true);
+test("the default grace period is one minute", () => {
+  assert.equal(LOCK_AFTER_MS, 60_000);
+  assert.equal(shouldLock(1_000, 1_000), false);
+  assert.equal(shouldLock(1_000, 1_000 + 59_999), false);
+  assert.equal(shouldLock(1_000, 1_000 + 60_000), true);
+});
+
+test("a zero grace period locks at once", () => {
+  assert.equal(shouldLock(1_000, 1_000, 0), true);
 });
 
 test("never left the foreground: stays open", () => {
