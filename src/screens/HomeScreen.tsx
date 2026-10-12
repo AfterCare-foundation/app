@@ -67,7 +67,7 @@ export function HomeScreen({
             onDone={() => onDismiss(current)}
             contactAt={cards.find((c) => c.etHash === current.etHash)?.scannedAt ?? null}
           />
-          <TestFinderBlock onFindTest={() => onAcknowledge(current)} />
+          {current.noAction ? null : <TestFinderBlock onFindTest={() => onAcknowledge(current)} />}
           {fresh.length > 1 ? (
             <Text style={styles.moreAlerts}>
               {fresh.length - 1} more{" "}

@@ -73,6 +73,11 @@ export interface AlertRecord {
   retestDelayMs?: number;
   /** Set on an alert the phone raised itself for a retest (id of the alert it follows). Looks like any other alert. */
   retestOf?: string;
+  /**
+   * The contact was made before the user's own positive result for this infection, so nothing is
+   * asked of them. Home says so; History and retest reminders skip it.
+   */
+  noAction?: boolean;
 }
 
 /** One line of the local "I notified people" log. No contacts, no counts. */
@@ -242,6 +247,14 @@ export async function acknowledgeAlert(id: string): Promise<AlertRecord | null> 
   };
   await writeJson(`alert.${id}`, next);
   return next;
+}
+
+/** An unread alert became pointless (the user has since notified contacts about the same infection). */
+export async function markAlertNoAction(id: string): Promise<void> {
+  const alert = await readJson<AlertRecord>(`alert.${id}`);
+  if (alert) {
+    await writeJson(`alert.${id}`, { ...alert, noAction: true });
+  }
 }
 
 export async function dismissRetest(id: string, days: number): Promise<void> {

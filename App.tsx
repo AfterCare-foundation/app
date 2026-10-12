@@ -57,8 +57,8 @@ installNotificationHandler();
 /** Marks an alert as seen and schedules its retest reminders, counted from the day its card was saved. */
 async function openAlert(alert: AlertRecord): Promise<void> {
   const opened = await acknowledgeAlert(alert.id);
-  if (!opened || opened.retestOf) {
-    return; // a retest alert has no retest of its own
+  if (!opened || opened.retestOf || opened.noAction) {
+    return; // a retest alert has no retest of its own; one that needs no action has none either
   }
   const cards = await listCards();
   const scannedAt = cards.find((c) => c.etHash === opened.etHash)?.scannedAt ?? null;
@@ -87,7 +87,8 @@ export default function App() {
   // Private screens: Notify (its selections are private), History once it holds something, and Home
   // while it shows an alert. Everything else opens freely.
   const showsAlert = alerts.some((a) => a.acknowledgedAt === null);
-  const historyHasEntries = alerts.length + sent.length > 0;
+  const historyAlerts = alerts.filter((a) => !a.noAction); // alerts that need no action stay off History
+  const historyHasEntries = historyAlerts.length + sent.length > 0;
   const privateScreen =
     route.name === "notify" ||
     (route.name === "home" && ((tab === "history" && historyHasEntries) || (tab === "home" && showsAlert)));
@@ -374,7 +375,7 @@ export default function App() {
     );
   } else if (tab === "history") {
     body = <HistoryScreen
-        alerts={alerts}
+        alerts={historyAlerts}
         sent={sent}
         onFindTest={() => void Linking.openURL(TEST_FINDER_URL)}
       />;

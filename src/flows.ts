@@ -3,6 +3,7 @@
 
 import { ApiError, confirmInbox, fetchInbox, notify, subscribe, updatePushId, type InboxMessage } from "./api/client";
 import { ADVICE, retestDueStage } from "./advice";
+import { contactBeforePositive } from "./alertRules";
 import { requestPushToken } from "./push";
 import { cancelRetestReminder } from "./reminders";
 import { UNSPECIFIED_STI } from "./sti";
@@ -15,6 +16,8 @@ import {
   deleteAlert,
   dismissRetest,
   listAlerts,
+  listSent,
+  markAlertNoAction,
   saveAlert,
   loadOrCreateDevice,
   saveCard,
@@ -94,6 +97,7 @@ export async function notifyContacts(
     }
     await saveSent(sti);
     await settleRetests(sti);
+    await settleUnreadAlerts(sti);
   }
   return {
     pushed: result.pushed,
@@ -121,7 +125,7 @@ export async function raiseDueRetests(now: number = Date.now()): Promise<number>
   const cards = await listCards();
   let raised = 0;
   for (const alert of alerts) {
-    if (!alert.sti || alert.retestOf || !alert.acknowledgedAt) {
+    if (!alert.sti || alert.retestOf || alert.noAction || !alert.acknowledgedAt) {
       continue;
     }
     const scannedAt = cards.find((c) => c.etHash === alert.etHash)?.scannedAt ?? null;
@@ -142,6 +146,27 @@ export async function raiseDueRetests(now: number = Date.now()): Promise<number>
     await cancelRetestReminder(alert.id, due.days);
   }
   return raised;
+}
+
+/**
+ * An alert nobody has opened yet, for an infection the user has just notified contacts about, came
+ * through a card scanned before now: it needs no action any more.
+ */
+async function settleUnreadAlerts(sti: string): Promise<void> {
+  if (sti === UNSPECIFIED_STI) {
+    return;
+  }
+  const sent = await listSent();
+  const cards = await listCards();
+  for (const alert of await listAlerts()) {
+    if (alert.sti !== sti || alert.acknowledgedAt || alert.noAction || alert.retestOf) {
+      continue;
+    }
+    const scannedAt = cards.find((c) => c.etHash === alert.etHash)?.scannedAt ?? null;
+    if (contactBeforePositive(alert.sti, scannedAt, sent)) {
+      await markAlertNoAction(alert.id);
+    }
+  }
 }
 
 async function settleRetests(sti: string): Promise<void> {
@@ -297,6 +322,7 @@ async function saveMessages(messages: InboxMessage[]): Promise<{ saved: AlertRec
   // One key derivation per card for the whole batch, not one per attempt.
   const keyed = (await listCards()).map((card) => ({ card, key: encryptionKey(cardToken(card)) }));
   const known = await listAlerts();
+  const sent = await listSent();
   const saved: AlertRecord[] = [];
   const confirmIds: string[] = [];
   for (const message of messages) {
@@ -313,7 +339,9 @@ async function saveMessages(messages: InboxMessage[]): Promise<{ saved: AlertRec
       continue;
     }
     if (!known.some((a) => a.enc === message.enc || (a.sti === match.sti && !a.acknowledgedAt))) {
-      const record = await saveAlert({ alert: GENERIC_ALERT, enc: message.enc, ...match });
+      const scannedAt = keyed.find((k) => k.card.etHash === match.etHash)?.card.scannedAt ?? null;
+      const noAction = contactBeforePositive(match.sti, scannedAt, sent);
+      const record = await saveAlert({ alert: GENERIC_ALERT, enc: message.enc, ...match, ...(noAction ? { noAction } : {}) });
       saved.push(record);
       known.push(record);
     }

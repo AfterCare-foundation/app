@@ -32,6 +32,19 @@ export function ReportedText({ sti }: { sti: string }) {
   );
 }
 
+/** For an alert about a contact made before the user's own positive result. */
+function NoActionText({ sti }: { sti: string }) {
+  const named = findSti(sti)?.label;
+  return (
+    <>
+      Someone you connected with has reported{" "}
+      {named ? <Text style={styles.stiName}>{named}</Text> : "an STI"}. The
+      contact appears to be from before your positive test, so{" "}
+      <Text style={styles.stiName}>no further action is needed from you</Text>.
+    </>
+  );
+}
+
 interface ExposureCardProps {
   alert: AlertRecord;
   /** "OK": mark the alert as seen. */
@@ -42,17 +55,21 @@ interface ExposureCardProps {
 
 export function ExposureCard({ alert, onDone, contactAt = null }: ExposureCardProps) {
   // Worked out when the alert is shown, so the deadline reflects the time that has passed.
-  const pep = alert.sti ? pepLine(alert.sti, contactAt) : null;
+  const pep = alert.sti && !alert.noAction ? pepLine(alert.sti, contactAt) : null;
   return (
     <Panel tint="blue" style={styles.card}>
-      <View style={styles.badge}>
-        <BellIcon size={18} color={colors.violetLight} />
+      <View style={alert.noAction ? styles.badgeOk : styles.badge}>
+        <BellIcon size={18} color={alert.noAction ? colors.teal : colors.violetLight} />
       </View>
       <Text style={styles.headline}>
-        You may have been{"\n"}exposed to an STI
+        {alert.noAction ? "No action needed" : <>You may have been{"\n"}exposed to an STI</>}
       </Text>
       <Text style={styles.body}>
-        {alert.sti ? <ReportedText sti={alert.sti} /> : alert.alert}
+        {alert.sti ? (
+          alert.noAction ? <NoActionText sti={alert.sti} /> : <ReportedText sti={alert.sti} />
+        ) : (
+          alert.alert
+        )}
       </Text>
       {pep ? <Text style={styles.prevention}>{pep}</Text> : null}
       <GradientButton label="OK" onPress={onDone} style={styles.button} />
@@ -134,6 +151,17 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(125, 71, 224, 0.18)",
     borderWidth: 1,
     borderColor: "rgba(168, 130, 255, 0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // Same teal as the "No new alerts" card: all good.
+  badgeOk: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(45, 212, 191, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(45, 212, 191, 0.4)",
     alignItems: "center",
     justifyContent: "center",
   },
