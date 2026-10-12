@@ -1,15 +1,13 @@
-// App lock: the private screens (History, and Home while it shows an alert) open only after Face ID,
-// Touch ID or the phone code, so someone who picks up the phone cannot read them. Everything else
-// (Home without an alert, Add, Create, Info, Settings) opens freely, so most launches ask nothing.
-// Nothing is stored by AfterCare and there is no app password: the operating system does the check
-// (tech spec, "Authentication").
+// App lock: the app opens only after Face ID, Touch ID or the phone code, so someone who picks up
+// the phone cannot read the alerts and history. Nothing is stored by AfterCare and there is no app
+// password: the operating system does the check (tech spec, "Authentication").
 //
-// `locked` is true until the check passes. The app locks again whenever it has been in the
-// background (see lockPolicy.ts). It locks only when there is something to protect (a card, an
-// alert or a sent notification). The caller says through `wanted` that a private screen is on
-// show; the prompt then appears by itself, and tapping the locked screen asks again.
-// If the phone has no code or biometrics there is nothing to check against, so nothing is locked
-// and `noPasscode` is true so the caller can warn.
+// `locked` is true until the check passes. It is asked once when the app opens and once whenever
+// the app comes back to the foreground after more than the grace period (see lockPolicy.ts),
+// whatever screen was open. The prompt appears by itself; tapping the locked screen asks again.
+// It locks only when there is something to protect (a card, an alert or a sent notification), so a
+// fresh install opens straight in. If the phone has no code or biometrics there is nothing to check
+// against, so nothing is locked and `noPasscode` is true so the caller can warn.
 
 import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -43,11 +41,8 @@ export function ignoreInactive(on: boolean): void {
   inactiveIgnored = on;
 }
 
-export function useAppLock(
-  hasData: boolean | null,
-  wanted: boolean,
-): {
-  /** The private screens must stay hidden. */
+export function useAppLock(hasData: boolean | null): {
+  /** The app must stay hidden behind the lock screen. */
   locked: boolean;
   /** True while the app is not in the foreground: the screen should show a cover for the app switcher. */
   covered: boolean;
@@ -126,12 +121,12 @@ export function useAppLock(
     return () => sub.remove();
   }, []);
 
-  // A private screen is on show and locked: ask, once per appearance or return to the app.
+  // Locked: ask, at launch and each time the app comes back to the foreground.
   useEffect(() => {
-    if (ready && wanted && locked) {
+    if (ready && locked) {
       void unlock();
     }
-  }, [ready, wanted, locked, activations, unlock]);
+  }, [ready, locked, activations, unlock]);
 
   return { locked, covered, noPasscode, unlock };
 }

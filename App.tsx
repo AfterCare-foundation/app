@@ -6,7 +6,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { apiBaseUrl, deleteDevice, health } from "./src/api/client";
 import { useAppLock } from "./src/appLock";
-import { Screen, SubHeader, TabBar, type Tab } from "./src/components/Chrome";
+import { Screen, TabBar, type Tab } from "./src/components/Chrome";
 import { stiTitle } from "./src/components/ExposureCard";
 import {
   currentPushToken,
@@ -84,15 +84,8 @@ export default function App() {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [route, setRoute] = useState<Route>({ name: "home" });
   const [tab, setTab] = useState<Tab>("home");
-  // Private screens: Notify (its selections are private), History once it holds something, and Home
-  // while it shows an alert. Everything else opens freely.
-  const showsAlert = alerts.some((a) => a.acknowledgedAt === null);
   const historyAlerts = alerts.filter((a) => !a.noAction); // alerts that need no action stay off History
-  const historyHasEntries = historyAlerts.length + sent.length > 0;
-  const privateScreen =
-    route.name === "notify" ||
-    (route.name === "home" && ((tab === "history" && historyHasEntries) || (tab === "home" && showsAlert)));
-  const lock = useAppLock(dataLoaded ? cards.length + alerts.length + sent.length > 0 : null, privateScreen);
+  const lock = useAppLock(dataLoaded ? cards.length + alerts.length + sent.length > 0 : null);
   const [serverOk, setServerOk] = useState<boolean | null>(null);
   const [inboxStatus, setInboxStatus] = useState<InboxStatus | null>(null);
   const [pullStats, setPullStats] = useState<PullStats | null>(null);
@@ -355,15 +348,21 @@ export default function App() {
     );
   }
 
-  let body;
-  if (privateScreen && lock.locked) {
-    body = (
-      <>
-        {route.name === "notify" ? <SubHeader title="" onBack={() => setRoute({ name: "home" })} /> : null}
-        <LockScreen onUnlock={() => void lock.unlock()} />
-      </>
+  // Locked (or still deciding): nothing private is drawn. The inbox keeps being fetched meanwhile.
+  if (lock.locked) {
+    return (
+      <SafeAreaProvider>
+        <Screen>
+          <StatusBar style="light" />
+          <LockScreen onUnlock={() => void lock.unlock()} />
+          {lock.covered ? <PrivacyCover /> : null}
+        </Screen>
+      </SafeAreaProvider>
     );
-  } else if (route.name === "scan") {
+  }
+
+  let body;
+  if (route.name === "scan") {
     body = <ScanScreen device={device} onBack={() => setRoute({ name: "home" })} onSubscribed={onSubscribed} />;
   } else if (route.name === "generate") {
     body = (
