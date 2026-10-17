@@ -1,13 +1,15 @@
 // Everything that has happened on this phone, newest first: alerts you have
-// received (arrow in) and notifications you sent (arrow out), each with a date.
+// received (arrow in), notifications you sent (arrow out) and tests you recorded (lab vial),
+// each with a date.
 
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Header } from "../components/Chrome";
-import { ArrowInIcon, ArrowOutIcon } from "../components/Icons";
+import { ArrowInIcon, ArrowOutIcon, VialIcon } from "../components/Icons";
 import {
   TestFinderBlock,
+  formatDate,
   formatDateTime,
   stiTitle,
 } from "../components/ExposureCard";
@@ -17,23 +19,28 @@ import {
   saveFinderDismissedAt,
   type AlertRecord,
   type SentRecord,
+  type TestRecord,
 } from "../storage/secureStore";
 import { colors, type } from "../theme";
 
 interface Entry {
   id: string;
-  kind: "received" | "sent";
+  kind: "received" | "sent" | "test";
   at: string;
   sti: string | null;
+  /** Tests only. */
+  result?: "negative" | "positive";
 }
 
 export function HistoryScreen({
   alerts,
   sent,
+  tests,
   onFindTest,
 }: {
   alerts: AlertRecord[];
   sent: SentRecord[];
+  tests: TestRecord[];
   onFindTest: () => void;
 }) {
   const [dismissedAt, setDismissedAt] = useState<string | null | undefined>(
@@ -66,6 +73,13 @@ export function HistoryScreen({
       at: r.sentAt,
       sti: r.sti,
     })),
+    ...tests.map((t): Entry => ({
+      id: `t-${t.id}`,
+      kind: "test",
+      at: t.testedAt,
+      sti: t.sti,
+      result: t.result,
+    })),
   ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
   return (
@@ -87,7 +101,7 @@ export function HistoryScreen({
       {entries.length === 0 ? (
         <Panel style={styles.empty}>
           <Text style={styles.emptyText}>
-            Alerts you read and notifications you send will show up here.
+            Alerts you read, notifications you send and tests you record will show up here.
           </Text>
         </Panel>
       ) : (
@@ -100,24 +114,29 @@ export function HistoryScreen({
                     styles.badge,
                     entry.kind === "sent"
                       ? styles.badgeSent
-                      : styles.badgeReceived,
+                      : entry.kind === "test"
+                        ? styles.badgeTest
+                        : styles.badgeReceived,
                   ]}
                   accessible
                   accessibilityLabel={
-                    entry.kind === "sent" ? "Sent" : "Received"
+                    entry.kind === "sent" ? "Sent" : entry.kind === "test" ? "Test" : "Received"
                   }
                 >
                   {entry.kind === "sent" ? (
                     <ArrowOutIcon size={16} color={colors.violetLight} />
+                  ) : entry.kind === "test" ? (
+                    <VialIcon size={16} color={colors.text} />
                   ) : (
                     <ArrowInIcon size={16} color={colors.teal} />
                   )}
                 </View>
                 <Text style={styles.sti}>
                   {entry.sti ? stiTitle(entry.sti) : "Unspecified STI"}
+                  {entry.kind === "test" ? ` · ${entry.result === "positive" ? "Positive" : "Negative"}` : ""}
                 </Text>
               </View>
-              <Text style={styles.when}>{formatDateTime(entry.at)}</Text>
+              <Text style={styles.when}>{entry.kind === "test" ? formatDate(entry.at) : formatDateTime(entry.at)}</Text>
             </Panel>
           ))}
         </View>
@@ -154,6 +173,10 @@ const styles = StyleSheet.create({
   badgeReceived: {
     borderColor: "rgba(45, 212, 191, 0.4)",
     backgroundColor: "rgba(45, 212, 191, 0.12)",
+  },
+  badgeTest: {
+    borderColor: "rgba(255, 255, 255, 0.28)",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
   },
   sti: { ...type.cardTitle },
   when: { ...type.cardDesc, textAlign: "right" },

@@ -26,6 +26,9 @@ interface SettingsScreenProps {
   inboxStatus: InboxStatus | null;
   pullStats: PullStats | null;
   onDeleteData: () => Promise<void>;
+  /** Test results are stored: "Delete my test results" is shown. */
+  hasTests: boolean;
+  onDeleteTests: () => Promise<void>;
   onResetInstall: () => void;
 }
 
@@ -36,6 +39,8 @@ export function SettingsScreen({
   inboxStatus,
   pullStats,
   onDeleteData,
+  hasTests,
+  onDeleteTests,
   onResetInstall,
 }: SettingsScreenProps) {
   const [icon, setIcon] = useState<AppIconChoice>("playful");
@@ -79,6 +84,17 @@ export function SettingsScreen({
     );
   };
 
+  const confirmDeleteTests = () => {
+    Alert.alert(
+      "Delete my test results?",
+      "Use this if you entered a test by mistake. New alerts will no longer take it into account. Alerts you already have stay as they are.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: () => void onDeleteTests() },
+      ],
+    );
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Header />
@@ -118,6 +134,19 @@ export function SettingsScreen({
           <ArrowRightIcon size={16} color={colors.teal} />
         </Panel>
       </Pressable>
+      {hasTests ? (
+        <Pressable onPress={confirmDeleteTests} accessibilityRole="button">
+          <Panel style={styles.row}>
+            <View style={styles.rowBody}>
+              <Text style={styles.dangerTitle}>Delete my test results</Text>
+              <Text style={styles.rowDesc}>
+                Only your most recent result for each infection is kept, on this phone only. It decides how new
+                alerts are treated.
+              </Text>
+            </View>
+          </Panel>
+        </Pressable>
+      ) : null}
       <Pressable onPress={confirmDelete} disabled={deleting} accessibilityRole="button">
         <Panel style={deleting ? styles.rowSoon : styles.row}>
           <View style={styles.rowBody}>

@@ -13,6 +13,7 @@ import {
   describeError,
   pullInbox,
   raiseDueRetests,
+  recordTestForAlert,
   syncPushToken,
   type InboxStatus,
   type PullStats,
@@ -36,21 +37,31 @@ import { LockScreen, PrivacyCover } from "./src/screens/LockScreen";
 import { GenerateScreen } from "./src/screens/GenerateScreen";
 import { NotifyScreen } from "./src/screens/NotifyScreen";
 import { ScanScreen } from "./src/screens/ScanScreen";
+import { TestedScreen } from "./src/screens/TestedScreen";
 import {
   acknowledgeAlert,
   clearLocalData,
   listAlerts,
   listCards,
   listSent,
+  listTests,
+  deleteTests,
   loadOrCreateDevice,
   type AlertRecord,
   type CardRecord,
   type DeviceIdentity,
   type SentRecord,
+  type TestRecord,
 } from "./src/storage/secureStore";
+import { isCovered, type TestResult } from "./src/testRules";
 import { colors, fonts } from "./src/theme";
 
-type Route = { name: "home" } | { name: "scan" } | { name: "generate" } | { name: "notify" };
+type Route =
+  | { name: "home" }
+  | { name: "scan" }
+  | { name: "generate" }
+  | { name: "notify" }
+  | { name: "tested"; alert: AlertRecord };
 
 installNotificationHandler();
 
@@ -59,6 +70,9 @@ async function openAlert(alert: AlertRecord): Promise<void> {
   const opened = await acknowledgeAlert(alert.id);
   if (!opened || opened.retestOf || opened.noAction) {
     return; // a retest alert has no retest of its own; one that needs no action has none either
+  }
+  if (isCovered(opened.testCheck)) {
+    return; // a test taken after the contact already covers it
   }
   const cards = await listCards();
   const scannedAt = cards.find((c) => c.etHash === opened.etHash)?.scannedAt ?? null;
@@ -80,12 +94,13 @@ export default function App() {
   const [cards, setCards] = useState<CardRecord[]>([]);
   const [alerts, setAlerts] = useState<AlertRecord[]>([]);
   const [sent, setSent] = useState<SentRecord[]>([]);
+  const [tests, setTests] = useState<TestRecord[]>([]);
   // The lock has nothing to protect on a fresh install; null until the first load is done.
   const [dataLoaded, setDataLoaded] = useState(false);
   const [route, setRoute] = useState<Route>({ name: "home" });
   const [tab, setTab] = useState<Tab>("home");
   const historyAlerts = alerts.filter((a) => !a.noAction); // alerts that need no action stay off History
-  const lock = useAppLock(dataLoaded ? cards.length + alerts.length + sent.length > 0 : null);
+  const lock = useAppLock(dataLoaded ? cards.length + alerts.length + sent.length + tests.length > 0 : null);
   const [serverOk, setServerOk] = useState<boolean | null>(null);
   const [inboxStatus, setInboxStatus] = useState<InboxStatus | null>(null);
   const [pullStats, setPullStats] = useState<PullStats | null>(null);
@@ -103,13 +118,19 @@ export default function App() {
   const reloadSeq = useRef(0);
   const reload = useCallback(async () => {
     const seq = ++reloadSeq.current;
-    const [nextCards, nextAlerts, nextSent] = await Promise.all([listCards(), listAlerts(), listSent()]);
+    const [nextCards, nextAlerts, nextSent, nextTests] = await Promise.all([
+      listCards(),
+      listAlerts(),
+      listSent(),
+      listTests(),
+    ]);
     if (seq !== reloadSeq.current) {
       return; // a newer reload started meanwhile; its data is fresher
     }
     setCards(nextCards);
     setAlerts(nextAlerts);
     setSent(nextSent);
+    setTests(nextTests);
   }, []);
 
   useEffect(() => {
@@ -137,7 +158,7 @@ export default function App() {
   const [pushBlocked, setPushBlocked] = useState(false);
   const checkPush = useCallback(() => void pushIsBlocked().then(setPushBlocked), []);
   // No phone code or biometrics: the app cannot lock itself. Warn, but do not block.
-  const noPasscode = lock.noPasscode && cards.length + alerts.length + sent.length > 0;
+  const noPasscode = lock.noPasscode && cards.length + alerts.length + sent.length + tests.length > 0;
   useEffect(() => {
     if (noPasscode) {
       say("For your privacy, set a device passcode. Without one, anyone who picks up your phone can open AfterCare.", 10000);
@@ -297,6 +318,22 @@ export default function App() {
     [reload],
   );
 
+  const onSaveTest = useCallback(
+    async (alert: AlertRecord, result: TestResult, testedAt: string) => {
+      await recordTestForAlert(alert.id, alert.sti as string, result, testedAt);
+      await reload();
+      setRoute({ name: "home" });
+      say("Test saved.");
+    },
+    [reload, say],
+  );
+
+  const onDeleteTests = useCallback(async () => {
+    await deleteTests();
+    await reload();
+    say("Your test results were deleted.");
+  }, [reload, say]);
+
   const onDeleteData = useCallback(async () => {
     if (!device) {
       return;
@@ -368,13 +405,24 @@ export default function App() {
     body = (
       <GenerateScreen device={device} onBack={() => setRoute({ name: "home" })} onGenerated={() => void reload()} />
     );
+  } else if (route.name === "tested") {
+    const testedAlert = route.alert;
+    body = testedAlert.sti ? (
+      <TestedScreen
+        sti={testedAlert.sti}
+        existing={tests.filter((t) => t.sti === testedAlert.sti)}
+        onBack={() => setRoute({ name: "home" })}
+        onSave={(result, testedAt) => void onSaveTest(testedAlert, result, testedAt)}
+      />
+    ) : null;
   } else if (route.name === "notify") {
     body = (
-      <NotifyScreen device={device} cards={cards} onBack={() => setRoute({ name: "home" })} onSent={onSent} />
+      <NotifyScreen device={device} cards={cards} tests={tests} onBack={() => setRoute({ name: "home" })} onSent={onSent} />
     );
   } else if (tab === "history") {
     body = <HistoryScreen
         alerts={historyAlerts}
+        tests={tests}
         sent={sent}
         onFindTest={() => void Linking.openURL(TEST_FINDER_URL)}
       />;
@@ -389,6 +437,8 @@ export default function App() {
         inboxStatus={inboxStatus}
         pullStats={pullStats}
         onDeleteData={onDeleteData}
+        hasTests={tests.length > 0}
+        onDeleteTests={onDeleteTests}
         onResetInstall={onResetInstall}
       />
     );
@@ -397,6 +447,7 @@ export default function App() {
       <HomeScreen
         cards={cards}
         alerts={alerts}
+        onTested={(alert) => setRoute({ name: "tested", alert })}
         message={message}
         pushBlocked={pushBlocked}
         onOpenSettings={openNotificationSettings}

@@ -12,6 +12,7 @@
 //   sent.<id>              SentRecord JSON (when and what, never to whom)
 
 import * as SecureStore from "expo-secure-store";
+import type { TestCheck, TestResult } from "../testRules";
 import { Platform } from "react-native";
 
 import {
@@ -32,6 +33,7 @@ const KEY_DEVICE = "device";
 const KEY_CARDS = "cards.index";
 const KEY_ALERTS = "alerts.index";
 const KEY_SENT = "sent.index";
+const KEY_TESTS = "tests.index";
 
 export interface DeviceIdentity {
   /** 32 random bytes, hex. Sent on every mutating request. */
@@ -78,6 +80,8 @@ export interface AlertRecord {
    * asked of them. Home says so; History and retest reminders skip it.
    */
   noAction?: boolean;
+  /** What a recorded test said about this alert (testRules.ts). Set once, never re-evaluated. */
+  testCheck?: TestCheck;
 }
 
 /** One line of the local "I notified people" log. No contacts, no counts. */
@@ -257,6 +261,13 @@ export async function markAlertNoAction(id: string): Promise<void> {
   }
 }
 
+export async function setAlertTestCheck(id: string, check: TestCheck): Promise<void> {
+  const alert = await readJson<AlertRecord>(`alert.${id}`);
+  if (alert) {
+    await writeJson(`alert.${id}`, { ...alert, testCheck: check });
+  }
+}
+
 export async function dismissRetest(id: string, days: number): Promise<void> {
   const alert = await readJson<AlertRecord>(`alert.${id}`);
   if (alert) {
@@ -279,19 +290,70 @@ export async function saveSent(sti: string): Promise<SentRecord> {
   return record;
 }
 
+/**
+ * The newest test of an infection with one result. Kept on this phone only, shown in History and
+ * used to tell whether a new alert still needs a test (see testRules.ts). One record per infection
+ * and result: a new date replaces the stored one, earlier or later, so a wrong entry can be corrected.
+ */
+export interface TestRecord {
+  id: string;
+  sti: string;
+  result: TestResult;
+  /** ISO time of the start of the day the test was taken. */
+  testedAt: string;
+  recordedAt: string;
+}
+
+export async function listTests(): Promise<TestRecord[]> {
+  const ids = await readIndex(KEY_TESTS);
+  const tests = await Promise.all(ids.map((id) => readJson<TestRecord>(`test.${id}`)));
+  return tests.filter((t): t is TestRecord => t !== null).reverse();
+}
+
+export async function saveTest(sti: string, result: TestResult, testedAt: string): Promise<TestRecord> {
+  const existing = (await listTests()).find((t) => t.sti === sti && t.result === result);
+  if (existing && existing.testedAt === testedAt) {
+    return existing;
+  }
+  const record: TestRecord = {
+    id: existing?.id ?? randomUuid(),
+    sti,
+    result,
+    testedAt,
+    recordedAt: new Date().toISOString(),
+  };
+  await writeJson(`test.${record.id}`, record);
+  if (!existing) {
+    const ids = await readIndex(KEY_TESTS);
+    ids.push(record.id);
+    await writeIndex(KEY_TESTS, ids);
+  }
+  return record;
+}
+
+/** "Delete my test results": for a wrong entry. Alerts keep what a test already said about them. */
+export async function deleteTests(): Promise<void> {
+  const ids = await readIndex(KEY_TESTS);
+  await Promise.all(ids.map((id) => SecureStore.deleteItemAsync(`test.${id}`, OPTIONS)));
+  await writeIndex(KEY_TESTS, []);
+}
+
 /** Local wipe for development. Does not call DELETE /subscribe. */
 export async function clearLocalData(): Promise<void> {
   const cards = await readIndex(KEY_CARDS);
   const alerts = await readIndex(KEY_ALERTS);
   const sent = await readIndex(KEY_SENT);
+  const tests = await readIndex(KEY_TESTS);
   await Promise.all([
     ...cards.map((id) => SecureStore.deleteItemAsync(`card.${id}`, OPTIONS)),
     ...alerts.map((id) => SecureStore.deleteItemAsync(`alert.${id}`, OPTIONS)),
     ...sent.map((id) => SecureStore.deleteItemAsync(`sent.${id}`, OPTIONS)),
+    ...tests.map((id) => SecureStore.deleteItemAsync(`test.${id}`, OPTIONS)),
   ]);
   await SecureStore.deleteItemAsync(KEY_CARDS, OPTIONS);
   await SecureStore.deleteItemAsync(KEY_ALERTS, OPTIONS);
   await SecureStore.deleteItemAsync(KEY_SENT, OPTIONS);
+  await SecureStore.deleteItemAsync(KEY_TESTS, OPTIONS);
   await SecureStore.deleteItemAsync(KEY_DEVICE, OPTIONS);
   await SecureStore.deleteItemAsync(KEY_ICON, OPTIONS);
   await SecureStore.deleteItemAsync(KEY_FINDER_DISMISSED, OPTIONS);

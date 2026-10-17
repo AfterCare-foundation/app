@@ -2,18 +2,19 @@
 // infection and the last negative test decide who is reached (see windows.ts).
 // Contacts are never counted on screen.
 
-import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { useMemo, useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { GradientButton } from "../components/Buttons";
+import { DateWheel } from "../components/DateWheel";
 import { SubHeader } from "../components/Chrome";
 import { HoldToConfirm } from "../components/HoldToConfirm";
 import { ReportedText, stiTitle } from "../components/ExposureCard";
 import { STI_OPTIONS, UNSPECIFIED_STI, chipText, findSti } from "../sti";
 import { Panel } from "../components/Panel";
 import { describeError, notifyContacts, type NotifyOutcome } from "../flows";
-import type { CardRecord, DeviceIdentity } from "../storage/secureStore";
+import { saveTest, type CardRecord, type DeviceIdentity, type TestRecord } from "../storage/secureStore";
+import { startOfLocalDay } from "../testRules";
 import { colors, fonts, gradients, radius, type } from "../theme";
 import { MAX_AGE_DAYS, lookbackDays, notifyFrom, selectContacts } from "../windows";
 
@@ -24,8 +25,6 @@ type Choice = "unspecified" | string;
 const COMMON = STI_OPTIONS.filter((option) => option.common);
 const MORE = STI_OPTIONS.filter((option) => !option.common);
 
-const startOfDay = (d: Date): number => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-
 function formatDay(ms: number, withYear = false): string {
   const d = new Date(ms);
   const showYear = withYear || d.getFullYear() !== new Date().getFullYear();
@@ -35,6 +34,8 @@ function formatDay(ms: number, withYear = false): string {
 interface NotifyScreenProps {
   device: DeviceIdentity;
   cards: CardRecord[];
+  /** Tests the user recorded: the newest one for the infection is where the contact period starts. */
+  tests: TestRecord[];
   onBack: () => void;
   onSent: (outcome: NotifyOutcome) => void;
 }
@@ -52,13 +53,27 @@ function Chip({ label, selected, onPress }: { label: string; selected: boolean; 
   );
 }
 
-export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProps) {
+export function NotifyScreen({ device, cards, tests, onBack, onSent }: NotifyScreenProps) {
   const [choice, setChoice] = useState<Choice>("unspecified");
   const [moreOpen, setMoreOpen] = useState(false);
-  // Start of the day of the last negative test; null = not known.
-  const [lastNegative, setLastNegative] = useState<number | null>(null);
+  // A date picked here, for one infection; a null date is "I'm not sure". Without one, the stored test is used.
+  const [picked, setPicked] = useState<{ sti: string; ms: number | null } | null>(null);
   // What actually gets encrypted.
   const stiValue: string = choice === "unspecified" ? UNSPECIFIED_STI : choice;
+  // The newest test stored for this infection, whatever its result: people are told not to have
+  // sex after a positive result, so contacts count from the last test or the standard period.
+  const storedMs = useMemo(() => {
+    if (stiValue === UNSPECIFIED_STI) {
+      return null;
+    }
+    const latest = tests
+      .filter((t) => t.sti === stiValue)
+      .reduce<string | null>((a, t) => (a === null || t.testedAt > a ? t.testedAt : a), null);
+    return latest === null ? null : startOfLocalDay(new Date(latest).getTime());
+  }, [tests, stiValue]);
+  // Start of the day of the last test; null = not known.
+  const lastNegative: number | null = picked && picked.sti === stiValue ? picked.ms : storedMs;
+  const setLastNegative = (ms: number | null) => setPicked({ sti: stiValue, ms });
   const contacts = useMemo(
     () => selectContacts(cards, { sti: stiValue, lastNegative }),
     [cards, stiValue, lastNegative],
@@ -73,29 +88,7 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const today = new Date();
-
-  const onPickDate = (_event: unknown, date?: Date) => {
-    if (date) {
-      // Never in the future. Any past date is accepted, however old: windows.ts limits
-      // who is reached to what the server keeps, so an old test never blocks sending.
-      setLastNegative(Math.min(startOfDay(date), startOfDay(new Date())));
-    }
-  };
-  const chooseDate = () => {
-    const current = new Date(lastNegative ?? Date.now());
-    setLastNegative(startOfDay(current));
-    if (Platform.OS === "ios") {
-      setPickerOpen((open) => !open);
-    } else {
-      DateTimePickerAndroid.open({
-        value: current,
-        mode: "date",
-        maximumDate: today,
-        onChange: onPickDate,
-      });
-    }
-  };
+  const chooseDate = () => setPickerOpen((open) => !open);
 
   const send = async () => {
     setBusy(true);
@@ -109,6 +102,10 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
         console.log(`[notify] scanned at: ${contacts.map((c) => c.scannedAt.slice(0, 16)).join(", ")}`);
       }
       const outcome = await notifyContacts(device, contacts, stiValue);
+      // A changed date becomes the stored test (a negative, taken before today's result).
+      if (stiValue !== UNSPECIFIED_STI && lastNegative !== null && lastNegative !== storedMs) {
+        await saveTest(stiValue, "negative", new Date(lastNegative).toISOString());
+      }
       onSent(outcome);
     } catch (e) {
       setError(describeError(e));
@@ -182,26 +179,28 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
         ) : null}
 
         <Text style={[styles.sectionTitle, styles.spaced]}>
-          When were you last <Text style={styles.underline}>negative</Text>?
+          When did you last <Text style={styles.underline}>test</Text>?
         </Text>
         <Text style={styles.sectionHint}>
-          The date of the last negative{" "}
+          {storedMs !== null ? "Your last test " : "The date of your last test "}
           {chosenName ? (
             <>
-              <Text style={styles.underline}>{chosenName}</Text>{" "}
+              for <Text style={styles.underline}>{chosenName}</Text>
             </>
           ) : null}
-          test result or completed treatment.
+          {storedMs !== null ? ", as saved on this phone. Change it if it is wrong." : "."}
         </Text>
         <View style={styles.chips}>
-          <Chip
-            label="I'm not sure"
-            selected={lastNegative === null}
-            onPress={() => {
-              setLastNegative(null);
-              setPickerOpen(false);
-            }}
-          />
+          {storedMs === null ? (
+            <Chip
+              label="I'm not sure"
+              selected={lastNegative === null}
+              onPress={() => {
+                setLastNegative(null);
+                setPickerOpen(false);
+              }}
+            />
+          ) : null}
           <Chip
             label={lastNegative === null ? "Pick a date" : formatDay(lastNegative, true)}
             selected={lastNegative !== null}
@@ -210,21 +209,14 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
             }}
           />
         </View>
-        {pickerOpen && Platform.OS === "ios" ? (
-          <Panel style={styles.pickerPanel}>
-            <DateTimePicker
-              value={new Date(lastNegative ?? Date.now())}
-              mode="date"
-              display="inline"
-              maximumDate={today}
-              onChange={(event, date) => {
-                onPickDate(event, date);
-                setPickerOpen(false);
-              }}
-              themeVariant="dark"
-              accentColor={colors.violetLight}
-            />
-          </Panel>
+        {pickerOpen ? (
+          <DateWheel
+            initial={lastNegative ?? Date.now()}
+            onDone={(ms) => {
+              setLastNegative(ms);
+              setPickerOpen(false);
+            }}
+          />
         ) : null}
 
         <Panel style={{ ...styles.cardBox, ...styles.spaced }}>
@@ -242,6 +234,18 @@ export function NotifyScreen({ device, cards, onBack, onSent }: NotifyScreenProp
           disabled={contacts.length === 0}
           onPress={() => {
             setError(null);
+            // A date entered or changed here is kept as the last test, so make sure it is right.
+            if (stiValue !== UNSPECIFIED_STI && lastNegative !== null && lastNegative !== storedMs) {
+              Alert.alert(
+                "Is this date right?",
+                `Your last ${stiTitle(stiValue)} test: ${formatDay(lastNegative, true)}.`,
+                [
+                  { text: "Go back", style: "cancel" },
+                  { text: "Yes, continue", onPress: () => setConfirming(true) },
+                ],
+              );
+              return;
+            }
             setConfirming(true);
           }}
         />
@@ -268,7 +272,6 @@ const styles = StyleSheet.create({
   },
   // Extra air between the three blocks of the form, on top of the normal gap.
   spaced: { marginTop: 14 },
-  pickerPanel: { padding: 8, alignItems: "center" },
   cardBox: {
     padding: 14,
     gap: 4,

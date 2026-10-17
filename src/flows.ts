@@ -4,6 +4,7 @@
 import { ApiError, confirmInbox, fetchInbox, notify, subscribe, updatePushId, type InboxMessage } from "./api/client";
 import { ADVICE, retestDueStage } from "./advice";
 import { contactBeforePositive } from "./alertRules";
+import { coverage, isCovered, testCheck, type TestResult } from "./testRules";
 import { requestPushToken } from "./push";
 import { cancelRetestReminder } from "./reminders";
 import { UNSPECIFIED_STI } from "./sti";
@@ -17,8 +18,11 @@ import {
   dismissRetest,
   listAlerts,
   listSent,
+  listTests,
   markAlertNoAction,
   saveAlert,
+  saveTest,
+  setAlertTestCheck,
   loadOrCreateDevice,
   saveCard,
   saveDevice,
@@ -123,10 +127,14 @@ export async function notifyContacts(
 export async function raiseDueRetests(now: number = Date.now()): Promise<number> {
   const alerts = await listAlerts();
   const cards = await listCards();
+  const tests = await listTests();
   let raised = 0;
   for (const alert of alerts) {
     if (!alert.sti || alert.retestOf || alert.noAction || !alert.acknowledgedAt) {
       continue;
+    }
+    if (isCovered(alert.testCheck)) {
+      continue; // a test taken after the contact already covers it
     }
     const scannedAt = cards.find((c) => c.etHash === alert.etHash)?.scannedAt ?? null;
     const due = retestDueStage(alert.sti, scannedAt, alert.acknowledgedAt, alert.retestDismissedDays ?? 0, now, alert.retestDelayMs ?? 0);
@@ -134,7 +142,9 @@ export async function raiseDueRetests(now: number = Date.now()): Promise<number>
       continue;
     }
     const unread = (await listAlerts()).some((a) => a.sti === alert.sti && !a.acknowledgedAt);
-    if (!unread) {
+    // A test recorded since (from another alert or Notify) may already cover this exposure.
+    const coveredNow = isCovered(coverage(alert.sti, scannedAt, tests));
+    if (!unread && !coveredNow) {
       // Dated at the scheduled time, and carrying the original payload: it looks like the alert again.
       await saveAlert(
         { alert: GENERIC_ALERT, enc: alert.enc, etHash: alert.etHash, sti: alert.sti, retestOf: alert.id },
@@ -165,6 +175,39 @@ async function settleUnreadAlerts(sti: string): Promise<void> {
     const scannedAt = cards.find((c) => c.etHash === alert.etHash)?.scannedAt ?? null;
     if (contactBeforePositive(alert.sti, scannedAt, sent)) {
       await markAlertNoAction(alert.id);
+    }
+  }
+}
+
+/**
+ * "I've tested recently" on one alert: stores the test and works out, once, what it says about
+ * this alert. Other alerts are left as they are. When it covers the contact, the retest stages of
+ * the exposure are dismissed and their reminders cancelled; other unread retest alerts for it go.
+ */
+export async function recordTestForAlert(alertId: string, sti: string, result: TestResult, testedAt: string): Promise<void> {
+  await saveTest(sti, result, testedAt);
+  const alerts = await listAlerts();
+  const alert = alerts.find((a) => a.id === alertId);
+  if (!alert) {
+    return;
+  }
+  const scannedAt = (await listCards()).find((c) => c.etHash === alert.etHash)?.scannedAt ?? null;
+  const check = testCheck(coverage(sti, scannedAt, await listTests()), testedAt);
+  await setAlertTestCheck(alert.id, check);
+  if (!isCovered(check)) {
+    return;
+  }
+  const originalId = alert.retestOf ?? alert.id;
+  for (const other of alerts) {
+    if (other.id !== alert.id && other.retestOf === originalId && !other.acknowledgedAt) {
+      await deleteAlert(other.id);
+    }
+  }
+  const stages = ADVICE[sti]?.retestDays ?? [];
+  if (stages.length > 0) {
+    await dismissRetest(originalId, Math.max(...stages));
+    for (const days of stages) {
+      await cancelRetestReminder(originalId, days);
     }
   }
 }
@@ -323,6 +366,7 @@ async function saveMessages(messages: InboxMessage[]): Promise<{ saved: AlertRec
   const keyed = (await listCards()).map((card) => ({ card, key: encryptionKey(cardToken(card)) }));
   const known = await listAlerts();
   const sent = await listSent();
+  const tests = await listTests();
   const saved: AlertRecord[] = [];
   const confirmIds: string[] = [];
   for (const message of messages) {
@@ -341,7 +385,15 @@ async function saveMessages(messages: InboxMessage[]): Promise<{ saved: AlertRec
     if (!known.some((a) => a.enc === message.enc || (a.sti === match.sti && !a.acknowledgedAt))) {
       const scannedAt = keyed.find((k) => k.card.etHash === match.etHash)?.card.scannedAt ?? null;
       const noAction = contactBeforePositive(match.sti, scannedAt, sent);
-      const record = await saveAlert({ alert: GENERIC_ALERT, enc: message.enc, ...match, ...(noAction ? { noAction } : {}) });
+      // Judged once, on arrival, against the tests stored now.
+      const found = coverage(match.sti, scannedAt, tests);
+      const record = await saveAlert({
+        alert: GENERIC_ALERT,
+        enc: message.enc,
+        ...match,
+        ...(noAction ? { noAction } : {}),
+        ...(found.kind !== "none" ? { testCheck: testCheck(found, found.testedAt) } : {}),
+      });
       saved.push(record);
       known.push(record);
     }

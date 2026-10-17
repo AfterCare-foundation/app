@@ -6,11 +6,14 @@ import { Header } from "../components/Chrome";
 import { ExposureCard, TestFinderBlock } from "../components/ExposureCard";
 import { BellIcon, QrIcon, ScanIcon } from "../components/Icons";
 import type { AlertRecord, CardRecord } from "../storage/secureStore";
+import { UNSPECIFIED_STI } from "../sti";
+import { isCovered } from "../testRules";
 import { colors, fonts, gradients, type } from "../theme";
 
 interface HomeScreenProps {
   cards: CardRecord[];
   alerts: AlertRecord[];
+  /** Tests the user recorded; they can make an alert pointless. */
   message: string | null;
   /** Notifications are off for AfterCare, so alerts cannot reach this phone. */
   pushBlocked: boolean;
@@ -20,6 +23,8 @@ interface HomeScreenProps {
   onNotify: () => void;
   onAcknowledge: (alert: AlertRecord) => void;
   onDismiss: (alert: AlertRecord) => void;
+  /** Open the form for the date and result of a test for the alert's infection. */
+  onTested: (alert: AlertRecord) => void;
 }
 
 export function HomeScreen({
@@ -33,9 +38,13 @@ export function HomeScreen({
   onNotify,
   onAcknowledge,
   onDismiss,
+  onTested,
 }: HomeScreenProps) {
   const fresh = alerts.filter((a) => a.acknowledgedAt === null);
   const current = fresh[0] ?? null;
+  const contactAt = current ? (cards.find((c) => c.etHash === current.etHash)?.scannedAt ?? null) : null;
+  // "Don't specify" names no infection, so there is nothing to record a test against.
+  const canRecordTest = current !== null && current.sti !== null && current.sti !== UNSPECIFIED_STI && !current.testCheck;
 
   return (
     <ScrollView
@@ -65,9 +74,10 @@ export function HomeScreen({
           <ExposureCard
             alert={current}
             onDone={() => onDismiss(current)}
-            contactAt={cards.find((c) => c.etHash === current.etHash)?.scannedAt ?? null}
+            contactAt={contactAt}
+            onTested={canRecordTest ? () => onTested(current) : undefined}
           />
-          {current.noAction ? null : <TestFinderBlock onFindTest={() => onAcknowledge(current)} />}
+          {current.noAction || isCovered(current.testCheck) ? null : <TestFinderBlock onFindTest={() => onAcknowledge(current)} />}
           {fresh.length > 1 ? (
             <Text style={styles.moreAlerts}>
               {fresh.length - 1} more{" "}

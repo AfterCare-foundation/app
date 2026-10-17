@@ -7,6 +7,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { AlertRecord } from "../storage/secureStore";
 import { colors, fonts, radius, type } from "../theme";
 import { pepLine } from "../advice";
+import { isCovered } from "../testRules";
 import { findSti } from "../sti";
 import { GhostButton, GradientButton } from "./Buttons";
 import { BellIcon } from "./Icons";
@@ -32,6 +33,26 @@ export function ReportedText({ sti }: { sti: string }) {
   );
 }
 
+/** "3 Oct 2026". */
+export function formatDate(iso: string): string {
+  const d = new Date(iso);
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+/** For a contact a test the user took later already covers. */
+function TestedText({ sti }: { sti: string }) {
+  const named = findSti(sti)?.label;
+  return (
+    <>
+      Someone you connected with has reported{" "}
+      {named ? <Text style={styles.stiName}>{named}</Text> : "an STI"}. You have
+      already been tested, so{" "}
+      <Text style={styles.stiName}>no further action is needed from you</Text>.
+    </>
+  );
+}
+
 /** For an alert about a contact made before the user's own positive result. */
 function NoActionText({ sti }: { sti: string }) {
   const named = findSti(sti)?.label;
@@ -51,28 +72,43 @@ interface ExposureCardProps {
   onDone: () => void;
   /** When this phone saved the card the alert came through, or null when unknown. */
   contactAt?: string | null;
+  /** "I've tested recently": opens the test date form, once per alert. Omitted where it makes no sense. */
+  onTested?: () => void;
 }
 
-export function ExposureCard({ alert, onDone, contactAt = null }: ExposureCardProps) {
+export function ExposureCard({ alert, onDone, contactAt = null, onTested }: ExposureCardProps) {
+  const tested = alert.testCheck;
+  const okay = alert.noAction || isCovered(tested);
   // Worked out when the alert is shown, so the deadline reflects the time that has passed.
-  const pep = alert.sti && !alert.noAction ? pepLine(alert.sti, contactAt) : null;
+  const pep = alert.sti && !okay ? pepLine(alert.sti, contactAt) : null;
   return (
     <Panel tint="blue" style={styles.card}>
-      <View style={alert.noAction ? styles.badgeOk : styles.badge}>
-        <BellIcon size={18} color={alert.noAction ? colors.teal : colors.violetLight} />
+      <View style={okay ? styles.badgeOk : styles.badge}>
+        <BellIcon size={18} color={okay ? colors.teal : colors.violetLight} />
       </View>
       <Text style={styles.headline}>
-        {alert.noAction ? "No action needed" : <>You may have been{"\n"}exposed to an STI</>}
+        {okay ? "No action needed" : <>You may have been{"\n"}exposed to an STI</>}
       </Text>
       <Text style={styles.body}>
         {alert.sti ? (
-          alert.noAction ? <NoActionText sti={alert.sti} /> : <ReportedText sti={alert.sti} />
+          alert.noAction ? (
+            <NoActionText sti={alert.sti} />
+          ) : isCovered(tested) ? (
+            <TestedText sti={alert.sti} />
+          ) : (
+            <ReportedText sti={alert.sti} />
+          )
         ) : (
           alert.alert
         )}
       </Text>
       {pep ? <Text style={styles.prevention}>{pep}</Text> : null}
       <GradientButton label="OK" onPress={onDone} style={styles.button} />
+      {tested && !alert.noAction ? (
+        <Text style={styles.lastTest}>Last test: {formatDate(tested.testedAt)}</Text>
+      ) : onTested && !alert.noAction ? (
+        <GhostButton label="I've tested recently" onPress={onTested} style={styles.button} />
+      ) : null}
     </Panel>
   );
 }
@@ -186,6 +222,7 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 10,
   },
+  lastTest: { ...type.cardDesc, color: colors.textSoft, textAlign: "center", marginTop: 2 },
   stiName: {
     textDecorationLine: "underline",
   },

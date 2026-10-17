@@ -64,7 +64,6 @@
       ],
       "expo-notifications",
       "expo-font",
-      "@react-native-community/datetimepicker",
       [
         "expo-alternate-app-icons",
         [
