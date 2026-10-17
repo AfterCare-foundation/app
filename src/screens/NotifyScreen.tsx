@@ -18,9 +18,8 @@ import { startOfLocalDay } from "../testRules";
 import { colors, fonts, gradients, radius, type } from "../theme";
 import { MAX_AGE_DAYS, lookbackDays, notifyFrom, selectContacts } from "../windows";
 
-// "unspecified" or the id of an option from sti.ts. "Don't specify" goes on the
-// wire as the generic `other`, which the recipient reads as "an STI".
-type Choice = "unspecified" | string;
+// The id of an option from sti.ts, or null until one is picked: the infection is always named.
+type Choice = string | null;
 
 const COMMON = STI_OPTIONS.filter((option) => option.common);
 const MORE = STI_OPTIONS.filter((option) => !option.common);
@@ -54,23 +53,23 @@ function Chip({ label, selected, onPress }: { label: string; selected: boolean; 
 }
 
 export function NotifyScreen({ device, cards, tests, onBack, onSent }: NotifyScreenProps) {
-  const [choice, setChoice] = useState<Choice>("unspecified");
+  const [choice, setChoice] = useState<Choice>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   // A date picked here, for one infection; a null date is "I'm not sure". Without one, the stored test is used.
   const [picked, setPicked] = useState<{ sti: string; ms: number | null } | null>(null);
-  // What actually gets encrypted.
-  const stiValue: string = choice === "unspecified" ? UNSPECIFIED_STI : choice;
+  // What actually gets encrypted. Nothing is sent before an infection is picked.
+  const stiValue: string = choice ?? UNSPECIFIED_STI;
   // The newest test stored for this infection, whatever its result: people are told not to have
   // sex after a positive result, so contacts count from the last test or the standard period.
   const storedMs = useMemo(() => {
-    if (stiValue === UNSPECIFIED_STI) {
+    if (choice === null) {
       return null;
     }
     const latest = tests
       .filter((t) => t.sti === stiValue)
       .reduce<string | null>((a, t) => (a === null || t.testedAt > a ? t.testedAt : a), null);
     return latest === null ? null : startOfLocalDay(new Date(latest).getTime());
-  }, [tests, stiValue]);
+  }, [tests, choice, stiValue]);
   // Start of the day of the last test; null = not known.
   const lastNegative: number | null = picked && picked.sti === stiValue ? picked.ms : storedMs;
   const setLastNegative = (ms: number | null) => setPicked({ sti: stiValue, ms });
@@ -79,7 +78,6 @@ export function NotifyScreen({ device, cards, tests, onBack, onSent }: NotifyScr
     [cards, stiValue, lastNegative],
   );
   const fromMs = notifyFrom({ sti: stiValue, lastNegative });
-  // Empty for "Don't specify", so the hint simply leaves the name out.
   const chosenName = findSti(stiValue)?.label ?? "";
   // An infection from "More…" moves up next to the common ones once picked.
   const pickedExtra = MORE.find((option) => option.id === choice) ?? null;
@@ -103,7 +101,7 @@ export function NotifyScreen({ device, cards, tests, onBack, onSent }: NotifyScr
       }
       const outcome = await notifyContacts(device, contacts, stiValue);
       // A changed date becomes the stored test (a negative, taken before today's result).
-      if (stiValue !== UNSPECIFIED_STI && lastNegative !== null && lastNegative !== storedMs) {
+      if (choice !== null && lastNegative !== null && lastNegative !== storedMs) {
         await saveTest(stiValue, "negative", new Date(lastNegative).toISOString());
       }
       onSent(outcome);
@@ -150,7 +148,6 @@ export function NotifyScreen({ device, cards, tests, onBack, onSent }: NotifyScr
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.sectionTitle}>What did you test positive for?</Text>
         <View style={styles.chips}>
-          <Chip label="Don't specify" selected={choice === "unspecified"} onPress={() => setChoice("unspecified")} />
           {COMMON.map((option) => (
             <Chip
               key={option.id}
@@ -220,7 +217,9 @@ export function NotifyScreen({ device, cards, tests, onBack, onSent }: NotifyScr
         ) : null}
 
         <Panel style={{ ...styles.cardBox, ...styles.spaced }}>
-          <Text style={styles.cardLabel}>{contacts.length === 0 ? "No contacts to notify" : `${since} will be notified`}</Text>
+          <Text style={styles.cardLabel}>
+            {choice === null ? "Pick the infection first" : contacts.length === 0 ? "No contacts to notify" : `${since} will be notified`}
+          </Text>
           {lastNegative === null ? (
             <Text style={styles.cardMeta}>{`Standard period: ${Math.min(lookbackDays(stiValue), MAX_AGE_DAYS)} days.`}</Text>
           ) : null}
@@ -231,11 +230,11 @@ export function NotifyScreen({ device, cards, tests, onBack, onSent }: NotifyScr
           colors={gradients.primary}
           style={styles.spaced}
           busy={busy}
-          disabled={contacts.length === 0}
+          disabled={choice === null || contacts.length === 0}
           onPress={() => {
             setError(null);
             // A date entered or changed here is kept as the last test, so make sure it is right.
-            if (stiValue !== UNSPECIFIED_STI && lastNegative !== null && lastNegative !== storedMs) {
+            if (choice !== null && lastNegative !== null && lastNegative !== storedMs) {
               Alert.alert(
                 "Is this date right?",
                 `Your last ${stiTitle(stiValue)} test: ${formatDay(lastNegative, true)}.`,

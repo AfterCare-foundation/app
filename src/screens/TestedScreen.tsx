@@ -1,7 +1,7 @@
-// "I've tested recently": the date and the result of the user's latest test for the infection an
-// alert is about. It is kept on this phone only, shown in History, and decides whether an alert
-// still needs a test (see testRules.ts). Any past date is accepted, so a wrong entry can be
-// corrected; the alert card then says what the test means.
+// "I've been tested recently": the date and the result of the user's latest test for the infection an
+// alert is about. It is kept on this phone only and decides whether an alert
+// still needs a test (see testRules.ts). Any past date can be entered; one from before the alert
+// arrived does not count for it, which the app says afterwards.
 
 import { useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -9,6 +9,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { GradientButton } from "../components/Buttons";
 import { SubHeader } from "../components/Chrome";
 import { DateWheel } from "../components/DateWheel";
+import { Panel } from "../components/Panel";
 import { formatDate, stiTitle } from "../components/ExposureCard";
 import type { TestRecord } from "../storage/secureStore";
 import { startOfLocalDay, type TestResult } from "../testRules";
@@ -20,6 +21,8 @@ interface TestedScreenProps {
   existing: TestRecord[];
   onBack: () => void;
   onSave: (result: TestResult, testedAt: string) => void;
+  /** From the To-do list: take the item off it without a test. */
+  onRemove?: () => void;
 }
 
 function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
@@ -35,7 +38,7 @@ function Chip({ label, selected, onPress }: { label: string; selected: boolean; 
   );
 }
 
-export function TestedScreen({ sti, existing, onBack, onSave }: TestedScreenProps) {
+export function TestedScreen({ sti, existing, onBack, onSave, onRemove }: TestedScreenProps) {
   const [result, setResult] = useState<TestResult | null>(null);
   const [date, setDate] = useState<number | null>(null);
 
@@ -73,7 +76,7 @@ export function TestedScreen({ sti, existing, onBack, onSave }: TestedScreenProp
             if (result !== null && date !== null) {
               Alert.alert(
                 "Is this right?",
-                `${result === "positive" ? "Positive" : "Negative"} ${name} test on ${formatDate(new Date(date).toISOString())}. It cannot be changed for this alert.`,
+                `${result === "positive" ? "Positive" : "Negative"} ${name} test on ${formatDate(new Date(date).toISOString())}. A test accepted for an alert cannot be changed.`,
                 [
                   { text: "Go back", style: "cancel" },
                   { text: "Yes, save", onPress: () => onSave(result, new Date(date).toISOString()) },
@@ -85,11 +88,29 @@ export function TestedScreen({ sti, existing, onBack, onSave }: TestedScreenProp
         <Pressable onPress={onBack} accessibilityRole="button" style={styles.cancel}>
           <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
+        {onRemove ? (
+          <Pressable
+            onPress={() =>
+              Alert.alert("Remove from list?", "You will not get reminders to test for it. Do this only if you do not need a test.", [
+                { text: "Keep it", style: "cancel" },
+                { text: "Remove", style: "destructive", onPress: onRemove },
+              ])
+            }
+            accessibilityRole="button"
+            style={styles.cancel}
+          >
+            <Text style={styles.cancelText}>Remove from list</Text>
+          </Pressable>
+        ) : null}
 
-        <Text style={styles.privacy}>
-          This stays on this phone.{"\n"}It is never sent to the server.{"\n"}Entered by mistake? Settings has
-          "Delete my test results".
-        </Text>
+        <Panel style={styles.note}>
+          <Text style={styles.noteTitle}>Private by design</Text>
+          <Text style={styles.noteText}>This stays on this phone. It is never sent to the server.</Text>
+        </Panel>
+        <Panel style={styles.note}>
+          <Text style={styles.noteTitle}>Entered by mistake?</Text>
+          <Text style={styles.noteText}>Settings has "Delete my test results".</Text>
+        </Panel>
       </ScrollView>
     </View>
   );
@@ -114,14 +135,9 @@ const styles = StyleSheet.create({
   chipSelected: { borderColor: colors.violetLight, backgroundColor: "rgba(125, 71, 224, 0.22)" },
   chipText: { color: colors.textSoft, fontFamily: fonts.regular, fontSize: 13.5 },
   chipTextSelected: { color: colors.text, fontFamily: fonts.semibold },
-  cancel: { alignItems: "center", paddingVertical: 6 },
+  cancel: { alignSelf: "center", paddingVertical: 8, paddingHorizontal: 12 },
   cancelText: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, textDecorationLine: "underline" },
-  privacy: {
-    color: colors.textMuted,
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: "center",
-    marginTop: 6,
-  },
+  note: { padding: 14, gap: 4 },
+  noteTitle: { ...type.cardTitle, fontSize: 14 },
+  noteText: { ...type.cardDesc },
 });

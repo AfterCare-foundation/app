@@ -8,7 +8,7 @@
 //     passed by the test day (windowDays in advice.ts); sooner than that it may have been too early;
 //   - a test on the same day as the contact, or before it, says nothing about this contact.
 // Infections without a window (mpox: no test without symptoms) are never cleared by a negative.
-// "Don't specify" names no infection, so nothing can be compared.
+// An unknown infection type names nothing, so nothing can be compared.
 
 import { ADVICE } from "./advice";
 import { UNSPECIFIED_STI } from "./sti";
@@ -87,6 +87,28 @@ export interface TestCheck {
 
 export function testCheck(c: Coverage, entered: string): TestCheck {
   return { kind: c.kind, testedAt: c.kind === "none" ? entered : c.testedAt };
+}
+
+/**
+ * Judges a test the user enters on one alert. It only counts for an alert if it was taken on the
+ * day the alert arrived or later: that date is visible to the user, so trying dates reveals
+ * nothing and a refused date can simply be entered again (null). An accepted test is judged once
+ * against the hidden contact day: a positive covers it, a negative covers it when the infection's
+ * window had passed by the test day, otherwise it was too early ("early": the item leaves the
+ * list and the retest reminders go on).
+ */
+export function judgeEntry(entry: TestEntry, receivedAt: string, contactAt: string | null): TestCheck | null {
+  const testDay = startOfLocalDay(new Date(entry.testedAt).getTime());
+  if (testDay < startOfLocalDay(new Date(receivedAt).getTime())) {
+    return null;
+  }
+  const contactMs = contactAt === null ? NaN : new Date(contactAt).getTime();
+  if (entry.result === "positive" || Number.isNaN(contactMs)) {
+    return { kind: entry.result, testedAt: entry.testedAt };
+  }
+  const windowDays = ADVICE[entry.sti]?.windowDays ?? null;
+  const waited = Math.round((testDay - startOfLocalDay(contactMs)) / DAY_MS);
+  return { kind: windowDays !== null && waited >= windowDays ? "negative" : "early", testedAt: entry.testedAt };
 }
 
 /** The test makes this alert pointless: nothing is asked of the user. */

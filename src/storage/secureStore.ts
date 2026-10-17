@@ -77,11 +77,13 @@ export interface AlertRecord {
   retestOf?: string;
   /**
    * The contact was made before the user's own positive result for this infection, so nothing is
-   * asked of them. Home says so; History and retest reminders skip it.
+   * asked of them. Home says so; the To-do list and retest reminders skip it.
    */
   noAction?: boolean;
   /** What a recorded test said about this alert (testRules.ts). Set once, never re-evaluated. */
   testCheck?: TestCheck;
+  /** The user removed this exposure from the To-do list without a test result. */
+  closedAt?: string;
 }
 
 /** One line of the local "I notified people" log. No contacts, no counts. */
@@ -261,6 +263,13 @@ export async function markAlertNoAction(id: string): Promise<void> {
   }
 }
 
+export async function closeAlert(id: string): Promise<void> {
+  const alert = await readJson<AlertRecord>(`alert.${id}`);
+  if (alert) {
+    await writeJson(`alert.${id}`, { ...alert, closedAt: new Date().toISOString() });
+  }
+}
+
 export async function setAlertTestCheck(id: string, check: TestCheck): Promise<void> {
   const alert = await readJson<AlertRecord>(`alert.${id}`);
   if (alert) {
@@ -291,9 +300,8 @@ export async function saveSent(sti: string): Promise<SentRecord> {
 }
 
 /**
- * The newest test of an infection with one result. Kept on this phone only, shown in History and
- * used to tell whether a new alert still needs a test (see testRules.ts). One record per infection
- * and result: a new date replaces the stored one, earlier or later, so a wrong entry can be corrected.
+ * The newest test of an infection with one result. Kept on this phone only and used to tell
+ * whether a new alert still needs a test (see testRules.ts). One record per infection and result: a new date replaces the stored one, earlier or later, so a wrong entry can be corrected.
  */
 export interface TestRecord {
   id: string;
@@ -372,13 +380,6 @@ export async function saveIconChoice(choice: AppIconChoice): Promise<void> {
   await SecureStore.setItemAsync(KEY_ICON, choice, OPTIONS);
 }
 
+/** No longer written: the "Need a test?" block cannot be dismissed. Still wiped, for installs that stored it. */
 const KEY_FINDER_DISMISSED = "settings.finderDismissedAt";
 
-/** Time of the newest alert when the History "Need a test?" block was dismissed; a newer alert brings it back. */
-export async function loadFinderDismissedAt(): Promise<string | null> {
-  return SecureStore.getItemAsync(KEY_FINDER_DISMISSED, OPTIONS);
-}
-
-export async function saveFinderDismissedAt(receivedAt: string): Promise<void> {
-  await SecureStore.setItemAsync(KEY_FINDER_DISMISSED, receivedAt, OPTIONS);
-}

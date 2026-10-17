@@ -108,13 +108,3 @@ test("told about gonorrhoea then chlamydia: gonorrhoea is still skipped", () => 
   const list = [card("a", 1, ["gonorrhoea", "chlamydia"]), card("b", 2)];
   assert.deepEqual(ids(selectContacts(list, { sti: "gonorrhoea", lastNegative: null }, NOW)), ["b"]);
 });
-
-test("a generic notice is skipped for anyone already told about something", () => {
-  const list = [card("a", 1, "gonorrhoea"), card("b", 2)];
-  assert.deepEqual(ids(selectContacts(list, { sti: "other", lastNegative: null }, NOW)), ["b"]);
-});
-
-test("a named notice still goes to someone only told generically", () => {
-  const list = [card("a", 1, "other")];
-  assert.deepEqual(ids(selectContacts(list, { sti: "gonorrhoea", lastNegative: null }, NOW)), ["a"]);
-});

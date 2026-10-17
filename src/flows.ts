@@ -4,7 +4,7 @@
 import { ApiError, confirmInbox, fetchInbox, notify, subscribe, updatePushId, type InboxMessage } from "./api/client";
 import { ADVICE, retestDueStage } from "./advice";
 import { contactBeforePositive } from "./alertRules";
-import { coverage, isCovered, testCheck, type TestResult } from "./testRules";
+import { coverage, isCovered, judgeEntry, testCheck, type TestResult } from "./testRules";
 import { requestPushToken } from "./push";
 import { cancelRetestReminder } from "./reminders";
 import { UNSPECIFIED_STI } from "./sti";
@@ -19,6 +19,7 @@ import {
   listAlerts,
   listSent,
   listTests,
+  closeAlert,
   markAlertNoAction,
   saveAlert,
   saveTest,
@@ -115,12 +116,12 @@ export async function notifyContacts(
  * The user has just told their contacts about an infection, so they tested positive for it: a
  * retest reminder for an earlier alert about the same infection no longer applies. Hides the
  * reminders and cancels the scheduled notifications, for alerts opened or not. Alerts that
- * arrive later are new exposures and get their own. "Don't specify" names no infection, so it
+ * arrive later are new exposures and get their own. An unknown infection type names no infection, so it
  * settles nothing.
  */
 /**
  * Turns every retest that has come due into an ordinary unread alert: it shows on Home exactly
- * like a new alert, with the same text, and gets a "Received" entry in History. Nothing marks it
+ * like a new alert, with the same text, and joins the To-do list once seen. Nothing marks it
  * as a retest in the UI. The stage is then dismissed on the alert it follows, so each stage
  * fires once. Returns how many alerts were raised. Call when the app opens or comes to the front.
  */
@@ -130,7 +131,7 @@ export async function raiseDueRetests(now: number = Date.now()): Promise<number>
   const tests = await listTests();
   let raised = 0;
   for (const alert of alerts) {
-    if (!alert.sti || alert.retestOf || alert.noAction || !alert.acknowledgedAt) {
+    if (!alert.sti || alert.retestOf || alert.noAction || alert.closedAt || !alert.acknowledgedAt) {
       continue;
     }
     if (isCovered(alert.testCheck)) {
@@ -180,22 +181,25 @@ async function settleUnreadAlerts(sti: string): Promise<void> {
 }
 
 /**
- * "I've tested recently" on one alert: stores the test and works out, once, what it says about
+ * "I've been tested recently" on one alert: stores the test and works out, once, what it says about
  * this alert. Other alerts are left as they are. When it covers the contact, the retest stages of
  * the exposure are dismissed and their reminders cancelled; other unread retest alerts for it go.
  */
-export async function recordTestForAlert(alertId: string, sti: string, result: TestResult, testedAt: string): Promise<void> {
+export async function recordTestForAlert(alertId: string, sti: string, result: TestResult, testedAt: string): Promise<boolean> {
   await saveTest(sti, result, testedAt);
   const alerts = await listAlerts();
   const alert = alerts.find((a) => a.id === alertId);
   if (!alert) {
-    return;
+    return false;
   }
   const scannedAt = (await listCards()).find((c) => c.etHash === alert.etHash)?.scannedAt ?? null;
-  const check = testCheck(coverage(sti, scannedAt, await listTests()), testedAt);
+  const check = judgeEntry({ sti, result, testedAt }, alert.receivedAt, scannedAt);
+  if (check === null) {
+    return false; // taken before the alert arrived: it stays on the list
+  }
   await setAlertTestCheck(alert.id, check);
   if (!isCovered(check)) {
-    return;
+    return true; // too early: off the list, the retest reminders go on
   }
   const originalId = alert.retestOf ?? alert.id;
   for (const other of alerts) {
@@ -204,6 +208,24 @@ export async function recordTestForAlert(alertId: string, sti: string, result: T
     }
   }
   const stages = ADVICE[sti]?.retestDays ?? [];
+  if (stages.length > 0) {
+    await dismissRetest(originalId, Math.max(...stages));
+    for (const days of stages) {
+      await cancelRetestReminder(originalId, days);
+    }
+  }
+  return true;
+}
+
+/** The user removes an exposure from the To-do list without a result: no more retests for it. */
+export async function closeExposure(alert: AlertRecord): Promise<void> {
+  const originalId = alert.retestOf ?? alert.id;
+  for (const other of await listAlerts()) {
+    if (other.id === originalId || other.retestOf === originalId) {
+      await closeAlert(other.id);
+    }
+  }
+  const stages = alert.sti ? (ADVICE[alert.sti]?.retestDays ?? []) : [];
   if (stages.length > 0) {
     await dismissRetest(originalId, Math.max(...stages));
     for (const days of stages) {

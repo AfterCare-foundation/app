@@ -1,18 +1,19 @@
 import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AppState, Linking, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { apiBaseUrl, deleteDevice, health } from "./src/api/client";
 import { useAppLock } from "./src/appLock";
 import { Screen, TabBar, type Tab } from "./src/components/Chrome";
-import { stiTitle } from "./src/components/ExposureCard";
+import { formatDate, stiTitle } from "./src/components/ExposureCard";
 import {
   currentPushToken,
   describeError,
   pullInbox,
   raiseDueRetests,
+  closeExposure,
   recordTestForAlert,
   syncPushToken,
   type InboxStatus,
@@ -29,7 +30,7 @@ import {
   pushIsBlocked,
   pushSupported,
 } from "./src/push";
-import { HistoryScreen } from "./src/screens/HistoryScreen";
+import { TodoScreen, type Celebration } from "./src/screens/TodoScreen";
 import { InfoScreen } from "./src/screens/InfoScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 import { HomeScreen } from "./src/screens/HomeScreen";
@@ -54,6 +55,7 @@ import {
   type TestRecord,
 } from "./src/storage/secureStore";
 import { isCovered, type TestResult } from "./src/testRules";
+import { openGroups, untested, type TodoGroup } from "./src/todo";
 import { colors, fonts } from "./src/theme";
 
 type Route =
@@ -61,7 +63,7 @@ type Route =
   | { name: "scan" }
   | { name: "generate" }
   | { name: "notify" }
-  | { name: "tested"; alert: AlertRecord };
+  | { name: "tested"; alerts: AlertRecord[]; from?: Celebration };
 
 installNotificationHandler();
 
@@ -99,7 +101,9 @@ export default function App() {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [route, setRoute] = useState<Route>({ name: "home" });
   const [tab, setTab] = useState<Tab>("home");
-  const historyAlerts = alerts.filter((a) => !a.noAction); // alerts that need no action stay off History
+  const todoGroups = useMemo(() => openGroups(alerts), [alerts]);
+  // A row ticked off in the To-do list, shown where it was while it animates away.
+  const [celebrate, setCelebrate] = useState<Celebration | null>(null);
   const lock = useAppLock(dataLoaded ? cards.length + alerts.length + sent.length + tests.length > 0 : null);
   const [serverOk, setServerOk] = useState<boolean | null>(null);
   const [inboxStatus, setInboxStatus] = useState<InboxStatus | null>(null);
@@ -319,13 +323,45 @@ export default function App() {
   );
 
   const onSaveTest = useCallback(
-    async (alert: AlertRecord, result: TestResult, testedAt: string) => {
-      await recordTestForAlert(alert.id, alert.sti as string, result, testedAt);
+    async (alerts: AlertRecord[], result: TestResult, testedAt: string, from?: Celebration) => {
+      let accepted = 0;
+      for (const alert of alerts) {
+        if (await recordTestForAlert(alert.id, alert.sti as string, result, testedAt)) {
+          accepted += 1;
+        }
+      }
       await reload();
       setRoute({ name: "home" });
       say("Test saved.");
+      if (accepted > 0 && from) {
+        setCelebrate(from);
+      }
+      if (accepted === 0) {
+        const arrived = alerts.reduce((a, x) => (x.receivedAt > a ? x.receivedAt : a), "");
+        Alert.alert(
+          "That test is from before the alert",
+          `A test counts for an alert only if it was taken on or after the day the alert arrived (${formatDate(arrived)}). It stays on your list.`,
+        );
+      }
+      // A positive result is the moment to warn the people met since the last test.
+      if (result === "positive") {
+        Alert.alert("Notify your contacts?", "You can let the people you connected with know. They will not learn who you are.", [
+          { text: "Not now", style: "cancel" },
+          { text: "Notify partners", onPress: () => setRoute({ name: "notify" }) },
+        ]);
+      }
     },
     [reload, say],
+  );
+
+  const onRemoveTodo = useCallback(
+    async (group: TodoGroup) => {
+      for (const alert of group.alerts) {
+        await closeExposure(alert);
+      }
+      await reload();
+    },
+    [reload],
   );
 
   const onDeleteTests = useCallback(async () => {
@@ -406,26 +442,40 @@ export default function App() {
       <GenerateScreen device={device} onBack={() => setRoute({ name: "home" })} onGenerated={() => void reload()} />
     );
   } else if (route.name === "tested") {
-    const testedAlert = route.alert;
-    body = testedAlert.sti ? (
+    const testedAlerts = route.alerts;
+    const testedSti = testedAlerts[0]?.sti ?? null;
+    body = testedSti ? (
       <TestedScreen
-        sti={testedAlert.sti}
-        existing={tests.filter((t) => t.sti === testedAlert.sti)}
+        sti={testedSti}
+        existing={tests.filter((t) => t.sti === testedSti)}
         onBack={() => setRoute({ name: "home" })}
-        onSave={(result, testedAt) => void onSaveTest(testedAlert, result, testedAt)}
+        onSave={(result, testedAt) => void onSaveTest(testedAlerts, result, testedAt, route.from)}
+        onRemove={
+          route.from
+            ? () => {
+                const group = (route.from as Celebration).group;
+                setRoute({ name: "home" });
+                void onRemoveTodo(group);
+              }
+            : undefined
+        }
       />
     ) : null;
   } else if (route.name === "notify") {
     body = (
       <NotifyScreen device={device} cards={cards} tests={tests} onBack={() => setRoute({ name: "home" })} onSent={onSent} />
     );
-  } else if (tab === "history") {
-    body = <HistoryScreen
-        alerts={historyAlerts}
+  } else if (tab === "todo") {
+    body = (
+      <TodoScreen
+        groups={todoGroups}
+        celebrate={celebrate}
+        onCelebrated={() => setCelebrate(null)}
         tests={tests}
-        sent={sent}
-        onFindTest={() => void Linking.openURL(TEST_FINDER_URL)}
-      />;
+        onTested={(group) => setRoute({ name: "tested", alerts: untested(group), from: { group, index: todoGroups.findIndex((g) => g.sti === group.sti) } })}
+        onRemove={(group) => void onRemoveTodo(group)}
+      />
+    );
   } else if (tab === "info") {
     body = <InfoScreen />;
   } else if (tab === "settings") {
@@ -447,7 +497,7 @@ export default function App() {
       <HomeScreen
         cards={cards}
         alerts={alerts}
-        onTested={(alert) => setRoute({ name: "tested", alert })}
+        onTested={(alert) => setRoute({ name: "tested", alerts: [alert] })}
         message={message}
         pushBlocked={pushBlocked}
         onOpenSettings={openNotificationSettings}
@@ -469,6 +519,7 @@ export default function App() {
           <TabBar
             active={tab}
             onSelect={setTab}
+            todoCount={todoGroups.length}
           />
         ) : null}
         {lock.covered ? <PrivacyCover /> : null}

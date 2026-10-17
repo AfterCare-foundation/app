@@ -6,7 +6,7 @@ import { UNSPECIFIED_STI } from "./sti";
  * The alert is about an infection the user has already told their contacts about (they tested
  * positive for it), and the contact it came through was made before that: the card was scanned
  * earlier than the notification was sent. Testing again would tell them nothing new.
- * "Don't specify" names no infection, so it never counts. A contact scanned after the
+ * An unknown infection type names nothing to compare, so it never counts. A contact scanned after the
  * notification is a new exposure and is handled as usual.
  */
 export function contactBeforePositive(

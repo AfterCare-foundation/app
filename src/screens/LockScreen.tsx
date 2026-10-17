@@ -1,5 +1,5 @@
 // Shown instead of the app while it is locked, and as a plain cover while the app is not in the
-// foreground (so the app switcher never shows alerts or history). Nothing private is drawn here:
+// foreground (so the app switcher never shows alerts). Nothing private is drawn here:
 // only the logo, like a loading screen. Face ID starts by itself; if it was cancelled, tapping the
 // screen asks again.
 

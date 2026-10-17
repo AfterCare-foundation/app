@@ -1,5 +1,5 @@
 // App lock: the app opens only after Face ID, Touch ID or the phone code, so someone who picks up
-// the phone cannot read the alerts and history. Nothing is stored by AfterCare and there is no app
+// the phone cannot read the alerts. Nothing is stored by AfterCare and there is no app
 // password: the operating system does the check (tech spec, "Authentication").
 //
 // `locked` is true until the check passes. It is asked once when the app opens and once whenever

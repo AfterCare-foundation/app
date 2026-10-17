@@ -72,7 +72,7 @@ interface ExposureCardProps {
   onDone: () => void;
   /** When this phone saved the card the alert came through, or null when unknown. */
   contactAt?: string | null;
-  /** "I've tested recently": opens the test date form, once per alert. Omitted where it makes no sense. */
+  /** "I've been tested recently": opens the test date form, once per alert. Omitted where it makes no sense. */
   onTested?: () => void;
 }
 
@@ -107,7 +107,7 @@ export function ExposureCard({ alert, onDone, contactAt = null, onTested }: Expo
       {tested && !alert.noAction ? (
         <Text style={styles.lastTest}>Last test: {formatDate(tested.testedAt)}</Text>
       ) : onTested && !alert.noAction ? (
-        <GhostButton label="I've tested recently" onPress={onTested} style={styles.button} />
+        <GhostButton label="I've been tested recently" onPress={onTested} style={styles.button} />
       ) : null}
     </Panel>
   );
@@ -119,7 +119,7 @@ export function TestFinderBlock({
   onDismiss,
 }: {
   onFindTest: () => void;
-  /** Shown where the block can be hidden, as on History. */
+  /** Shown where the block can be hidden. */
   onDismiss?: () => void;
 }) {
   return (

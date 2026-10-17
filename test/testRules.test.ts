@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { coverage, isCovered, latestTest, testCheck, type TestEntry } from "../src/testRules.ts";
+import { coverage, isCovered, judgeEntry, latestTest, testCheck, type TestEntry } from "../src/testRules.ts";
 import { UNSPECIFIED_STI } from "../src/sti.ts";
 
 const contact = "2026-09-01T12:00:00";
@@ -72,4 +72,15 @@ test("a test that does not count is remembered with the date that was entered", 
   assert.deepEqual(check, { kind: "none", testedAt: "2026-08-20T00:00:00.000Z" });
   assert.equal(isCovered(check), false);
   assert.equal(isCovered(undefined), false);
+});
+
+test("a test entered before the alert arrived is refused, from the day it arrived it is judged", () => {
+  const arrived = "2026-10-10T09:00:00";
+  const scanned = "2026-10-01T12:00:00";
+  const at = (day: string) => new Date(`${day}T00:00:00`).toISOString();
+  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "negative", testedAt: at("2026-10-09") }, arrived, scanned), null);
+  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "positive", testedAt: at("2026-10-10") }, arrived, scanned)?.kind, "positive");
+  // Negative 12 days after the contact: gonorrhoea's window is 21 days, so too early.
+  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "negative", testedAt: at("2026-10-13") }, arrived, scanned)?.kind, "early");
+  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "negative", testedAt: at("2026-10-22") }, arrived, scanned)?.kind, "negative");
 });

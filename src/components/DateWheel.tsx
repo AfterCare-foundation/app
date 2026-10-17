@@ -18,6 +18,11 @@ const PAD = ((ROWS - 1) / 2) * ITEM_H;
 const YEARS_BACK = 10;
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
+// The row in the middle is large and bright; each row further away is smaller and fainter, so the
+// wheel reads as turning away from you.
+const depth = (distance: number) =>
+  distance === 0 ? styles.itemTextLive : distance === 1 ? styles.itemNear : styles.itemFar;
+
 const clamp = (n: number, lo: number, hi: number): number => Math.min(Math.max(n, lo), hi);
 const daysIn = (y: number, m: number): number => new Date(y, m + 1, 0).getDate();
 
@@ -79,7 +84,9 @@ function Column({
     >
       {items.map((text, i) => (
         <View key={text} style={styles.item}>
-          <Text style={[styles.itemText, i === live && styles.itemTextLive]}>{text}</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[styles.itemText, depth(Math.abs(i - live))]}>
+            {text}
+          </Text>
         </View>
       ))}
     </ScrollView>
@@ -147,21 +154,21 @@ export function DateWheel({
         <View pointerEvents="none" style={styles.band} />
         <Column
           label="Day"
-          flex={1}
+          flex={0.9}
           items={days}
           index={value.d - d0}
           onChange={(i) => setValue(fix(value.y, value.m, d0 + i))}
         />
         <Column
           label="Month"
-          flex={2}
+          flex={2.6}
           items={months}
           index={value.m - m0}
           onChange={(i) => setValue(fix(value.y, m0 + i, value.d))}
         />
         <Column
           label="Year"
-          flex={1.3}
+          flex={1.2}
           items={years.map(String)}
           index={value.y - minV.y}
           onChange={(i) => setValue(fix(minV.y + i, value.m, value.d))}
@@ -188,6 +195,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(125, 71, 224, 0.18)",
   },
   item: { height: ITEM_H, alignItems: "center", justifyContent: "center" },
-  itemText: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 17 },
-  itemTextLive: { color: colors.text, fontFamily: fonts.semibold, fontSize: 18 },
+  itemText: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15 },
+  itemNear: { fontSize: 14, opacity: 0.55 },
+  itemFar: { fontSize: 12, opacity: 0.3 },
+  itemTextLive: { color: colors.text, fontFamily: fonts.semibold, fontSize: 20 },
 });

@@ -23,7 +23,7 @@ test("without a scan date or an infection name nothing is assumed", () => {
   assert.equal(contactBeforePositive(null, "2026-10-01T12:00:00.000Z", sent), false);
 });
 
-test("'Don't specify' never counts", () => {
+test("an unknown infection type never counts", () => {
   const other = [{ sti: UNSPECIFIED_STI, sentAt: "2026-10-10T12:00:00.000Z" }];
   assert.equal(contactBeforePositive(UNSPECIFIED_STI, "2026-10-01T12:00:00.000Z", other), false);
 });

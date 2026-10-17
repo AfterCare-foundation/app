@@ -90,16 +90,6 @@ export function BackIcon({ size = 20, color = "#fff", strokeWidth = 1.8 }: IconP
   );
 }
 
-export function ClockIcon({ size = 22, color = "#fff", strokeWidth = 1.75 }: IconProps) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
-      <Circle cx={12} cy={12} r={9.25} />
-      <Path d="M12 7v5l3.25 2" />
-    </Svg>
-  );
-}
-
-/** Arrow coming in to the bottom left: something received. */
 export function ArrowInIcon({ size = 16, color = "#fff", strokeWidth = 1.9 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
@@ -126,6 +116,19 @@ export function VialIcon({ size = 16, color = "#fff", strokeWidth = 2 }: IconPro
       <Path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2" />
       <Path d="M8.5 2h7" />
       <Path d="M7 16h10" />
+    </Svg>
+  );
+}
+
+/** The Lucide "list-checks" icon (ISC licence): the To-do tab. */
+export function ChecklistIcon({ size = 22, color = "#fff", strokeWidth = 1.75 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="m3 17 2 2 4-4" />
+      <Path d="m3 7 2 2 4-4" />
+      <Path d="M13 6h8" />
+      <Path d="M13 12h8" />
+      <Path d="M13 18h8" />
     </Svg>
   );
 }

@@ -43,7 +43,7 @@ export function HomeScreen({
   const fresh = alerts.filter((a) => a.acknowledgedAt === null);
   const current = fresh[0] ?? null;
   const contactAt = current ? (cards.find((c) => c.etHash === current.etHash)?.scannedAt ?? null) : null;
-  // "Don't specify" names no infection, so there is nothing to record a test against.
+  // An unknown infection type names no infection, so there is nothing to record a test against.
   const canRecordTest = current !== null && current.sti !== null && current.sti !== UNSPECIFIED_STI && !current.testCheck;
 
   return (

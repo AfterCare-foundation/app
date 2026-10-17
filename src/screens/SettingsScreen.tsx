@@ -65,7 +65,7 @@ export function SettingsScreen({
   const confirmDelete = () => {
     Alert.alert(
       "Delete my data?",
-      "This removes your codes, contacts and history from this phone, and your device from the server. It cannot be undone.",
+      "This removes your codes, contacts, alerts and test dates from this phone, and your device from the server. It cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {

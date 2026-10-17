@@ -7,9 +7,7 @@
 //   - not known: the standard lookback period for that infection, counted
 //     back from today (a freshly received positive result is assumed).
 // In every case nothing goes back further than the server keeps contacts.
-// Contacts already notified about the same infection are skipped. A generic
-// "Don't specify" notice carries less than a named one, so it is skipped for
-// anyone already told about any infection.
+// Contacts already notified about the same infection are skipped.
 //
 // A "contact" is one stored card token. The scan time stands in for the
 // encounter time (spec 3.3, `activated_at`): scans happen 0 to 24 hours after
@@ -73,7 +71,7 @@ export const LOOKBACK_DAYS: Readonly<Record<string, number>> = {
   lice: 90,
 };
 
-/** Used for "Don't specify" and infections without their own value: the most common infections' period. */
+/** Used for infections without their own value: the most common infections' period. */
 export function lookbackDays(sti: string): number {
   const days = Object.prototype.hasOwnProperty.call(LOOKBACK_DAYS, sti) ? LOOKBACK_DAYS[sti] : undefined;
   return days ?? Math.max(LOOKBACK_DAYS.gonorrhoea ?? 90, LOOKBACK_DAYS.chlamydia ?? 180);
@@ -98,14 +96,11 @@ const norm = (value: string): string => value.trim().toLowerCase();
 
 /** True when this contact needs nothing more for this infection. */
 function alreadyTold(card: CardRecord, sti: string): boolean {
-  if (norm(sti) === "other") {
-    return card.notifiedStis.length > 0;
-  }
   return card.notifiedStis.some((told) => norm(told) === norm(sti));
 }
 
 export interface NotifyCriteria {
-  /** The value that goes on the wire (`other` for "Don't specify"). */
+  /** The infection id that goes on the wire. */
   sti: string;
   /** Start of the day of the last negative test, or null when not known. */
   lastNegative: number | null;

@@ -39,7 +39,10 @@ export const STI_OPTIONS: readonly StiOption[] = [
   { id: "lice", label: "Pubic Lice", common: false },
 ];
 
-/** The wire value for "Don't specify". */
+/**
+ * What a message reads as when its infection is not one this app knows (a modified or newer app).
+ * Nothing sends it: the Notify screen always asks which infection.
+ */
 export const UNSPECIFIED_STI = "other";
 
 /** Short name for a chip. */

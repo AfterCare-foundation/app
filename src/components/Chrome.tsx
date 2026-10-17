@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import { colors, fonts, radius } from "../theme";
-import { BackIcon, GearIcon, ClockIcon, HeartFilledIcon, InfoIcon } from "./Icons";
+import { BackIcon, ChecklistIcon, GearIcon, HeartFilledIcon, InfoIcon } from "./Icons";
 import { Logo } from "./Logo";
 import { Wordmark } from "./Wordmark";
 
@@ -70,13 +70,13 @@ export function SubHeader({ title, onBack }: { title: string; onBack: () => void
   );
 }
 
-export type Tab = "home" | "history" | "info" | "settings";
+export type Tab = "home" | "todo" | "info" | "settings";
 
-export function TabBar({ active, onSelect }: { active: Tab; onSelect: (tab: Tab) => void }) {
+export function TabBar({ active, onSelect, todoCount = 0 }: { active: Tab; onSelect: (tab: Tab) => void; todoCount?: number }) {
   const insets = useSafeAreaInsets();
   const items: Array<{ key: Tab; label: string; icon: (color: string) => ReactNode }> = [
     { key: "home", label: "Home", icon: (c) => <HeartFilledIcon size={22} color={c} /> },
-    { key: "history", label: "History", icon: (c) => <ClockIcon size={22} color={c} /> },
+    { key: "todo", label: "To-do", icon: (c) => <ChecklistIcon size={22} color={c} /> },
     { key: "info", label: "Info", icon: (c) => <InfoIcon size={22} color={c} /> },
     { key: "settings", label: "Settings", icon: (c) => <GearIcon size={22} color={c} /> },
   ];
@@ -93,7 +93,14 @@ export function TabBar({ active, onSelect }: { active: Tab; onSelect: (tab: Tab)
             accessibilityState={{ selected: isActive }}
             style={styles.tabItem}
           >
-            <View style={[styles.tabIcon, isActive && styles.tabIconActive]}>{item.icon(color)}</View>
+            <View style={[styles.tabIcon, isActive && styles.tabIconActive]}>
+              {item.icon(color)}
+              {item.key === "todo" && todoCount > 0 ? (
+                <View style={styles.badge} accessibilityLabel={`${todoCount} open`}>
+                  <Text style={styles.badgeText}>{todoCount > 9 ? "9+" : todoCount}</Text>
+                </View>
+              ) : null}
+            </View>
             <Text style={[styles.tabLabel, { color }]}>{item.label}</Text>
           </Pressable>
         );
@@ -156,6 +163,19 @@ const styles = StyleSheet.create({
   tabIconActive: {
     backgroundColor: "rgba(125, 71, 224, 0.18)",
   },
+  badge: {
+    position: "absolute",
+    top: -2,
+    right: 0,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    backgroundColor: colors.violetLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: { color: colors.bg, fontFamily: fonts.semibold, fontSize: 10 },
   tabLabel: {
     fontFamily: fonts.regular,
     fontSize: 11,
