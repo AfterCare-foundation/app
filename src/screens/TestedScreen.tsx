@@ -76,7 +76,7 @@ export function TestedScreen({ sti, existing, onBack, onSave, onRemove }: Tested
             if (result !== null && date !== null) {
               Alert.alert(
                 "Is this right?",
-                `${result === "positive" ? "Positive" : "Negative"} ${name} test on ${formatDate(new Date(date).toISOString())}. A test accepted for an alert cannot be changed.`,
+                `${result === "positive" ? "Positive" : "Negative"} ${name} test on ${formatDate(new Date(date).toISOString())}. Check the date: the advice for this alert is set once you save, and a later change won't update it.`,
                 [
                   { text: "Go back", style: "cancel" },
                   { text: "Yes, save", onPress: () => onSave(result, new Date(date).toISOString()) },
