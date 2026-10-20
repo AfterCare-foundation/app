@@ -16,7 +16,7 @@ import { describeError, notifyContacts, type NotifyOutcome } from "../flows";
 import { saveTest, type CardRecord, type DeviceIdentity, type TestRecord } from "../storage/secureStore";
 import { startOfLocalDay } from "../testRules";
 import { colors, fonts, gradients, radius, type } from "../theme";
-import { MAX_AGE_DAYS, lookbackDays, notifyFrom, selectContacts } from "../windows";
+import { lookbackSource, notifyFrom, selectContacts, windowBasis } from "../windows";
 
 // The id of an option from sti.ts, or null until one is picked: the infection is always named.
 type Choice = string | null;
@@ -59,14 +59,15 @@ export function NotifyScreen({ device, cards, tests, onBack, onSent }: NotifyScr
   const [picked, setPicked] = useState<{ sti: string; ms: number | null } | null>(null);
   // What actually gets encrypted. Nothing is sent before an infection is picked.
   const stiValue: string = choice ?? UNSPECIFIED_STI;
-  // The newest test stored for this infection, whatever its result: people are told not to have
-  // sex after a positive result, so contacts count from the last test or the standard period.
+  // The newest negative test stored for this infection. Contacts count from there; those from before
+  // an earlier positive were already told (marked on their cards), and a positive entered in the
+  // To-do tab is the result being reported, so neither is used as a starting point.
   const storedMs = useMemo(() => {
     if (choice === null) {
       return null;
     }
     const latest = tests
-      .filter((t) => t.sti === stiValue)
+      .filter((t) => t.sti === stiValue && t.result === "negative")
       .reduce<string | null>((a, t) => (a === null || t.testedAt > a ? t.testedAt : a), null);
     return latest === null ? null : startOfLocalDay(new Date(latest).getTime());
   }, [tests, choice, stiValue]);
@@ -112,6 +113,15 @@ export function NotifyScreen({ device, cards, tests, onBack, onSent }: NotifyScr
     }
   };
 
+  const basis = windowBasis({ sti: stiValue, lastNegative });
+  const reason =
+    basis.basis === "negative-test"
+      ? "Earlier contacts cannot have caught it from you, so they are left out."
+      : basis.basis === "test-too-old"
+        ? `Your negative test is older than ${basis.capped ? "we can reach" : "the usual"} ${basis.days} days, so that period is used.`
+        : basis.capped
+          ? `No test date, so we go back as far as we can reach: ${basis.days} days.`
+          : `No test date, so we go back the usual ${basis.days} days.`;
   const since = `Contacts since ${formatDay(fromMs)}`;
 
   if (confirming) {
@@ -176,16 +186,17 @@ export function NotifyScreen({ device, cards, tests, onBack, onSent }: NotifyScr
         ) : null}
 
         <Text style={[styles.sectionTitle, styles.spaced]}>
-          When did you last <Text style={styles.underline}>test</Text>?
+          When were you last <Text style={styles.underline}>negative</Text>?
         </Text>
         <Text style={styles.sectionHint}>
-          {storedMs !== null ? "Your last test " : "The date of your last test "}
+          {"Date of your last negative test"}
           {chosenName ? (
             <>
-              for <Text style={styles.underline}>{chosenName}</Text>
+              {" for "}
+              <Text style={styles.underline}>{chosenName}</Text>
             </>
           ) : null}
-          {storedMs !== null ? ", as saved on this phone. Change it if it is wrong." : "."}
+          {storedMs !== null ? ", as saved on this phone. Change it if it is wrong." : ". Contacts since then are notified."}
         </Text>
         <View style={styles.chips}>
           {storedMs === null ? (
@@ -220,8 +231,14 @@ export function NotifyScreen({ device, cards, tests, onBack, onSent }: NotifyScr
           <Text style={styles.cardLabel}>
             {choice === null ? "Pick the infection first" : contacts.length === 0 ? "No contacts to notify" : `${since} will be notified`}
           </Text>
-          {lastNegative === null ? (
-            <Text style={styles.cardMeta}>{`Standard period: ${Math.min(lookbackDays(stiValue), MAX_AGE_DAYS)} days.`}</Text>
+          {choice !== null && contacts.length > 0 ? (
+            <>
+              <Text style={styles.cardMeta}>{reason}</Text>
+              {/* The guidelines give the periods; counting from a negative test is our own reasoning. */}
+              {basis.basis !== "negative-test" ? (
+                <Text style={styles.cardMeta}>{`Based on: ${lookbackSource(stiValue)}.`}</Text>
+              ) : null}
+            </>
           ) : null}
         </Panel>
 
@@ -237,7 +254,7 @@ export function NotifyScreen({ device, cards, tests, onBack, onSent }: NotifyScr
             if (choice !== null && lastNegative !== null && lastNegative !== storedMs) {
               Alert.alert(
                 "Is this date right?",
-                `Your last ${stiTitle(stiValue)} test: ${formatDay(lastNegative, true)}.`,
+                `Your last negative ${stiTitle(stiValue)} test: ${formatDay(lastNegative, true)}.`,
                 [
                   { text: "Go back", style: "cancel" },
                   { text: "Yes, continue", onPress: () => setConfirming(true) },
@@ -254,7 +271,10 @@ export function NotifyScreen({ device, cards, tests, onBack, onSent }: NotifyScr
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <Text style={styles.privacy}>The STI type is encrypted on this phone.{"\n"}The server cannot read it.</Text>
+        <Panel style={styles.note}>
+          <Text style={styles.noteTitle}>Private by design</Text>
+          <Text style={styles.noteText}>The infection is encrypted on this phone. The server cannot read it.</Text>
+        </Panel>
       </ScrollView>
     </View>
   );
@@ -365,12 +385,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: "center",
   },
-  privacy: {
-    color: colors.textMuted,
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: "center",
-    marginTop: 6,
-  },
+  note: { padding: 14, gap: 4 },
+  noteTitle: { ...type.cardTitle, fontSize: 14 },
+  noteText: { ...type.cardDesc },
 });

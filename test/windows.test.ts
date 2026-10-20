@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { CardRecord } from "../src/storage/secureStore.ts";
-import { DAY_MS, MAX_AGE_DAYS, MAX_CONTACTS_PER_CAMPAIGN, lookbackDays, notifyFrom, selectContacts } from "../src/windows.ts";
+import { DAY_MS, MAX_AGE_DAYS, MAX_CONTACTS_PER_CAMPAIGN, lookbackDays, lookbackSource, notifyFrom, selectContacts, windowBasis } from "../src/windows.ts";
 
 const NOW = Date.UTC(2026, 9, 3, 12, 0, 0);
 const daysAgo = (d: number) => NOW - d * DAY_MS;
@@ -107,4 +107,19 @@ test("the per campaign cap keeps the newest contacts", () => {
 test("told about gonorrhoea then chlamydia: gonorrhoea is still skipped", () => {
   const list = [card("a", 1, ["gonorrhoea", "chlamydia"]), card("b", 2)];
   assert.deepEqual(ids(selectContacts(list, { sti: "gonorrhoea", lastNegative: null }, NOW)), ["b"]);
+});
+
+test("windowBasis: a recent negative test, an old one, none, and a capped period", () => {
+  assert.equal(windowBasis({ sti: "gonorrhoea", lastNegative: daysAgo(30) }, NOW).basis, "negative-test");
+  assert.equal(windowBasis({ sti: "gonorrhoea", lastNegative: daysAgo(200) }, NOW).basis, "test-too-old");
+  assert.equal(windowBasis({ sti: "gonorrhoea", lastNegative: null }, NOW).basis, "standard");
+  const syphilis = windowBasis({ sti: "syphilis", lastNegative: null }, NOW);
+  assert.equal(syphilis.days, MAX_AGE_DAYS);
+  assert.equal(syphilis.capped, true);
+  assert.equal(windowBasis({ sti: "gonorrhoea", lastNegative: null }, NOW).capped, false);
+});
+
+test("lookbackSource names the guideline, and the estimate for mycoplasma", () => {
+  assert.match(lookbackSource("gonorrhoea"), /guidelines/);
+  assert.match(lookbackSource("mycoplasma"), /approximate/);
 });

@@ -71,6 +71,13 @@ export const LOOKBACK_DAYS: Readonly<Record<string, number>> = {
   lice: 90,
 };
 
+/** Where a period comes from, in words a user knows. Mycoplasma has no number in any guideline. */
+export function lookbackSource(sti: string): string {
+  return sti === "mycoplasma"
+    ? "German and European STI guidelines (approximate for this infection)"
+    : "German and European STI guidelines";
+}
+
 /** Used for infections without their own value: the most common infections' period. */
 export function lookbackDays(sti: string): number {
   const days = Object.prototype.hasOwnProperty.call(LOOKBACK_DAYS, sti) ? LOOKBACK_DAYS[sti] : undefined;
@@ -133,4 +140,26 @@ export function selectContacts(
     })
     .sort((a, b) => new Date(b.scannedAt).getTime() - new Date(a.scannedAt).getTime())
     .slice(0, MAX_CONTACTS_PER_CAMPAIGN);
+}
+
+export type WindowBasis = "negative-test" | "test-too-old" | "standard";
+
+/**
+ * Why the notification period starts where it does: the last negative test (nobody before it can
+ * have been infected by this person), or the usual period for the infection, because there is no
+ * test or it is older than that period. `days` is the usual period as applied; `capped` is true
+ * when the guideline period is longer than the app can reach.
+ */
+export function windowBasis(
+  criteria: NotifyCriteria,
+  now: number = Date.now(),
+): { basis: WindowBasis; days: number; capped: boolean } {
+  const guideline = lookbackDays(criteria.sti);
+  const days = Math.min(guideline, MAX_AGE_DAYS);
+  const capped = guideline > MAX_AGE_DAYS;
+  if (criteria.lastNegative === null) {
+    return { basis: "standard", days, capped };
+  }
+  const basis = criteria.lastNegative > now - days * DAY_MS ? "negative-test" : "test-too-old";
+  return { basis, days, capped };
 }
