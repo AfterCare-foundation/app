@@ -78,9 +78,27 @@ test("a test entered before the alert arrived is refused, from the day it arrive
   const arrived = "2026-10-10T09:00:00";
   const scanned = "2026-10-01T12:00:00";
   const at = (day: string) => new Date(`${day}T00:00:00`).toISOString();
-  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "negative", testedAt: at("2026-10-09") }, arrived, scanned), null);
-  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "positive", testedAt: at("2026-10-10") }, arrived, scanned)?.kind, "positive");
+  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "negative", testedAt: at("2026-10-09") }, arrived, scanned, false), null);
+  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "positive", testedAt: at("2026-10-10") }, arrived, scanned, false)?.kind, "positive");
   // Negative 12 days after the contact: gonorrhoea's window is 21 days, so too early.
-  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "negative", testedAt: at("2026-10-13") }, arrived, scanned)?.kind, "early");
-  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "negative", testedAt: at("2026-10-22") }, arrived, scanned)?.kind, "negative");
+  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "negative", testedAt: at("2026-10-13") }, arrived, scanned, false)?.kind, "early");
+  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "negative", testedAt: at("2026-10-22") }, arrived, scanned, false)?.kind, "negative");
+});
+
+test("a test on the contact day says nothing about it", () => {
+  const at = (day: string) => new Date(`${day}T00:00:00`).toISOString();
+  const scanned = "2026-10-01T12:00:00";
+  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "positive", testedAt: at("2026-10-01") }, "2026-10-01T15:00:00", scanned, false)?.kind, "none");
+});
+
+test("the first test on an exposure may be dated before the alert; it is judged and the free try is used", () => {
+  const arrived = "2026-10-10T09:00:00";
+  const scanned = "2026-10-01T12:00:00";
+  const at = (day: string) => new Date(`${day}T00:00:00`).toISOString();
+  // Before the contact: says nothing. Between contact and arrival: a positive covers it.
+  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "negative", testedAt: at("2026-09-25") }, arrived, scanned, true)?.kind, "none");
+  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "positive", testedAt: at("2026-10-05") }, arrived, scanned, true)?.kind, "positive");
+  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "negative", testedAt: at("2026-10-05") }, arrived, scanned, true)?.kind, "early");
+  // Once it is used, the arrival day is the limit again.
+  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "positive", testedAt: at("2026-10-05") }, arrived, scanned, false), null);
 });

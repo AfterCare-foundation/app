@@ -12,7 +12,7 @@ import { formatDate, stiTitle } from "../components/ExposureCard";
 import { Panel } from "../components/Panel";
 import { UNSPECIFIED_STI } from "../sti";
 import type { TestRecord } from "../storage/secureStore";
-import { untested, type TodoGroup } from "../todo";
+import { isRetest, untested, type TodoGroup } from "../todo";
 import { colors, type } from "../theme";
 
 /** A row just completed: ticked, then removed from where it was. */
@@ -82,8 +82,10 @@ function Row({
         <Panel style={styles.row}>
           <View style={styles.text}>
             <Text style={styles.sti}>{stiTitle(group.sti)}</Text>
-            <Text style={styles.status}>Not tested yet</Text>
-            <Text style={styles.meta}>Last alert received {formatDate(arrived)}</Text>
+            <Text style={styles.status}>{untested(group).length > 0 ? (isRetest(group) ? "Retest: not tested yet" : "Not tested yet") : "Still needs a test"}</Text>
+            <Text style={styles.meta}>
+              {isRetest(group) ? "Reminder" : "Last alert"} received {formatDate(arrived)}
+            </Text>
             {last ? <Text style={styles.meta}>Last test: {formatDate(last)}</Text> : null}
           </View>
           <Animated.View

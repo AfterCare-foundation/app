@@ -14,7 +14,6 @@ import {
   cardToken,
   listCards,
   saveSent,
-  deleteAlert,
   dismissRetest,
   listAlerts,
   listSent,
@@ -185,26 +184,36 @@ async function settleUnreadAlerts(sti: string): Promise<void> {
  * this alert. Other alerts are left as they are. When it covers the contact, the retest stages of
  * the exposure are dismissed and their reminders cancelled; other unread retest alerts for it go.
  */
-export async function recordTestForAlert(alertId: string, sti: string, result: TestResult, testedAt: string): Promise<boolean> {
+export async function recordTestForAlert(
+  alertId: string,
+  sti: string,
+  result: TestResult,
+  testedAt: string,
+): Promise<{ accepted: boolean; covered: boolean }> {
   await saveTest(sti, result, testedAt);
   const alerts = await listAlerts();
   const alert = alerts.find((a) => a.id === alertId);
   if (!alert) {
-    return false;
+    return { accepted: false, covered: false };
   }
   const scannedAt = (await listCards()).find((c) => c.etHash === alert.etHash)?.scannedAt ?? null;
-  const check = judgeEntry({ sti, result, testedAt }, alert.receivedAt, scannedAt);
+  // One free try per exposure, on the original alert only: a retest never gets one, and neither
+  // does an exposure where something has been judged already.
+  const key = alert.retestOf ?? alert.id;
+  const firstTry = !alert.retestOf && !alerts.some((a) => (a.retestOf ?? a.id) === key && a.testCheck);
+  const check = judgeEntry({ sti, result, testedAt }, alert.receivedAt, scannedAt, firstTry);
   if (check === null) {
-    return false; // taken before the alert arrived: it stays on the list
+    return { accepted: false, covered: false }; // taken before the alert arrived: it stays on the list
   }
   await setAlertTestCheck(alert.id, check);
   if (!isCovered(check)) {
-    return true; // too early: off the list, the retest reminders go on
+    return { accepted: true, covered: false }; // not covered: stays on the list, the retest reminders go on
   }
   const originalId = alert.retestOf ?? alert.id;
   for (const other of alerts) {
+    // An unread retest stays on Home until the user presses OK; it just turns into "No action needed".
     if (other.id !== alert.id && other.retestOf === originalId && !other.acknowledgedAt) {
-      await deleteAlert(other.id);
+      await setAlertTestCheck(other.id, check);
     }
   }
   const stages = ADVICE[sti]?.retestDays ?? [];
@@ -214,7 +223,7 @@ export async function recordTestForAlert(alertId: string, sti: string, result: T
       await cancelRetestReminder(originalId, days);
     }
   }
-  return true;
+  return { accepted: true, covered: true };
 }
 
 /** The user removes an exposure from the To-do list without a result: no more retests for it. */
@@ -244,9 +253,10 @@ async function settleRetests(sti: string): Promise<void> {
       continue;
     }
     if (alert.retestOf) {
-      // A retest alert nobody has opened yet is no longer needed.
+      // A retest alert nobody has opened yet is no longer needed, but it stays on Home until the
+      // user presses OK; it turns into "No action needed".
       if (!alert.acknowledgedAt) {
-        await deleteAlert(alert.id);
+        await markAlertNoAction(alert.id);
       }
       continue;
     }

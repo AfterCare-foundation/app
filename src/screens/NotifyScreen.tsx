@@ -35,6 +35,8 @@ interface NotifyScreenProps {
   cards: CardRecord[];
   /** Tests the user recorded: the newest one for the infection is where the contact period starts. */
   tests: TestRecord[];
+  /** The infection of a positive result just entered: chosen from the start. */
+  initialSti?: string;
   onBack: () => void;
   onSent: (outcome: NotifyOutcome) => void;
 }
@@ -52,8 +54,10 @@ function Chip({ label, selected, onPress }: { label: string; selected: boolean; 
   );
 }
 
-export function NotifyScreen({ device, cards, tests, onBack, onSent }: NotifyScreenProps) {
-  const [choice, setChoice] = useState<Choice>(null);
+export function NotifyScreen({ device, cards, tests, initialSti, onBack, onSent }: NotifyScreenProps) {
+  const [choice, setChoice] = useState<Choice>(
+    initialSti !== undefined && STI_OPTIONS.some((option) => option.id === initialSti) ? initialSti : null,
+  );
   const [moreOpen, setMoreOpen] = useState(false);
   // A date picked here, for one infection; a null date is "I'm not sure". Without one, the stored test is used.
   const [picked, setPicked] = useState<{ sti: string; ms: number | null } | null>(null);

@@ -33,6 +33,19 @@ export function ReportedText({ sti }: { sti: string }) {
   );
 }
 
+/** The follow-up alert. Everyone gets it, so it says nothing about earlier tests or the contact. */
+function RetestText({ sti }: { sti: string }) {
+  const named = findSti(sti)?.label;
+  return (
+    <>
+      This follows the alert about{" "}
+      {named ? <Text style={styles.stiName}>{named}</Text> : "an STI"}. One test soon
+      after contact can miss an infection, so get tested again when you can, even if
+      you already have.
+    </>
+  );
+}
+
 /** "3 Oct 2026". */
 export function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -87,7 +100,7 @@ export function ExposureCard({ alert, onDone, contactAt = null, onTested }: Expo
         <BellIcon size={18} color={okay ? colors.teal : colors.violetLight} />
       </View>
       <Text style={styles.headline}>
-        {okay ? "No action needed" : <>You may have been{"\n"}exposed to an STI</>}
+        {okay ? "No action needed" : alert.retestOf ? <>Time to get{"\n"}tested again</> : <>You may have been{"\n"}exposed to an STI</>}
       </Text>
       <Text style={styles.body}>
         {alert.sti ? (
@@ -95,6 +108,8 @@ export function ExposureCard({ alert, onDone, contactAt = null, onTested }: Expo
             <NoActionText sti={alert.sti} />
           ) : isCovered(tested) ? (
             <TestedText sti={alert.sti} />
+          ) : alert.retestOf ? (
+            <RetestText sti={alert.sti} />
           ) : (
             <ReportedText sti={alert.sti} />
           )

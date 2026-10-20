@@ -90,24 +90,38 @@ export function testCheck(c: Coverage, entered: string): TestCheck {
 }
 
 /**
- * Judges a test the user enters on one alert. It only counts for an alert if it was taken on the
- * day the alert arrived or later: that date is visible to the user, so trying dates reveals
- * nothing and a refused date can simply be entered again (null). An accepted test is judged once
- * against the hidden contact day: a positive covers it, a negative covers it when the infection's
- * window had passed by the test day, otherwise it was too early ("early": the item leaves the
- * list and the retest reminders go on).
+ * Judges a test the user enters on one alert, against the hidden contact day. Each exposure gets one
+ * free try: the first test entered on it may have any date, even one from before the alert arrived
+ * or the contact (`firstTry`). Whatever it says is kept, so it is one yes/no and never the contact
+ * day itself. After that a test counts only if it was taken on or after the day the alert arrived,
+ * a date the user can see anyway; an earlier one is refused (null) and can be entered again.
+ * A positive covers the alert, a negative covers it when the infection's window had passed by the
+ * test day, otherwise it was too early ("early"). A test on the contact day or before says
+ * nothing about it ("none"). A test that does not cover the alert leaves the item on the list.
  */
-export function judgeEntry(entry: TestEntry, receivedAt: string, contactAt: string | null): TestCheck | null {
+export function judgeEntry(
+  entry: TestEntry,
+  receivedAt: string,
+  contactAt: string | null,
+  firstTry: boolean,
+): TestCheck | null {
   const testDay = startOfLocalDay(new Date(entry.testedAt).getTime());
-  if (testDay < startOfLocalDay(new Date(receivedAt).getTime())) {
+  if (!firstTry && testDay < startOfLocalDay(new Date(receivedAt).getTime())) {
     return null;
   }
   const contactMs = contactAt === null ? NaN : new Date(contactAt).getTime();
-  if (entry.result === "positive" || Number.isNaN(contactMs)) {
+  if (Number.isNaN(contactMs)) {
     return { kind: entry.result, testedAt: entry.testedAt };
   }
+  const contactDay = startOfLocalDay(contactMs);
+  if (testDay <= contactDay) {
+    return { kind: "none", testedAt: entry.testedAt };
+  }
+  if (entry.result === "positive") {
+    return { kind: "positive", testedAt: entry.testedAt };
+  }
   const windowDays = ADVICE[entry.sti]?.windowDays ?? null;
-  const waited = Math.round((testDay - startOfLocalDay(contactMs)) / DAY_MS);
+  const waited = Math.round((testDay - contactDay) / DAY_MS);
   return { kind: windowDays !== null && waited >= windowDays ? "negative" : "early", testedAt: entry.testedAt };
 }
 

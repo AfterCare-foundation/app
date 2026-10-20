@@ -6,9 +6,8 @@
 //   - the contact needs no action (`noAction`);
 //   - a recorded test covers it (`testCheck`, judged once, see testRules.ts);
 //   - the user removed it (`closedAt`).
-// A test entered on the newest alert takes it off the list for now: a covering one for good, a too
-// early one until the retest alert arrives. A test dated before the alert is refused and the item
-// stays. An alert not yet seen stays on Home as the card; it joins the list once the user has seen it.
+// A test that covers the exposure takes it off the list. One that does not (taken too early) leaves it
+// there with its date, and it takes no further test until a retest alert arrives (see judgeEntry for the one free try per exposure). An alert not yet seen stays on Home as the card; it joins the list once the user has seen it.
 
 import { isCovered } from "./testRules";
 import type { AlertRecord } from "./storage/secureStore";
@@ -30,7 +29,7 @@ export function openItems(alerts: readonly AlertRecord[]): AlertRecord[] {
       continue;
     }
     const latest = members.reduce((a, b) => (b.receivedAt > a.receivedAt ? b : a));
-    if (latest.acknowledgedAt && latest.sti && !latest.testCheck) {
+    if (latest.acknowledgedAt && latest.sti) {
       items.push(latest);
     }
   }
@@ -61,6 +60,11 @@ export function openGroups(alerts: readonly AlertRecord[]): TodoGroup[] {
   return [...groups.entries()]
     .map(([sti, members]) => ({ sti, alerts: members }))
     .sort((a, b) => (newest(a) === newest(b) ? (a.sti < b.sti ? -1 : 1) : newest(a) < newest(b) ? 1 : -1));
+}
+
+/** The row follows up an earlier alert: one of its alerts is a retest. */
+export function isRetest(group: TodoGroup): boolean {
+  return group.alerts.some((a) => a.retestOf !== undefined);
 }
 
 /** The alerts of a group that no test has been entered on yet. */

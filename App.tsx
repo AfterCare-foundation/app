@@ -62,7 +62,7 @@ type Route =
   | { name: "home" }
   | { name: "scan" }
   | { name: "generate" }
-  | { name: "notify" }
+  | { name: "notify"; sti?: string }
   | { name: "tested"; alerts: AlertRecord[]; from?: Celebration };
 
 installNotificationHandler();
@@ -325,15 +325,17 @@ export default function App() {
   const onSaveTest = useCallback(
     async (alerts: AlertRecord[], result: TestResult, testedAt: string, from?: Celebration) => {
       let accepted = 0;
+      let covered = 0;
       for (const alert of alerts) {
-        if (await recordTestForAlert(alert.id, alert.sti as string, result, testedAt)) {
-          accepted += 1;
-        }
+        const outcome = await recordTestForAlert(alert.id, alert.sti as string, result, testedAt);
+        accepted += outcome.accepted ? 1 : 0;
+        covered += outcome.covered ? 1 : 0;
       }
       await reload();
       setRoute({ name: "home" });
       say("Test saved.");
-      if (accepted > 0 && from) {
+      // The tick animation is for a row that leaves the list: every alert on it was covered.
+      if (from && covered === alerts.length && alerts.length === from.group.alerts.length) {
         setCelebrate(from);
       }
       if (accepted === 0) {
@@ -347,7 +349,7 @@ export default function App() {
       if (result === "positive") {
         Alert.alert("Notify your contacts?", "You can let the people you connected with know. They will not learn who you are.", [
           { text: "Not now", style: "cancel" },
-          { text: "Notify partners", onPress: () => setRoute({ name: "notify" }) },
+          { text: "Notify partners", onPress: () => setRoute({ name: "notify", sti: alerts[0]?.sti ?? undefined }) },
         ]);
       }
     },
@@ -463,7 +465,7 @@ export default function App() {
     ) : null;
   } else if (route.name === "notify") {
     body = (
-      <NotifyScreen device={device} cards={cards} tests={tests} onBack={() => setRoute({ name: "home" })} onSent={onSent} />
+      <NotifyScreen device={device} cards={cards} tests={tests} initialSti={route.sti} onBack={() => setRoute({ name: "home" })} onSent={onSent} />
     );
   } else if (tab === "todo") {
     body = (

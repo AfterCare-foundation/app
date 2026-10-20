@@ -1,7 +1,7 @@
 // "I've been tested recently": the date and the result of the user's latest test for the infection an
 // alert is about. It is kept on this phone only and decides whether an alert
-// still needs a test (see testRules.ts). Any past date can be entered; one from before the alert
-// arrived does not count for it, which the app says afterwards.
+// still needs a test (see testRules.ts). Any past date can be entered. The first test on an exposure may be dated before the alert; after that
+// one from before the alert arrived is refused (see judgeEntry).
 
 import { useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -12,7 +12,7 @@ import { DateWheel } from "../components/DateWheel";
 import { Panel } from "../components/Panel";
 import { formatDate, stiTitle } from "../components/ExposureCard";
 import type { TestRecord } from "../storage/secureStore";
-import { startOfLocalDay, type TestResult } from "../testRules";
+import type { TestResult } from "../testRules";
 import { colors, fonts, radius, type } from "../theme";
 
 interface TestedScreenProps {
@@ -43,30 +43,29 @@ export function TestedScreen({ sti, existing, onBack, onSave, onRemove }: Tested
   const [date, setDate] = useState<number | null>(null);
 
   const stored = result ? (existing.find((t) => t.result === result) ?? null) : null;
-  const storedDay = stored ? startOfLocalDay(new Date(stored.testedAt).getTime()) : null;
   const canSave = result !== null && date !== null;
 
   const name = stiTitle(sti);
 
   return (
     <View style={styles.flex}>
-      <SubHeader title="Your last test" onBack={onBack} />
+      <SubHeader title="Your test" onBack={onBack} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.sectionTitle}>
-          When was your most recent <Text style={styles.underline}>{name}</Text> test?
+          Did you get tested for <Text style={styles.underline}>{name}</Text>?
         </Text>
-        <DateWheel key={storedDay ?? 0} initial={storedDay ?? Date.now()} onChange={setDate} />
-
-        <Text style={[styles.sectionTitle, styles.spaced]}>What was the result?</Text>
         <View style={styles.chips}>
-          <Chip label="Negative" selected={result === "negative"} onPress={() => setResult("negative")} />
-          <Chip label="Positive" selected={result === "positive"} onPress={() => setResult("positive")} />
+          <Chip label="Yes, negative" selected={result === "negative"} onPress={() => setResult("negative")} />
+          <Chip label="Yes, positive" selected={result === "positive"} onPress={() => setResult("positive")} />
         </View>
         {stored ? (
           <Text style={styles.hint}>
             Saved: {formatDate(stored.testedAt)}. Saving replaces it.
           </Text>
         ) : null}
+
+        <Text style={[styles.sectionTitle, styles.spaced]}>When was the test?</Text>
+        <DateWheel initial={Date.now()} onChange={setDate} />
 
         <GradientButton
           label="Save"
@@ -76,7 +75,7 @@ export function TestedScreen({ sti, existing, onBack, onSave, onRemove }: Tested
             if (result !== null && date !== null) {
               Alert.alert(
                 "Is this right?",
-                `${result === "positive" ? "Positive" : "Negative"} ${name} test on ${formatDate(new Date(date).toISOString())}. Check the date: the advice for this alert is set once you save, and a later change won't update it.`,
+                `${result === "positive" ? "Positive" : "Negative"} ${name} test on ${formatDate(new Date(date).toISOString())}. Check the date: this alert is judged once, when you save, and a later change won't update it.`,
                 [
                   { text: "Go back", style: "cancel" },
                   { text: "Yes, save", onPress: () => onSave(result, new Date(date).toISOString()) },

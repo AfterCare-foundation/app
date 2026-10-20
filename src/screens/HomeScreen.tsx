@@ -44,7 +44,7 @@ export function HomeScreen({
   const current = fresh[0] ?? null;
   const contactAt = current ? (cards.find((c) => c.etHash === current.etHash)?.scannedAt ?? null) : null;
   // An unknown infection type names no infection, so there is nothing to record a test against.
-  const canRecordTest = current !== null && current.sti !== null && current.sti !== UNSPECIFIED_STI && !current.testCheck;
+  const canRecordTest = current !== null && current.sti !== null && current.sti !== UNSPECIFIED_STI && !current.testCheck && !current.retestOf;
 
   return (
     <ScrollView

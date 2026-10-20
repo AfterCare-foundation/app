@@ -31,9 +31,10 @@ test("no action, a covering test and removal close an item", () => {
   assert.equal(items.length, 0);
 });
 
-test("a too early test takes the item off the list until the retest arrives", () => {
+test("a too early test leaves the item on the list; it takes no further test until the retest arrives", () => {
   const early = alert({ testCheck: { kind: "early", testedAt: "2026-10-01T00:00:00.000Z" } });
-  assert.equal(openItems([early]).length, 0);
+  assert.deepEqual(openItems([early]).map((a) => a.id), [early.id]);
+  assert.equal(untested({ sti: "gonorrhoea", alerts: [early] }).length, 0);
   const retest = alert({ retestOf: early.id });
   assert.deepEqual(openItems([early, retest]).map((a) => a.id), [retest.id]);
 });
