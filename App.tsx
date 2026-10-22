@@ -290,14 +290,16 @@ export default function App() {
   }, [device, reload, say]);
 
   const onSubscribed = useCallback(
-    async (card: CardRecord, alreadyKnown: boolean) => {
+    async (card: CardRecord, alreadyKnown: boolean, typed: boolean) => {
       await reload();
       checkPush();
       setRoute({ name: "home" });
       say(
         alreadyKnown
           ? t("You already have this code.")
-          : t("Card scanned. You can now safely discard it."),
+          : typed
+            ? t("Code added.")
+            : t("Card scanned. You can now safely discard it."),
       );
     },
     [reload, say, checkPush],

@@ -236,6 +236,7 @@ export const de: Record<string, string> = {
   'This code only means "these two phones met". It holds no name, number or location, and the server only sees a hash of it.':
     "Dieser Code bedeutet nur „diese beiden Handys haben sich getroffen“. Er enthält keinen Namen, keine Nummer und keinen Ort, und der Server sieht nur einen Hash davon.",
   "You already have this code.": "Du hast diesen Code schon.",
+  "Code added.": "Code hinzugefügt.",
   "Card scanned. You can now safely discard it.": "Karte gescannt. Du kannst sie jetzt bedenkenlos wegwerfen.",
   "New alert: {sti}.": "Neue Meldung: {sti}.",
   "New alert. No card on this phone could open the details.":

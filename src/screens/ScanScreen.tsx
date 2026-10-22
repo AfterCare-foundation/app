@@ -31,7 +31,8 @@ import { colors, fonts, radius, type } from "../theme";
 interface ScanScreenProps {
   device: DeviceIdentity;
   onBack: () => void;
-  onSubscribed: (card: CardRecord, alreadyKnown: boolean) => void;
+  /** `typed`: the code was entered by hand, not scanned. */
+  onSubscribed: (card: CardRecord, alreadyKnown: boolean, typed: boolean) => void;
 }
 
 type AddMode = "scan" | "enter";
@@ -121,7 +122,7 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
   const lockRef = useRef(false);
 
   const submit = useCallback(
-    async (raw: string) => {
+    async (raw: string, typed: boolean) => {
       if (lockRef.current) {
         return;
       }
@@ -132,7 +133,7 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
         const before = Date.now();
         const card = await subscribeToCard(device, raw);
         const alreadyKnown = new Date(card.scannedAt).getTime() < before - 1000;
-        onSubscribed(card, alreadyKnown);
+        onSubscribed(card, alreadyKnown, typed);
       } catch (e) {
         setError(describeError(e));
         // Allow another attempt after a short pause so one bad frame does
@@ -155,7 +156,7 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
       );
       return;
     }
-    await submit(pasted);
+    await submit(pasted, true);
   }, [pasted, submit]);
 
   const onBarcode = useCallback(
@@ -164,7 +165,7 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
         return;
       }
       setLastScan(result.data);
-      void submit(result.data);
+      void submit(result.data, false);
     },
     [submit],
   );
