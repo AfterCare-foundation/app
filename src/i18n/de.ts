@@ -66,6 +66,7 @@ export const de: Record<string, string> = {
     "Gib den Menschen Bescheid, die du getroffen hast. Sie erfahren nicht, wer du bist.",
   "Notify partners": "Partner*innen benachrichtigen",
   "Notify Partners": "Partner*innen benachrichtigen",
+  "Notify Partners|title": "Benachrichtigen",
 
   // Alert card
   "No action needed": "Nichts zu tun",
@@ -243,7 +244,7 @@ export const de: Record<string, string> = {
   // Settings
   "App icon": "App-Symbol",
   Playful: "Verspielt",
-  Discreet: "Dezent",
+  Discreet: "Diskret",
   "{name} app icon": "App-Symbol „{name}“",
   "The icon could not be changed.": "Das Symbol konnte nicht geändert werden.",
   Language: "Sprache",
@@ -278,6 +279,7 @@ export const de: Record<string, string> = {
   "How it works": "So funktioniert es",
   Club: "Club",
   Sauna: "Sauna",
+  "Home|place": "Zuhause",
   "What stays private": "Was privat bleibt",
   Questions: "Fragen",
   "Learn more": "Mehr erfahren",

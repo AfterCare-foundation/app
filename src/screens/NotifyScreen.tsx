@@ -133,7 +133,7 @@ export function NotifyScreen({ device, cards, tests, initialSti, onBack, onSent 
   if (confirming) {
     return (
       <View style={styles.flex}>
-        <SubHeader title={t("Notify Partners")} onBack={() => setConfirming(false)} />
+        <SubHeader title={t("Notify Partners|title")} onBack={() => setConfirming(false)} />
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={styles.sectionTitle}>{t("Send this notification?")}</Text>
           <Panel style={styles.cardBox}>
@@ -160,7 +160,7 @@ export function NotifyScreen({ device, cards, tests, initialSti, onBack, onSent 
 
   return (
     <View style={styles.flex}>
-      <SubHeader title={t("Notify Partners")} onBack={onBack} />
+      <SubHeader title={t("Notify Partners|title")} onBack={onBack} />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.sectionTitle}>{t("What did you test positive for?")}</Text>
         <View style={styles.chips}>

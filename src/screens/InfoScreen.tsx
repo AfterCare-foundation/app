@@ -14,7 +14,7 @@ type UseCase = "club" | "sauna" | "home";
 const USE_CASES: { id: UseCase; label: string }[] = [
   { id: "club", label: "Club" },
   { id: "sauna", label: "Sauna" },
-  { id: "home", label: "Home" },
+  { id: "home", label: "Home|place" },
 ];
 
 interface Step {

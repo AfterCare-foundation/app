@@ -4,17 +4,18 @@
 import { useEffect, useState } from "react";
 import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View, type ImageSourcePropType } from "react-native";
 
-import { t, type Choice } from "../i18n";
+import { getLang, t, type Choice, type Lang } from "../i18n";
 import { chooseIcon, currentIconChoice } from "../appIcon";
 import { Header } from "../components/Chrome";
-import { ArrowRightIcon } from "../components/Icons";
+import { ArrowRightIcon, CheckIcon } from "../components/Icons";
 import { Panel } from "../components/Panel";
 import type { InboxStatus, PullStats } from "../flows";
 import type { AppIconChoice, DeviceIdentity } from "../storage/secureStore";
 import { colors, fonts, radius, type } from "../theme";
 
-const LANGUAGES: readonly { id: Choice; label: string }[] = [
-  { id: "auto", label: "Automatic" },
+// The language names are written in their own language. Automatic (the phone's language) applies
+// on a fresh install; after that the user's pick is kept.
+const LANGUAGES: readonly { id: Lang; label: string }[] = [
   { id: "en", label: "English" },
   { id: "de", label: "Deutsch" },
 ];
@@ -37,8 +38,6 @@ interface SettingsScreenProps {
   hasTests: boolean;
   onDeleteTests: () => Promise<void>;
   onResetInstall: () => void;
-  /** What the user picked: a language, or "auto" for the phone's. */
-  languageChoice: Choice;
   onChooseLanguage: (choice: Choice) => void;
 }
 
@@ -52,12 +51,12 @@ export function SettingsScreen({
   hasTests,
   onDeleteTests,
   onResetInstall,
-  languageChoice,
   onChooseLanguage,
 }: SettingsScreenProps) {
   const [icon, setIcon] = useState<AppIconChoice>("playful");
   const [iconError, setIconError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [languageOpen, setLanguageOpen] = useState(false);
 
   useEffect(() => {
     void currentIconChoice().then(setIcon);
@@ -134,22 +133,40 @@ export function SettingsScreen({
       {iconError ? <Text style={styles.error}>{iconError}</Text> : null}
 
       <Text style={styles.sectionLabel}>{t("Language")}</Text>
-      <View style={styles.langRow}>
-        {LANGUAGES.map((option) => {
-          const selected = option.id === languageChoice;
-          return (
-            <Pressable
-              key={option.id}
-              onPress={() => onChooseLanguage(option.id)}
-              accessibilityRole="radio"
-              accessibilityState={{ selected }}
-              style={[styles.langOption, selected && styles.iconOptionSelected]}
-            >
-              <Text style={[styles.iconLabel, selected && styles.iconLabelSelected]}>{t(option.label)}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <Pressable
+        onPress={() => setLanguageOpen((open) => !open)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: languageOpen }}
+      >
+        <Panel style={styles.row}>
+          <Text style={styles.rowTitle}>{LANGUAGES.find((option) => option.id === getLang())?.label}</Text>
+          <View style={{ transform: [{ rotate: languageOpen ? "-90deg" : "90deg" }] }}>
+            <ArrowRightIcon size={16} color={colors.teal} />
+          </View>
+        </Panel>
+      </Pressable>
+      {languageOpen ? (
+        <Panel style={styles.menu}>
+          {LANGUAGES.map((option, index) => {
+            const selected = option.id === getLang();
+            return (
+              <Pressable
+                key={option.id}
+                onPress={() => {
+                  setLanguageOpen(false);
+                  onChooseLanguage(option.id);
+                }}
+                accessibilityRole="radio"
+                accessibilityState={{ selected }}
+                style={[styles.menuItem, index > 0 && styles.menuDivider]}
+              >
+                <Text style={selected ? styles.menuTextSelected : styles.menuText}>{option.label}</Text>
+                {selected ? <CheckIcon size={16} color={colors.teal} /> : null}
+              </Pressable>
+            );
+          })}
+        </Panel>
+      ) : null}
 
       <Text style={styles.sectionLabel}>{t("Privacy")}</Text>
       <Pressable onPress={() => void Linking.openURL(PRIVACY_URL)} accessibilityRole="link">
@@ -232,16 +249,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(125, 71, 224, 0.22)",
   },
   iconImage: { width: 72, height: 72, borderRadius: 16 },
-  langRow: { flexDirection: "row", gap: 10 },
-  langOption: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 14,
-    borderRadius: radius.panel,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
-  },
+  menu: { paddingHorizontal: 16 },
+  menuItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 14 },
+  menuDivider: { borderTopWidth: 1, borderTopColor: colors.borderStrong },
+  menuText: { ...type.cardDesc, color: colors.textSoft },
+  menuTextSelected: { ...type.cardTitle },
   iconLabel: { color: colors.textSoft, fontFamily: fonts.regular, fontSize: 13.5 },
   iconLabelSelected: { color: colors.text, fontFamily: fonts.semibold },
   error: { color: colors.danger, fontFamily: fonts.regular, fontSize: 13.5 },

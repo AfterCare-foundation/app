@@ -41,8 +41,12 @@ export function locale(): string {
   return current === "de" ? "de-DE" : "en-GB";
 }
 
+/**
+ * A key may end in "|context" to tell apart two places where one English word needs two German
+ * ones ("Home|place" is the Info toggle, "Home" the tab). English shows the text before the bar.
+ */
 function template(en: string): string {
-  return DICTIONARIES[current][en] ?? en;
+  return DICTIONARIES[current][en] ?? en.replace(/\|.*$/, "");
 }
 
 export function t(en: string, params?: Record<string, string | number>): string {
