@@ -73,20 +73,20 @@ export const de: Record<string, string> = {
   "Time to get\ntested again": "Zeit für einen\nerneuten Test",
   "You may have been\nexposed to an STI": "Du warst möglicherweise\neiner STI ausgesetzt",
   "Someone you connected with has reported {sti}. Get tested when you can.":
-    "Jemand, mit dem du Kontakt hattest, hat {sti} gemeldet. Lass dich testen, sobald du kannst.",
+    "Jemand, mit dem du Kontakt hattest, hat {sti} gemeldet. Lass dich testen, wenn du kannst.",
   "Someone you connected with has reported {sti}. You have already been tested, so {action}.":
     "Jemand, mit dem du Kontakt hattest, hat {sti} gemeldet. Du hast dich schon testen lassen, daher {action}.",
   "Someone you connected with has reported {sti}. The contact appears to be from before your positive test, so {action}.":
     "Jemand, mit dem du Kontakt hattest, hat {sti} gemeldet. Der Kontakt scheint vor deinem positiven Test gewesen zu sein, daher {action}.",
   "no further action is needed from you": "ist von dir nichts weiter zu tun",
   "This follows the alert about {sti}. One test soon after contact can miss an infection, so get tested again when you can, even if you already have.":
-    "Das ist die Folgemeldung zu {sti}. Ein Test kurz nach dem Kontakt kann eine Infektion übersehen, lass dich deshalb noch einmal testen, sobald du kannst, auch wenn du es schon getan hast.",
+    "Das ist die Folgemeldung zu {sti}. Ein Test kurz nach dem Kontakt kann eine Infektion übersehen, lass dich deshalb noch einmal testen, wenn du kannst, auch wenn du es schon getan hast.",
   "Exposure does not mean infection.": "Ausgesetzt sein heißt nicht infiziert sein.",
   "Most exposures do not lead to HIV, and treatment today works very well.":
     "Die meisten Kontakte führen nicht zu HIV, und die Behandlung wirkt heute sehr gut.",
   "Last test: {date}": "Letzter Test: {date}",
   "Your test on {date} does not clear this alert. Get tested when you can.":
-    "Dein Test vom {date} erledigt diese Meldung nicht. Lass dich testen, sobald du kannst.",
+    "Dein Test vom {date} erledigt diese Meldung nicht. Lass dich testen, wenn du kannst.",
   "I've been tested recently": "Ich wurde kürzlich getestet",
   "You have a new message. Open the app to read it.": "Du hast eine neue Nachricht. Öffne die App, um sie zu lesen.",
   "Need a test?": "Du brauchst einen Test?",

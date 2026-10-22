@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   prevention: {
-    ...type.cardDesc,
+    ...type.slideDesc,
     color: colors.text,
     textAlign: "center",
     paddingHorizontal: 4,
