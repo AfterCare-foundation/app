@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { t } from "../i18n";
 import { Header } from "../components/Chrome";
 import { TestFinderBlock } from "../components/ExposureCard";
 import { ArrowRightIcon } from "../components/Icons";
@@ -19,6 +20,8 @@ const USE_CASES: { id: UseCase; label: string }[] = [
 interface Step {
   title: string;
   desc: string;
+  /** A second sentence, translated on its own. */
+  extra?: string;
 }
 
 const NOTIFIED: Step = {
@@ -29,9 +32,10 @@ const TREATED: Step = {
   title: "Treated",
   desc: "Get treated sooner, but only when advised by healthcare professionals. Early detection means less spread, and a healthier scene for everyone.",
 };
-const connected = (desc: string): Step => ({
+const connected = (extra: string): Step => ({
   title: "Connected",
-  desc: `Connecting shares nothing on its own, and nothing is ever sent unless you tap to send it. ${desc}`,
+  desc: "Connecting shares nothing on its own, and nothing is ever sent unless you tap to send it.",
+  extra,
 });
 
 const STEPS: Record<UseCase, Step[]> = {
@@ -113,7 +117,10 @@ async function openLink(link: { title: string; desc: string; url: string }): Pro
   try {
     await Linking.openURL(link.url);
   } catch {
-    Alert.alert(link.title, link.url.startsWith("mailto:") ? `No mail app found. Write to ${link.desc}.` : "Could not open this link.");
+    Alert.alert(
+      t(link.title),
+      link.url.startsWith("mailto:") ? t("No mail app found. Write to {address}.", { address: link.desc }) : t("Could not open this link."),
+    );
   }
 }
 
@@ -122,12 +129,12 @@ function LinkRow({ link }: { link: { title: string; desc: string; url: string } 
     <Pressable
       onPress={() => void openLink(link)}
       accessibilityRole="link"
-      accessibilityLabel={`${link.title}. ${link.desc}`}
+      accessibilityLabel={`${t(link.title)}. ${t(link.desc)}`}
     >
       <Panel style={styles.linkRow}>
         <View style={styles.stepBody}>
-          <Text style={styles.cardTitle}>{link.title}</Text>
-          <Text style={styles.cardDesc}>{link.desc}</Text>
+          <Text style={styles.cardTitle}>{t(link.title)}</Text>
+          <Text style={styles.cardDesc}>{t(link.desc)}</Text>
         </View>
         <ArrowRightIcon size={16} color={colors.teal} />
       </Panel>
@@ -143,10 +150,10 @@ export function InfoScreen() {
       <Header />
 
       <Text style={styles.intro}>
-        Add a code when you meet someone. If either of you tests positive later, one tap tells the other, anonymously.
+        {t("Add a code when you meet someone. If either of you tests positive later, one tap tells the other, anonymously.")}
       </Text>
 
-      <Text style={[styles.title, styles.firstTitle]}>How it works</Text>
+      <Text style={[styles.title, styles.firstTitle]}>{t("How it works")}</Text>
       <View style={styles.toggle} accessibilityRole="tablist">
         {USE_CASES.map((uc) => {
           const active = uc.id === useCase;
@@ -158,7 +165,7 @@ export function InfoScreen() {
               accessibilityState={{ selected: active }}
               style={[styles.toggleBtn, active && styles.toggleBtnActive]}
             >
-              <Text style={[styles.toggleText, active && styles.toggleTextActive]}>{uc.label}</Text>
+              <Text style={[styles.toggleText, active && styles.toggleTextActive]}>{t(uc.label)}</Text>
             </Pressable>
           );
         })}
@@ -170,24 +177,24 @@ export function InfoScreen() {
               <Text style={styles.numText}>{i + 1}</Text>
             </View>
             <View style={styles.stepBody}>
-              <Text style={styles.cardTitle}>{step.title}</Text>
-              <Text style={styles.cardDesc}>{step.desc}</Text>
+              <Text style={styles.cardTitle}>{t(step.title)}</Text>
+              <Text style={styles.cardDesc}>{t(step.desc) + (step.extra ? " " + t(step.extra) : "")}</Text>
             </View>
           </Panel>
         ))}
       </View>
 
-      <Text style={styles.title}>What stays private</Text>
+      <Text style={styles.title}>{t("What stays private")}</Text>
       <View style={styles.list}>
         {PRIVACY.map((item) => (
           <Panel key={item.title} style={styles.card}>
-            <Text style={styles.cardTitle}>{item.title}</Text>
-            <Text style={styles.cardDesc}>{item.desc}</Text>
+            <Text style={styles.cardTitle}>{t(item.title)}</Text>
+            <Text style={styles.cardDesc}>{t(item.desc)}</Text>
           </Panel>
         ))}
       </View>
 
-      <Text style={styles.title}>Questions</Text>
+      <Text style={styles.title}>{t("Questions")}</Text>
       <View style={styles.list}>
         {FAQ.map((item) => {
           const open = openFaq === item.q;
@@ -199,8 +206,8 @@ export function InfoScreen() {
               accessibilityState={{ expanded: open }}
             >
               <Panel style={styles.card}>
-                <Text style={styles.cardTitle}>{item.q}</Text>
-                {open ? <Text style={styles.cardDesc}>{item.a}</Text> : null}
+                <Text style={styles.cardTitle}>{t(item.q)}</Text>
+                {open ? <Text style={styles.cardDesc}>{t(item.a)}</Text> : null}
               </Panel>
             </Pressable>
           );
@@ -211,17 +218,17 @@ export function InfoScreen() {
         <TestFinderBlock onFindTest={() => void openLink(TEST_FINDER)} />
       </View>
 
-      <Text style={styles.title}>Learn more</Text>
+      <Text style={styles.title}>{t("Learn more")}</Text>
       <View style={styles.list}>
         {LINKS.map((link) => (
           <LinkRow key={link.url} link={link} />
         ))}
       </View>
 
-      <Text style={styles.title}>Contact</Text>
+      <Text style={styles.title}>{t("Contact")}</Text>
       <LinkRow link={CONTACT} />
 
-      <Text style={styles.tagline}>Take care with AfterCare 💜</Text>
+      <Text style={styles.tagline}>{t("Take care with AfterCare 💜")}</Text>
     </ScrollView>
   );
 }

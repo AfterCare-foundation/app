@@ -2,6 +2,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import type { ReactNode } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
 
+import { t } from "../i18n";
 import { colors, fonts, gradients, radius } from "../theme";
 import { ArrowRightIcon, CheckIcon } from "./Icons";
 
@@ -77,7 +78,7 @@ export function NotifyButton({ sent, onPress, busy, disabled }: NotifyButtonProp
   return (
     <GradientButton
       compact
-      label={sent ? "Sent" : "Notify Partners"}
+      label={sent ? t("Sent") : t("Notify Partners")}
       colors={sent ? gradients.sent : gradients.primary}
       onPress={onPress}
       busy={busy}

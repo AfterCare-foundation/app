@@ -1,9 +1,10 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { t } from "../i18n";
 import { ActionTile, GradientButton } from "../components/Buttons";
 import { Panel } from "../components/Panel";
 import { Header } from "../components/Chrome";
-import { ExposureCard, TestFinderBlock } from "../components/ExposureCard";
+import { ExposureCard, HelplineBlock, TestFinderBlock } from "../components/ExposureCard";
 import { BellIcon, QrIcon, ScanIcon } from "../components/Icons";
 import type { AlertRecord, CardRecord } from "../storage/secureStore";
 import { UNSPECIFIED_STI } from "../sti";
@@ -58,7 +59,7 @@ export function HomeScreen({
       {pushBlocked ? (
         <Pressable onPress={onOpenSettings} accessibilityRole="button" style={styles.warning}>
           <Text style={styles.warningText}>
-            Notifications are off. You will not be told if someone reports an exposure. Tap to turn them on.
+            {t("Notifications are off. You will not be told if someone reports an exposure. Tap to turn them on.")}
           </Text>
         </Pressable>
       ) : null}
@@ -78,10 +79,12 @@ export function HomeScreen({
             onTested={canRecordTest ? () => onTested(current) : undefined}
           />
           {current.noAction || isCovered(current.testCheck) ? null : <TestFinderBlock onFindTest={() => onAcknowledge(current)} />}
+          {current.sti === "hiv" && !current.noAction && !isCovered(current.testCheck) ? <HelplineBlock /> : null}
           {fresh.length > 1 ? (
             <Text style={styles.moreAlerts}>
-              {fresh.length - 1} more{" "}
-              {fresh.length - 1 === 1 ? "alert" : "alerts"} waiting
+              {fresh.length - 1 === 1
+                ? t("1 more alert waiting")
+                : t("{count} more alerts waiting", { count: fresh.length - 1 })}
             </Text>
           ) : null}
         </View>
@@ -90,11 +93,11 @@ export function HomeScreen({
           <View style={styles.quietIcon}>
             <BellIcon size={18} color={colors.teal} />
           </View>
-          <Text style={styles.quietTitle}>No new alerts</Text>
+          <Text style={styles.quietTitle}>{t("No new alerts")}</Text>
           <Text style={styles.quietBody}>
             {cards.length === 0
-              ? "Add the code from the card you took home to stay in the loop."
-              : "You will see it here if someone you connected with reports an STI."}
+              ? t("Add the code from the card you took home to stay in the loop.")
+              : t("You will see it here if someone you connected with reports an STI.")}
           </Text>
         </Panel>
       )}
@@ -106,14 +109,14 @@ export function HomeScreen({
           <View style={styles.tiles}>
             <ActionTile
               highlighted
-              title="Add"
-              subtitle="Scan or enter a code"
+              title={t("Add")}
+              subtitle={t("Scan or enter a code")}
               onPress={onScan}
               icon={<ScanIcon size={20} color="#fff" />}
             />
             <ActionTile
-              title="Create"
-              subtitle="Show a code to scan"
+              title={t("Create")}
+              subtitle={t("Show a code to scan")}
               onPress={onGenerate}
               icon={<QrIcon size={20} color={colors.teal} />}
             />
@@ -121,12 +124,12 @@ export function HomeScreen({
 
           {/* Used rarely, so it sits apart from the everyday actions. */}
           <Panel tint="blue" style={styles.notifyBlock}>
-            <Text style={styles.notifyTitle}>Tested positive?</Text>
+            <Text style={styles.notifyTitle}>{t("Tested positive?")}</Text>
             <Text style={styles.notifyDesc}>
-              Let the people you met know. They will not learn who you are.
+              {t("Let the people you met know. They will not learn who you are.")}
             </Text>
             <GradientButton
-              label="Notify partners"
+              label={t("Notify partners")}
               colors={gradients.primary}
               onPress={onNotify}
             />

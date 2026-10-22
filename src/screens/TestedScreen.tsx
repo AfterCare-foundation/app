@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { rich, t } from "../i18n";
 import { GradientButton } from "../components/Buttons";
 import { SubHeader } from "../components/Chrome";
 import { DateWheel } from "../components/DateWheel";
@@ -42,73 +43,78 @@ export function TestedScreen({ sti, existing, onBack, onSave, onRemove }: Tested
   const [result, setResult] = useState<TestResult | null>(null);
   const [date, setDate] = useState<number | null>(null);
 
-  const stored = result ? (existing.find((t) => t.result === result) ?? null) : null;
+  const stored = result ? (existing.find((x) => x.result === result) ?? null) : null;
   const canSave = result !== null && date !== null;
 
   const name = stiTitle(sti);
 
   return (
     <View style={styles.flex}>
-      <SubHeader title="Your test" onBack={onBack} />
+      <SubHeader title={t("Your test")} onBack={onBack} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.sectionTitle}>
-          Did you get tested for <Text style={styles.underline}>{name}</Text>?
+          {rich("Did you get tested for {sti}?", { sti: <Text style={styles.underline}>{name}</Text> })}
         </Text>
         <View style={styles.chips}>
-          <Chip label="Yes, negative" selected={result === "negative"} onPress={() => setResult("negative")} />
-          <Chip label="Yes, positive" selected={result === "positive"} onPress={() => setResult("positive")} />
+          <Chip label={t("Yes, negative")} selected={result === "negative"} onPress={() => setResult("negative")} />
+          <Chip label={t("Yes, positive")} selected={result === "positive"} onPress={() => setResult("positive")} />
         </View>
         {stored ? (
           <Text style={styles.hint}>
-            Saved: {formatDate(stored.testedAt)}. Saving replaces it.
+            {t("Saved: {date}. Saving replaces it.", { date: formatDate(stored.testedAt) })}
           </Text>
         ) : null}
 
-        <Text style={[styles.sectionTitle, styles.spaced]}>When was the test?</Text>
+        <Text style={[styles.sectionTitle, styles.spaced]}>{t("When was the test?")}</Text>
         <DateWheel initial={Date.now()} onChange={setDate} />
 
         <GradientButton
-          label="Save"
+          label={t("Save")}
           style={styles.spaced}
           disabled={!canSave}
           onPress={() => {
             if (result !== null && date !== null) {
               Alert.alert(
-                "Is this right?",
-                `${result === "positive" ? "Positive" : "Negative"} ${name} test on ${formatDate(new Date(date).toISOString())}. Check the date: this alert is judged once, when you save, and a later change won't update it.`,
+                t("Is this right?"),
+                t(
+                  result === "positive"
+                    ? "Positive {sti} test on {date}. Check the date: this alert is judged once, when you save, and a later change won't update it."
+                    : "Negative {sti} test on {date}. Check the date: this alert is judged once, when you save, and a later change won't update it.",
+                  { sti: name, date: formatDate(new Date(date).toISOString()) },
+                ),
                 [
-                  { text: "Go back", style: "cancel" },
-                  { text: "Yes, save", onPress: () => onSave(result, new Date(date).toISOString()) },
+                  { text: t("Go back"), style: "cancel" },
+                  { text: t("Yes, save"), onPress: () => onSave(result, new Date(date).toISOString()) },
                 ],
               );
             }
           }}
         />
         <Pressable onPress={onBack} accessibilityRole="button" style={styles.cancel}>
-          <Text style={styles.cancelText}>Cancel</Text>
+          <Text style={styles.cancelText}>{t("Cancel")}</Text>
         </Pressable>
         {onRemove ? (
           <Pressable
             onPress={() =>
-              Alert.alert("Remove from list?", "You will not get reminders to test for it. Do this only if you do not need a test.", [
-                { text: "Keep it", style: "cancel" },
-                { text: "Remove", style: "destructive", onPress: onRemove },
+              Alert.alert(t("Remove from list?"), t("You will not get reminders to test for it. Do this only if you do not need a test."), [
+                { text: t("Keep it"), style: "cancel" },
+                { text: t("Remove"), style: "destructive", onPress: onRemove },
               ])
             }
             accessibilityRole="button"
             style={styles.cancel}
           >
-            <Text style={styles.cancelText}>Remove from list</Text>
+            <Text style={styles.cancelText}>{t("Remove from list")}</Text>
           </Pressable>
         ) : null}
 
         <Panel style={styles.note}>
-          <Text style={styles.noteTitle}>Private by design</Text>
-          <Text style={styles.noteText}>This stays on this phone. It is never sent to the server.</Text>
+          <Text style={styles.noteTitle}>{t("Private by design")}</Text>
+          <Text style={styles.noteText}>{t("This stays on this phone. It is never sent to the server.")}</Text>
         </Panel>
         <Panel style={styles.note}>
-          <Text style={styles.noteTitle}>Entered by mistake?</Text>
-          <Text style={styles.noteText}>Settings has "Delete my test results".</Text>
+          <Text style={styles.noteTitle}>{t("Entered by mistake?")}</Text>
+          <Text style={styles.noteText}>{t('Settings has "Delete my test results".')}</Text>
         </Panel>
       </ScrollView>
     </View>

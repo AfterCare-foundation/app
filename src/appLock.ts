@@ -14,6 +14,7 @@ import * as LocalAuthentication from "expo-local-authentication";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 
+import { t } from "./i18n";
 import { shouldLock } from "./lockPolicy";
 
 /**
@@ -73,8 +74,8 @@ export function useAppLock(hasData: boolean | null): {
         return;
       }
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: "Unlock AfterCare",
-        cancelLabel: "Cancel",
+        promptMessage: t("Unlock AfterCare"),
+        cancelLabel: t("Cancel"),
       });
       if (result.success) {
         setLocked(false);

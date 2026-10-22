@@ -5,12 +5,13 @@
 import { useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
+import { dayMonth, rich, t } from "../i18n";
 import { GradientButton } from "../components/Buttons";
 import { DateWheel } from "../components/DateWheel";
 import { SubHeader } from "../components/Chrome";
 import { HoldToConfirm } from "../components/HoldToConfirm";
 import { ReportedText, stiTitle } from "../components/ExposureCard";
-import { STI_OPTIONS, UNSPECIFIED_STI, chipText, findSti } from "../sti";
+import { STI_OPTIONS, UNSPECIFIED_STI, chipText, findSti, stiLabel } from "../sti";
 import { Panel } from "../components/Panel";
 import { describeError, notifyContacts, type NotifyOutcome } from "../flows";
 import { saveTest, type CardRecord, type DeviceIdentity, type TestRecord } from "../storage/secureStore";
@@ -26,8 +27,7 @@ const MORE = STI_OPTIONS.filter((option) => !option.common);
 
 function formatDay(ms: number, withYear = false): string {
   const d = new Date(ms);
-  const showYear = withYear || d.getFullYear() !== new Date().getFullYear();
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(showYear ? { year: "numeric" } : {}) });
+  return dayMonth(d, withYear || d.getFullYear() !== new Date().getFullYear());
 }
 
 interface NotifyScreenProps {
@@ -71,8 +71,8 @@ export function NotifyScreen({ device, cards, tests, initialSti, onBack, onSent 
       return null;
     }
     const latest = tests
-      .filter((t) => t.sti === stiValue && t.result === "negative")
-      .reduce<string | null>((a, t) => (a === null || t.testedAt > a ? t.testedAt : a), null);
+      .filter((x) => x.sti === stiValue && x.result === "negative")
+      .reduce<string | null>((a, x) => (a === null || x.testedAt > a ? x.testedAt : a), null);
     return latest === null ? null : startOfLocalDay(new Date(latest).getTime());
   }, [tests, choice, stiValue]);
   // Start of the day of the last test; null = not known.
@@ -83,7 +83,7 @@ export function NotifyScreen({ device, cards, tests, initialSti, onBack, onSent 
     [cards, stiValue, lastNegative],
   );
   const fromMs = notifyFrom({ sti: stiValue, lastNegative });
-  const chosenName = findSti(stiValue)?.label ?? "";
+  const chosenName = findSti(stiValue) ? stiLabel(stiValue) : "";
   // An infection from "More…" moves up next to the common ones once picked.
   const pickedExtra = MORE.find((option) => option.id === choice) ?? null;
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -120,35 +120,37 @@ export function NotifyScreen({ device, cards, tests, initialSti, onBack, onSent 
   const basis = windowBasis({ sti: stiValue, lastNegative });
   const reason =
     basis.basis === "negative-test"
-      ? "Earlier contacts cannot have caught it from you, so they are left out."
+      ? t("Earlier contacts cannot have caught it from you, so they are left out.")
       : basis.basis === "test-too-old"
-        ? `Your negative test is older than ${basis.capped ? "we can reach" : "the usual"} ${basis.days} days, so that period is used.`
+        ? basis.capped
+          ? t("Your negative test is older than we can reach {days} days, so that period is used.", { days: basis.days })
+          : t("Your negative test is older than the usual {days} days, so that period is used.", { days: basis.days })
         : basis.capped
-          ? `No test date, so we go back as far as we can reach: ${basis.days} days.`
-          : `No test date, so we go back the usual ${basis.days} days.`;
-  const since = `Contacts since ${formatDay(fromMs)}`;
+          ? t("No test date, so we go back as far as we can reach: {days} days.", { days: basis.days })
+          : t("No test date, so we go back the usual {days} days.", { days: basis.days });
+  const since = t("Contacts since {date}", { date: formatDay(fromMs) });
 
   if (confirming) {
     return (
       <View style={styles.flex}>
-        <SubHeader title="Notify Partners" onBack={() => setConfirming(false)} />
+        <SubHeader title={t("Notify Partners")} onBack={() => setConfirming(false)} />
         <ScrollView contentContainerStyle={styles.content}>
-          <Text style={styles.sectionTitle}>Send this notification?</Text>
+          <Text style={styles.sectionTitle}>{t("Send this notification?")}</Text>
           <Panel style={styles.cardBox}>
             <Text style={styles.cardLabel}>{stiTitle(stiValue)}</Text>
             <Text style={styles.cardMeta}>{since}</Text>
           </Panel>
           <Panel tint="blue" style={styles.preview}>
-            <Text style={styles.previewLabel}>They will see</Text>
+            <Text style={styles.previewLabel}>{t("They will see")}</Text>
             <Text style={styles.previewLock}>You have a new message. Open the app to read it.</Text>
             <Text style={styles.previewIn}>
-              Inside the app: "<ReportedText sti={stiValue} />"
+              {rich('Inside the app: "{text}"', { text: <ReportedText sti={stiValue} /> })}
             </Text>
           </Panel>
-          <Text style={styles.warning}>This cannot be undone.</Text>
-          <HoldToConfirm label="Confirm" busy={busy} onConfirm={() => void send()} />
+          <Text style={styles.warning}>{t("This cannot be undone.")}</Text>
+          <HoldToConfirm label={t("Confirm")} busy={busy} onConfirm={() => void send()} />
           <Pressable onPress={() => setConfirming(false)} accessibilityRole="button" style={styles.cancel}>
-            <Text style={styles.cancelText}>Go back</Text>
+            <Text style={styles.cancelText}>{t("Go back")}</Text>
           </Pressable>
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </ScrollView>
@@ -158,9 +160,9 @@ export function NotifyScreen({ device, cards, tests, initialSti, onBack, onSent 
 
   return (
     <View style={styles.flex}>
-      <SubHeader title="Notify Partners" onBack={onBack} />
+      <SubHeader title={t("Notify Partners")} onBack={onBack} />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.sectionTitle}>What did you test positive for?</Text>
+        <Text style={styles.sectionTitle}>{t("What did you test positive for?")}</Text>
         <View style={styles.chips}>
           {COMMON.map((option) => (
             <Chip
@@ -171,7 +173,7 @@ export function NotifyScreen({ device, cards, tests, initialSti, onBack, onSent 
             />
           ))}
           {pickedExtra ? <Chip label={chipText(pickedExtra)} selected onPress={() => undefined} /> : null}
-          <Chip label={moreOpen ? "Less" : "More…"} selected={false} onPress={() => setMoreOpen(!moreOpen)} />
+          <Chip label={moreOpen ? t("Less") : t("More…")} selected={false} onPress={() => setMoreOpen(!moreOpen)} />
         </View>
         {moreOpen ? (
           <View style={styles.chips}>
@@ -190,22 +192,24 @@ export function NotifyScreen({ device, cards, tests, initialSti, onBack, onSent 
         ) : null}
 
         <Text style={[styles.sectionTitle, styles.spaced]}>
-          When were you last <Text style={styles.underline}>negative</Text>?
+          {rich("When were you last {negative}?", { negative: <Text style={styles.underline}>{t("negative")}</Text> })}
         </Text>
         <Text style={styles.sectionHint}>
-          {"Date of your last negative test"}
-          {chosenName ? (
-            <>
-              {" for "}
-              <Text style={styles.underline}>{chosenName}</Text>
-            </>
-          ) : null}
-          {storedMs !== null ? ", as saved on this phone. Change it if it is wrong." : ". Contacts since then are notified."}
+          {chosenName
+            ? rich(
+                storedMs !== null
+                  ? "Date of your last negative test for {sti}, as saved on this phone. Change it if it is wrong."
+                  : "Date of your last negative test for {sti}. Contacts since then are notified.",
+                { sti: <Text style={styles.underline}>{chosenName}</Text> },
+              )
+            : storedMs !== null
+              ? t("Date of your last negative test, as saved on this phone. Change it if it is wrong.")
+              : t("Date of your last negative test. Contacts since then are notified.")}
         </Text>
         <View style={styles.chips}>
           {storedMs === null ? (
             <Chip
-              label="I'm not sure"
+              label={t("I'm not sure")}
               selected={lastNegative === null}
               onPress={() => {
                 setLastNegative(null);
@@ -214,7 +218,7 @@ export function NotifyScreen({ device, cards, tests, initialSti, onBack, onSent 
             />
           ) : null}
           <Chip
-            label={lastNegative === null ? "Pick a date" : formatDay(lastNegative, true)}
+            label={lastNegative === null ? t("Pick a date") : formatDay(lastNegative, true)}
             selected={lastNegative !== null}
             onPress={() => {
               chooseDate();
@@ -233,21 +237,25 @@ export function NotifyScreen({ device, cards, tests, initialSti, onBack, onSent 
 
         <Panel style={{ ...styles.cardBox, ...styles.spaced }}>
           <Text style={styles.cardLabel}>
-            {choice === null ? "Pick the infection first" : contacts.length === 0 ? "No contacts to notify" : `${since} will be notified`}
+            {choice === null
+              ? t("Pick the infection first")
+              : contacts.length === 0
+                ? t("No contacts to notify")
+                : t("Contacts since {date} will be notified", { date: formatDay(fromMs) })}
           </Text>
           {choice !== null && contacts.length > 0 ? (
             <>
               <Text style={styles.cardMeta}>{reason}</Text>
               {/* The guidelines give the periods; counting from a negative test is our own reasoning. */}
               {basis.basis !== "negative-test" ? (
-                <Text style={styles.cardMeta}>{`Based on: ${lookbackSource(stiValue)}.`}</Text>
+                <Text style={styles.cardMeta}>{t("Based on: {source}.", { source: t(lookbackSource(stiValue)) })}</Text>
               ) : null}
             </>
           ) : null}
         </Panel>
 
         <GradientButton
-          label="Notify Partners"
+          label={t("Notify Partners")}
           colors={gradients.primary}
           style={styles.spaced}
           busy={busy}
@@ -257,11 +265,11 @@ export function NotifyScreen({ device, cards, tests, initialSti, onBack, onSent 
             // A date entered or changed here is kept as the last test, so make sure it is right.
             if (choice !== null && lastNegative !== null && lastNegative !== storedMs) {
               Alert.alert(
-                "Is this date right?",
-                `Your last negative ${stiTitle(stiValue)} test: ${formatDay(lastNegative, true)}.`,
+                t("Is this date right?"),
+                t("Your last negative {sti} test: {date}.", { sti: stiTitle(stiValue), date: formatDay(lastNegative, true) }),
                 [
-                  { text: "Go back", style: "cancel" },
-                  { text: "Yes, continue", onPress: () => setConfirming(true) },
+                  { text: t("Go back"), style: "cancel" },
+                  { text: t("Yes, continue"), onPress: () => setConfirming(true) },
                 ],
               );
               return;
@@ -270,14 +278,14 @@ export function NotifyScreen({ device, cards, tests, initialSti, onBack, onSent 
           }}
         />
         <Pressable onPress={onBack} accessibilityRole="button" style={styles.cancel}>
-          <Text style={styles.cancelText}>Cancel</Text>
+          <Text style={styles.cancelText}>{t("Cancel")}</Text>
         </Pressable>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <Panel style={styles.note}>
-          <Text style={styles.noteTitle}>Private by design</Text>
-          <Text style={styles.noteText}>The infection is encrypted on this phone. The server cannot read it.</Text>
+          <Text style={styles.noteTitle}>{t("Private by design")}</Text>
+          <Text style={styles.noteText}>{t("The infection is encrypted on this phone. The server cannot read it.")}</Text>
         </Panel>
       </ScrollView>
     </View>

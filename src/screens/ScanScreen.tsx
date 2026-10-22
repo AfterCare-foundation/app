@@ -20,6 +20,7 @@ import {
   View,
 } from "react-native";
 
+import { t } from "../i18n";
 import { GhostButton, GradientButton } from "../components/Buttons";
 import { SubHeader } from "../components/Chrome";
 import { Panel } from "../components/Panel";
@@ -150,7 +151,7 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
   const onEnter = useCallback(async () => {
     if (/^[\d\s-]{1,12}$/.test(pasted.trim())) {
       setError(
-        "Sauna codes are coming soon. For now, paste a connect link or card code.",
+        t("Sauna codes are coming soon. For now, paste a connect link or card code."),
       );
       return;
     }
@@ -175,7 +176,7 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
       style={styles.flex}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <SubHeader title="Add a code" onBack={onBack} />
+      <SubHeader title={t("Add a code")} onBack={onBack} />
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -197,7 +198,7 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
                 <Text
                   style={[styles.toggleText, active && styles.toggleTextActive]}
                 >
-                  {m.label}
+                  {t(m.label)}
                 </Text>
               </Pressable>
             );
@@ -206,7 +207,7 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
 
         {mode === "scan" ? (
           <>
-            <Text style={styles.label}>Scan the code</Text>
+            <Text style={styles.label}>{t("Scan the code")}</Text>
 
             <View style={styles.viewfinder}>
               <View style={styles.camera}>
@@ -221,14 +222,14 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
                   <View style={styles.permission}>
                     <Text style={styles.permissionText}>
                       {permission === null
-                        ? "Checking camera access…"
+                        ? t("Checking camera access…")
                         : permission.canAskAgain
-                          ? "Allow camera access to scan the QR on your card half."
-                          : "Camera access is off. Enable it in Settings, or use Enter."}
+                          ? t("Allow camera access to scan the QR on your card half.")
+                          : t("Camera access is off. Enable it in Settings, or use Enter.")}
                     </Text>
                     {permission?.canAskAgain !== false ? (
                       <GhostButton
-                        label="Allow camera"
+                        label={t("Allow camera")}
                         onPress={() => void requestPermission()}
                       />
                     ) : null}
@@ -240,11 +241,11 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
           </>
         ) : (
           <>
-            <Text style={styles.label}>Enter a link or code</Text>
+            <Text style={styles.label}>{t("Enter a link or code")}</Text>
             <TextInput
               value={pasted}
               onChangeText={setPasted}
-              placeholder="Link or code"
+              placeholder={t("Link or code")}
               placeholderTextColor="rgba(156, 163, 175, 0.55)"
               autoCapitalize="none"
               autoCorrect={false}
@@ -252,14 +253,13 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
               returnKeyType="go"
               onSubmitEditing={() => void onEnter()}
               style={styles.input}
-              accessibilityLabel="Link or code"
+              accessibilityLabel={t("Link or code")}
             />
             <Text style={styles.hint}>
-              Paste a connect link or card code. Sauna reader codes are coming
-              soon.
+              {t("Paste a connect link or card code. Sauna reader codes are coming soon.")}
             </Text>
             <GradientButton
-              label="Connect"
+              label={t("Connect")}
               busy={busy}
               disabled={!pasted.trim()}
               onPress={() => void onEnter()}
@@ -269,14 +269,13 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {lastScan && !error ? (
-          <Text style={styles.scanned}>Read a code. Registering…</Text>
+          <Text style={styles.scanned}>{t("Read a code. Registering…")}</Text>
         ) : null}
 
         <Panel style={styles.privacy}>
-          <Text style={styles.privacyTitle}>Private by design</Text>
+          <Text style={styles.privacyTitle}>{t("Private by design")}</Text>
           <Text style={styles.privacyText}>
-            Only a hash of the card leaves this phone. The card itself is never
-            sent.
+            {t("Only a hash of the card leaves this phone. The card itself is never sent.")}
           </Text>
         </Panel>
       </ScrollView>

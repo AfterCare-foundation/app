@@ -25,10 +25,14 @@ export function openItems(alerts: readonly AlertRecord[]): AlertRecord[] {
   }
   const items: AlertRecord[] = [];
   for (const members of groups.values()) {
-    if (members.some((a) => a.noAction || a.closedAt || isCovered(a.testCheck))) {
+    if (members.some((a) => a.noAction || a.closedAt)) {
       continue;
     }
     const latest = members.reduce((a, b) => (b.receivedAt > a.receivedAt ? b : a));
+    // A covering test closes the exposure until a newer alert (a retest) arrives.
+    if (isCovered(latest.testCheck)) {
+      continue;
+    }
     if (latest.acknowledgedAt && latest.sti) {
       items.push(latest);
     }
@@ -67,7 +71,15 @@ export function isRetest(group: TodoGroup): boolean {
   return group.alerts.some((a) => a.retestOf !== undefined);
 }
 
-/** The alerts of a group that no test has been entered on yet. */
+/**
+ * The alerts a test entered on the row applies to: all of them. One that an earlier test did not
+ * clear takes another test, which must be dated later than the last one (see recordTestForAlert).
+ */
 export function untested(group: TodoGroup): AlertRecord[] {
-  return group.alerts.filter((a) => !a.testCheck);
+  return group.alerts;
+}
+
+/** A test has already been entered on the row and did not clear it. */
+export function judged(group: TodoGroup): boolean {
+  return group.alerts.some((a) => a.testCheck !== undefined);
 }

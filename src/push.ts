@@ -1,6 +1,7 @@
 // The real push connection: permission, the APNs token, and reading what arrives. Only iOS
 // builds do this for now. Expo Go and Android keep the stub token and the dev inbox.
 
+import { t } from "./i18n";
 import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { Alert, Linking, Platform } from "react-native";
@@ -27,9 +28,9 @@ export function installNotificationHandler(): void {
 function explainPermission(): Promise<void> {
   return new Promise((resolve) => {
     Alert.alert(
-      "Allow notifications",
-      "AfterCare can only warn you through notifications. Without them you will not find out that a contact told you about an infection. On the next screen, please choose Allow.",
-      [{ text: "Continue", onPress: () => resolve() }],
+      t("Allow notifications"),
+      t("AfterCare can only warn you through notifications. Without them you will not find out that a contact told you about an infection. On the next screen, please choose Allow."),
+      [{ text: t("Continue"), onPress: () => resolve() }],
       { cancelable: false },
     );
   });

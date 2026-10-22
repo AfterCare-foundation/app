@@ -4,6 +4,7 @@
 // never be shown. The date is only taken once Done is pressed, so opening the wheel never picks
 // one by itself.
 
+import { longMonths, t } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import { NativeScrollEvent, NativeSyntheticEvent, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -16,7 +17,6 @@ const ITEM_H = 40;
 const ROWS = 3;
 const PAD = ((ROWS - 1) / 2) * ITEM_H;
 const YEARS_BACK = 10;
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 // The row in the middle is large and bright; each row further away is smaller and fainter, so the
 // wheel reads as turning away from you.
@@ -142,7 +142,7 @@ export function DateWheel({
   }
   const [m0, m1] = monthRange(value.y);
   const [d0, d1] = dayRange(value.y, value.m);
-  const months = MONTHS.slice(m0, m1 + 1);
+  const months = longMonths().slice(m0, m1 + 1);
   const days: string[] = [];
   for (let d = d0; d <= d1; d += 1) {
     days.push(String(d));
@@ -153,28 +153,28 @@ export function DateWheel({
       <View style={styles.wheel}>
         <View pointerEvents="none" style={styles.band} />
         <Column
-          label="Day"
+          label={t("Day")}
           flex={0.9}
           items={days}
           index={value.d - d0}
           onChange={(i) => setValue(fix(value.y, value.m, d0 + i))}
         />
         <Column
-          label="Month"
+          label={t("Month")}
           flex={2.6}
           items={months}
           index={value.m - m0}
           onChange={(i) => setValue(fix(value.y, m0 + i, value.d))}
         />
         <Column
-          label="Year"
+          label={t("Year")}
           flex={1.2}
           items={years.map(String)}
           index={value.y - minV.y}
           onChange={(i) => setValue(fix(minV.y + i, value.m, value.d))}
         />
       </View>
-      {onDone ? <GhostButton label="Done" onPress={() => onDone(valueMs)} /> : null}
+      {onDone ? <GhostButton label={t("Done")} onPress={() => onDone(valueMs)} /> : null}
     </Panel>
   );
 }

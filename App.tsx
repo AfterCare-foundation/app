@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AppState, Linking, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { resolveChoice, setLang, t, type Choice } from "./src/i18n";
 import { apiBaseUrl, deleteDevice, health } from "./src/api/client";
 import { useAppLock } from "./src/appLock";
 import { Screen, TabBar, type Tab } from "./src/components/Chrome";
@@ -47,7 +48,9 @@ import {
   listSent,
   listTests,
   deleteTests,
+  loadLanguageChoice,
   loadOrCreateDevice,
+  saveLanguageChoice,
   type AlertRecord,
   type CardRecord,
   type DeviceIdentity,
@@ -104,6 +107,15 @@ export default function App() {
   const todoGroups = useMemo(() => openGroups(alerts), [alerts]);
   // A row ticked off in the To-do list, shown where it was while it animates away.
   const [celebrate, setCelebrate] = useState<Celebration | null>(null);
+  // The language is read by `t()` while rendering; this state only makes the app render again when it changes.
+  const [langChoice, setLangChoice] = useState<Choice>("auto");
+  const [, setLangTick] = useState(0);
+  const chooseLanguage = useCallback((choice: Choice) => {
+    setLangChoice(choice);
+    setLang(resolveChoice(choice));
+    setLangTick((n) => n + 1);
+    void saveLanguageChoice(choice);
+  }, []);
   const lock = useAppLock(dataLoaded ? cards.length + alerts.length + sent.length + tests.length > 0 : null);
   const [serverOk, setServerOk] = useState<boolean | null>(null);
   const [inboxStatus, setInboxStatus] = useState<InboxStatus | null>(null);
@@ -140,6 +152,10 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      const savedLanguage = await loadLanguageChoice();
+      setLangChoice(savedLanguage);
+      setLang(resolveChoice(savedLanguage));
+      setLangTick((n) => n + 1);
       const loaded = await loadOrCreateDevice();
       if (cancelled) {
         return;
@@ -165,7 +181,7 @@ export default function App() {
   const noPasscode = lock.noPasscode && cards.length + alerts.length + sent.length + tests.length > 0;
   useEffect(() => {
     if (noPasscode) {
-      say("For your privacy, set a device passcode. Without one, anyone who picks up your phone can open AfterCare.", 10000);
+      say(t("For your privacy, set a device passcode. Without one, anyone who picks up your phone can open AfterCare."), 10000);
     }
   }, [noPasscode, say]);
 
@@ -244,8 +260,8 @@ export default function App() {
           const first = result.received[0];
           say(
             first?.sti
-              ? `New alert: ${stiTitle(first.sti)}.`
-              : "New alert. No card on this phone could open the details.",
+              ? t("New alert: {sti}.", { sti: stiTitle(first.sti) })
+              : t("New alert. No card on this phone could open the details."),
           );
         }
       } finally {
@@ -277,8 +293,8 @@ export default function App() {
       setRoute({ name: "home" });
       say(
         alreadyKnown
-          ? "You already have this code."
-          : "Card scanned. You can now safely discard it.",
+          ? t("You already have this code.")
+          : t("Card scanned. You can now safely discard it."),
       );
     },
     [reload, say, checkPush],
@@ -296,8 +312,8 @@ export default function App() {
       }
       say(
         outcome.pushed === 0 && outcome.retrying === 0
-          ? "Sent, but nobody else has scanned yet. Your campaign limit was not used."
-          : "Your partners have been notified. Thanks for taking care of them.",
+          ? t("Sent, but nobody else has scanned yet. Your campaign limit was not used.")
+          : t("Your partners have been notified. Thanks for taking care of them."),
         9000,
       );
     },
@@ -326,30 +342,34 @@ export default function App() {
     async (alerts: AlertRecord[], result: TestResult, testedAt: string, from?: Celebration) => {
       let accepted = 0;
       let covered = 0;
+      let notBefore = "";
       for (const alert of alerts) {
         const outcome = await recordTestForAlert(alert.id, alert.sti as string, result, testedAt);
         accepted += outcome.accepted ? 1 : 0;
         covered += outcome.covered ? 1 : 0;
+        if (outcome.notBefore && outcome.notBefore > notBefore) {
+          notBefore = outcome.notBefore;
+        }
       }
       await reload();
       setRoute({ name: "home" });
-      say("Test saved.");
+      say(t("Test saved."));
       // The tick animation is for a row that leaves the list: every alert on it was covered.
       if (from && covered === alerts.length && alerts.length === from.group.alerts.length) {
         setCelebrate(from);
       }
       if (accepted === 0) {
-        const arrived = alerts.reduce((a, x) => (x.receivedAt > a ? x.receivedAt : a), "");
+        const from = notBefore || alerts.reduce((a, x) => (x.receivedAt > a ? x.receivedAt : a), "");
         Alert.alert(
-          "That test is from before the alert",
-          `A test counts for an alert only if it was taken on or after the day the alert arrived (${formatDate(arrived)}). It stays on your list.`,
+          t("That date is too early"),
+          t("A test counts for this alert only if it was taken on or after {date}. It stays on your list.", { date: formatDate(from) }),
         );
       }
       // A positive result is the moment to warn the people met since the last test.
       if (result === "positive") {
-        Alert.alert("Notify your contacts?", "You can let the people you connected with know. They will not learn who you are.", [
-          { text: "Not now", style: "cancel" },
-          { text: "Notify partners", onPress: () => setRoute({ name: "notify", sti: alerts[0]?.sti ?? undefined }) },
+        Alert.alert(t("Notify your contacts?"), t("You can let the people you connected with know. They will not learn who you are."), [
+          { text: t("Not now"), style: "cancel" },
+          { text: t("Notify partners"), onPress: () => setRoute({ name: "notify", sti: alerts[0]?.sti ?? undefined }) },
         ]);
       }
     },
@@ -369,7 +389,7 @@ export default function App() {
   const onDeleteTests = useCallback(async () => {
     await deleteTests();
     await reload();
-    say("Your test results were deleted.");
+    say(t("Your test results were deleted."));
   }, [reload, say]);
 
   const onDeleteData = useCallback(async () => {
@@ -379,7 +399,7 @@ export default function App() {
     try {
       await deleteDevice({ push_id_hash: device.pushIdHash, device_credential: device.credentialHex });
     } catch (e) {
-      Alert.alert("Could not delete your data", describeError(e));
+      Alert.alert(t("Could not delete your data"), describeError(e));
       return;
     }
     await clearLocalData();
@@ -388,7 +408,7 @@ export default function App() {
     setDevice(identity);
     await reload();
     setTab("home");
-    say("Your data was deleted.");
+    say(t("Your data was deleted."));
   }, [device, reload, say]);
 
   const onResetInstall = useCallback(() => {
@@ -417,7 +437,7 @@ export default function App() {
     return (
       <Screen>
         <View style={styles.center}>
-          <Text style={styles.loading}>{fontsLoaded ? "Preparing your device key…" : ""}</Text>
+          <Text style={styles.loading}>{fontsLoaded ? t("Preparing your device key…") : ""}</Text>
         </View>
       </Screen>
     );
@@ -449,7 +469,7 @@ export default function App() {
     body = testedSti ? (
       <TestedScreen
         sti={testedSti}
-        existing={tests.filter((t) => t.sti === testedSti)}
+        existing={tests.filter((x) => x.sti === testedSti)}
         onBack={() => setRoute({ name: "home" })}
         onSave={(result, testedAt) => void onSaveTest(testedAlerts, result, testedAt, route.from)}
         onRemove={
@@ -492,6 +512,8 @@ export default function App() {
         hasTests={tests.length > 0}
         onDeleteTests={onDeleteTests}
         onResetInstall={onResetInstall}
+        languageChoice={langChoice}
+        onChooseLanguage={chooseLanguage}
       />
     );
   } else {

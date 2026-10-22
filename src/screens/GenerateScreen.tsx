@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 
+import { t } from "../i18n";
 import { GhostButton, GradientButton } from "../components/Buttons";
 import { SubHeader } from "../components/Chrome";
 import { Panel } from "../components/Panel";
@@ -53,7 +54,7 @@ export function GenerateScreen({ device, onBack, onGenerated }: GenerateScreenPr
 
   return (
     <View style={styles.flex}>
-      <SubHeader title="Create a code" onBack={onBack} />
+      <SubHeader title={t("Create a code")} onBack={onBack} />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.qrBox}>
           {url ? (
@@ -61,33 +62,32 @@ export function GenerateScreen({ device, onBack, onGenerated }: GenerateScreenPr
           ) : busy ? (
             <ActivityIndicator color={colors.violet} />
           ) : (
-            <Text style={styles.qrFallback}>No code yet.</Text>
+            <Text style={styles.qrFallback}>{t("No code yet.")}</Text>
           )}
         </View>
 
         <Text style={styles.hint}>
-          Ask the other person to scan this code, or share the link with them. Once they connect, either of you can notify the other.
+          {t("Ask the other person to scan this code, or share the link with them. Once they connect, either of you can notify the other.")}
         </Text>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         {url ? (
           <>
-            <GradientButton label="Done" onPress={onBack} />
-            <GhostButton label="Share link" onPress={() => void Share.share({ message: url })} />
+            <GradientButton label={t("Done")} onPress={onBack} />
+            <GhostButton label={t("Share link")} onPress={() => void Share.share({ message: url })} />
           </>
         ) : (
           <>
-            <GradientButton label="Try again" busy={busy} onPress={() => void generate()} />
-            <GhostButton label="Done" onPress={onBack} />
+            <GradientButton label={t("Try again")} busy={busy} onPress={() => void generate()} />
+            <GhostButton label={t("Done")} onPress={onBack} />
           </>
         )}
 
         <Panel style={styles.privacy}>
-          <Text style={styles.privacyTitle}>Private by design</Text>
+          <Text style={styles.privacyTitle}>{t("Private by design")}</Text>
           <Text style={styles.privacyText}>
-            This code only means "these two phones met". It holds no name, number or location, and the server only
-            sees a hash of it.
+            {t('This code only means "these two phones met". It holds no name, number or location, and the server only sees a hash of it.')}
           </Text>
         </Panel>
       </ScrollView>

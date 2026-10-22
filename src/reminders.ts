@@ -4,11 +4,12 @@
 
 import * as Notifications from "expo-notifications";
 
+import { t } from "./i18n";
 import { retestNotifications } from "./advice";
 import { pushSupported } from "./push";
 import type { AlertRecord } from "./storage/secureStore";
 
-const BODY = "You have a new message. Open the app to read it.";
+const body = () => t("You have a new message. Open the app to read it.");
 
 const idFor = (alertId: string, days: number) => `retest-${alertId}-${days}`;
 
@@ -25,7 +26,7 @@ export async function scheduleRetestReminders(alert: AlertRecord, scannedAt: str
     try {
       await Notifications.scheduleNotificationAsync({
         identifier: idFor(alert.id, item.days),
-        content: { title: "AfterCare", body: BODY },
+        content: { title: "AfterCare", body: body() },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(item.at) },
       });
     } catch {

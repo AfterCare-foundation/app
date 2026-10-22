@@ -5,6 +5,7 @@
 
 import { Image, Pressable, StyleSheet, View } from "react-native";
 
+import { t } from "../i18n";
 import { cachedIconChoice } from "../appIcon";
 
 import { Logo } from "../components/Logo";
@@ -32,7 +33,7 @@ export function LockScreen({ onUnlock }: { onUnlock: () => void }) {
       style={styles.center}
       onPress={onUnlock}
       accessibilityRole="button"
-      accessibilityLabel="Unlock AfterCare"
+      accessibilityLabel={t("Unlock AfterCare")}
     >
       <Mark />
     </Pressable>

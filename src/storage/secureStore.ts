@@ -364,7 +364,20 @@ export async function clearLocalData(): Promise<void> {
   await SecureStore.deleteItemAsync(KEY_TESTS, OPTIONS);
   await SecureStore.deleteItemAsync(KEY_DEVICE, OPTIONS);
   await SecureStore.deleteItemAsync(KEY_ICON, OPTIONS);
+  await SecureStore.deleteItemAsync(KEY_LANGUAGE, OPTIONS);
   await SecureStore.deleteItemAsync(KEY_FINDER_DISMISSED, OPTIONS);
+}
+
+const KEY_LANGUAGE = "settings.language";
+
+/** The language the user picked in Settings; "auto" follows the phone. */
+export async function loadLanguageChoice(): Promise<"auto" | "en" | "de"> {
+  const raw = await SecureStore.getItemAsync(KEY_LANGUAGE, OPTIONS);
+  return raw === "en" || raw === "de" ? raw : "auto";
+}
+
+export async function saveLanguageChoice(choice: "auto" | "en" | "de"): Promise<void> {
+  await SecureStore.setItemAsync(KEY_LANGUAGE, choice, OPTIONS);
 }
 
 export type AppIconChoice = "playful" | "discreet";

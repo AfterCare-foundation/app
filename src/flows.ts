@@ -1,10 +1,11 @@
 // The three things this version does: subscribe to a card, notify one card,
 // and pull the development inbox. Screens call these and render the result.
 
+import { t } from "./i18n";
 import { ApiError, confirmInbox, fetchInbox, notify, subscribe, updatePushId, type InboxMessage } from "./api/client";
 import { ADVICE, retestDueStage } from "./advice";
 import { contactBeforePositive } from "./alertRules";
-import { coverage, isCovered, judgeEntry, testCheck, type TestResult } from "./testRules";
+import { coverage, isCovered, judgeEntry, testCheck, windowPassed, type TestResult } from "./testRules";
 import { requestPushToken } from "./push";
 import { cancelRetestReminder } from "./reminders";
 import { UNSPECIFIED_STI } from "./sti";
@@ -74,7 +75,7 @@ export async function notifyContacts(
   sti: string,
 ): Promise<NotifyOutcome> {
   if (contacts.length === 0) {
-    throw new Error("No contacts to notify.");
+    throw new Error(t("No contacts to notify."));
   }
   const campaignId = randomUuid();
   const result = await notify({
@@ -133,10 +134,13 @@ export async function raiseDueRetests(now: number = Date.now()): Promise<number>
     if (!alert.sti || alert.retestOf || alert.noAction || alert.closedAt || !alert.acknowledgedAt) {
       continue;
     }
-    if (isCovered(alert.testCheck)) {
-      continue; // a test taken after the contact already covers it
-    }
     const scannedAt = cards.find((c) => c.etHash === alert.etHash)?.scannedAt ?? null;
+    if (
+      alert.testCheck?.kind === "positive" ||
+      (alert.testCheck?.kind === "negative" && windowPassed(alert.sti, alert.testCheck.testedAt, scannedAt))
+    ) {
+      continue; // a positive result, or a negative taken after the window, needs no retest
+    }
     const due = retestDueStage(alert.sti, scannedAt, alert.acknowledgedAt, alert.retestDismissedDays ?? 0, now, alert.retestDelayMs ?? 0);
     if (due === null) {
       continue;
@@ -147,7 +151,7 @@ export async function raiseDueRetests(now: number = Date.now()): Promise<number>
     if (!unread && !coveredNow) {
       // Dated at the scheduled time, and carrying the original payload: it looks like the alert again.
       await saveAlert(
-        { alert: GENERIC_ALERT, enc: alert.enc, etHash: alert.etHash, sti: alert.sti, retestOf: alert.id },
+        { alert: genericAlert(), enc: alert.enc, etHash: alert.etHash, sti: alert.sti, retestOf: alert.id },
         new Date(due.at).toISOString(),
       );
       raised += 1;
@@ -189,7 +193,7 @@ export async function recordTestForAlert(
   sti: string,
   result: TestResult,
   testedAt: string,
-): Promise<{ accepted: boolean; covered: boolean }> {
+): Promise<{ accepted: boolean; covered: boolean; notBefore?: string }> {
   await saveTest(sti, result, testedAt);
   const alerts = await listAlerts();
   const alert = alerts.find((a) => a.id === alertId);
@@ -203,7 +207,7 @@ export async function recordTestForAlert(
   const firstTry = !alert.retestOf && !alerts.some((a) => (a.retestOf ?? a.id) === key && a.testCheck);
   const check = judgeEntry({ sti, result, testedAt }, alert.receivedAt, scannedAt, firstTry);
   if (check === null) {
-    return { accepted: false, covered: false }; // taken before the alert arrived: it stays on the list
+    return { accepted: false, covered: false, notBefore: alert.receivedAt }; // too early a date: it stays on the list
   }
   await setAlertTestCheck(alert.id, check);
   if (!isCovered(check)) {
@@ -216,7 +220,11 @@ export async function recordTestForAlert(
       await setAlertTestCheck(other.id, check);
     }
   }
-  const stages = ADVICE[sti]?.retestDays ?? [];
+  // A positive result, or a negative taken after the window, needs no retest. Any other test that
+  // clears the alert leaves them running, and the user is not told. Only one entry can clear an
+  // alert, so this shows one yes/no about the contact day at most.
+  const concluded = check.kind === "positive" || (check.kind === "negative" && windowPassed(sti, check.testedAt, scannedAt));
+  const stages = concluded ? (ADVICE[sti]?.retestDays ?? []) : [];
   if (stages.length > 0) {
     await dismissRetest(originalId, Math.max(...stages));
     for (const days of stages) {
@@ -334,7 +342,7 @@ export interface InboxPull {
   stats: PullStats;
 }
 
-const GENERIC_ALERT = "You have a new message. Open the app to read it.";
+const genericAlert = () => t("You have a new message. Open the app to read it.");
 const INBOX_PAGE = 200;
 const MAX_ROUNDS = 10;
 
@@ -420,7 +428,7 @@ async function saveMessages(messages: InboxMessage[]): Promise<{ saved: AlertRec
       // Judged once, on arrival, against the tests stored now.
       const found = coverage(match.sti, scannedAt, tests);
       const record = await saveAlert({
-        alert: GENERIC_ALERT,
+        alert: genericAlert(),
         enc: message.enc,
         ...match,
         ...(noAction ? { noAction } : {}),
@@ -437,21 +445,21 @@ async function saveMessages(messages: InboxMessage[]): Promise<{ saved: AlertRec
 export function describeError(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 409 && error.detail === "code_in_use") {
-      return "This code is already in use.";
+      return t("This code is already in use.");
     }
     if (error.status === 409 && error.detail === "campaign_already_used") {
-      return "This notification was already sent.";
+      return t("This notification was already sent.");
     }
     if (error.status === 429) {
       return error.detail;
     }
     if (error.status === 403) {
-      return `Refused. ${error.detail}`;
+      return t("Refused. {detail}", { detail: error.detail });
     }
     return error.detail;
   }
   if (error instanceof Error) {
     return error.message;
   }
-  return "Something went wrong";
+  return t("Something went wrong");
 }

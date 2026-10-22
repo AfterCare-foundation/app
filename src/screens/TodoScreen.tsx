@@ -7,12 +7,13 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
+import { t } from "../i18n";
 import { Header } from "../components/Chrome";
 import { formatDate, stiTitle } from "../components/ExposureCard";
 import { Panel } from "../components/Panel";
 import { UNSPECIFIED_STI } from "../sti";
 import type { TestRecord } from "../storage/secureStore";
-import { isRetest, untested, type TodoGroup } from "../todo";
+import { isRetest, judged, type TodoGroup } from "../todo";
 import { colors, type } from "../theme";
 
 /** A row just completed: ticked, then removed from where it was. */
@@ -38,7 +39,8 @@ function Row({
 }) {
   const arrived = group.alerts.reduce((a, x) => (x.receivedAt > a ? x.receivedAt : a), "");
   const tick = useRef(new Animated.Value(0)).current; // 0 empty circle, 1 ticked
-  const collapse = useRef(new Animated.Value(1)).current; // 1 full row, 0 gone
+  const slide = useRef(new Animated.Value(1)).current; // 1 in place, 0 slid out and invisible
+  const collapse = useRef(new Animated.Value(1)).current; // 1 full height, 0 the gap has closed
   const [height, setHeight] = useState<number | null>(null);
   const gone = useRef(onGone);
   gone.current = onGone;
@@ -47,62 +49,73 @@ function Row({
     if (!leaving) {
       return;
     }
-    // Let the eye find the row first, tick it, hold a moment, then pull it away faster and faster.
+    // Let the eye find the row first, tick it, hold a moment, slide it out faster and faster, and only
+    // then close the gap, so the rows below move up under an empty space and nothing is cut off.
     Animated.sequence([
       Animated.delay(300),
       Animated.timing(tick, { toValue: 1, duration: 260, easing: Easing.out(Easing.back(2)), useNativeDriver: false }),
       Animated.delay(420),
-      Animated.timing(collapse, { toValue: 0, duration: 420, easing: Easing.in(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(slide, { toValue: 0, duration: 320, easing: Easing.in(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(collapse, { toValue: 0, duration: 240, easing: Easing.inOut(Easing.cubic), useNativeDriver: false }),
     ]).start(({ finished }) => {
       if (finished) {
         gone.current();
       }
     });
-  }, [leaving, tick, collapse]);
+  }, [leaving, tick, slide, collapse]);
 
   const wrapper =
     leaving && height !== null
       ? {
           height: collapse.interpolate({ inputRange: [0, 1], outputRange: [0, height] }),
           marginBottom: collapse.interpolate({ inputRange: [0, 1], outputRange: [0, ROW_GAP] }),
-          opacity: collapse.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0, 0.8, 1] }),
-          transform: [{ translateX: collapse.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }) }],
           overflow: "hidden" as const,
         }
       : { marginBottom: ROW_GAP };
+  const inner =
+    leaving && height !== null
+      ? {
+          opacity: slide,
+          transform: [{ translateX: slide.interpolate({ inputRange: [0, 1], outputRange: [80, 0] }) }],
+        }
+      : undefined;
 
   return (
     <Animated.View style={wrapper} onLayout={(e) => (height === null ? setHeight(e.nativeEvent.layout.height) : undefined)}>
-      <Pressable
-        onPress={onPress}
-        disabled={leaving}
-        accessibilityRole="button"
-        accessibilityLabel={`${stiTitle(group.sti)}, not tested yet. Alert received ${formatDate(arrived)}`}
-      >
-        <Panel style={styles.row}>
-          <View style={styles.text}>
-            <Text style={styles.sti}>{stiTitle(group.sti)}</Text>
-            <Text style={styles.status}>{untested(group).length > 0 ? (isRetest(group) ? "Retest: not tested yet" : "Not tested yet") : "Still needs a test"}</Text>
-            <Text style={styles.meta}>
-              {isRetest(group) ? "Reminder" : "Last alert"} received {formatDate(arrived)}
-            </Text>
-            {last ? <Text style={styles.meta}>Last test: {formatDate(last)}</Text> : null}
-          </View>
-          <Animated.View
-            style={[
-              styles.box,
-              { backgroundColor: tick.interpolate({ inputRange: [0, 1], outputRange: ["rgba(45,212,191,0)", colors.teal] }) },
-              { borderColor: tick.interpolate({ inputRange: [0, 1], outputRange: [colors.violetLight, colors.teal] }) },
-            ]}
-          >
-            <Animated.View style={{ opacity: tick, transform: [{ scale: tick.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }] }}>
-              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.bg} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
-                <Path d="m5 12.5 4.5 4.5L19 7.5" />
-              </Svg>
+      <Animated.View style={inner}>
+        <Pressable
+          onPress={onPress}
+          disabled={leaving}
+          accessibilityRole="button"
+          accessibilityLabel={t("{sti}, not tested yet. Alert received {date}", { sti: stiTitle(group.sti), date: formatDate(arrived) })}
+        >
+          <Panel style={styles.row}>
+            <View style={styles.text}>
+              <Text style={styles.sti}>{stiTitle(group.sti)}</Text>
+              <Text style={styles.status}>{judged(group) ? t("Still needs a test") : isRetest(group) ? t("Retest: not tested yet") : t("Not tested yet")}</Text>
+              <Text style={styles.meta}>
+                {isRetest(group)
+                  ? t("Reminder received {date}", { date: formatDate(arrived) })
+                  : t("Last alert received {date}", { date: formatDate(arrived) })}
+              </Text>
+              {last ? <Text style={styles.meta}>{t("Last test: {date}", { date: formatDate(last) })}</Text> : null}
+            </View>
+            <Animated.View
+              style={[
+                styles.box,
+                { backgroundColor: tick.interpolate({ inputRange: [0, 1], outputRange: ["rgba(45,212,191,0)", colors.teal] }) },
+                { borderColor: tick.interpolate({ inputRange: [0, 1], outputRange: [colors.violetLight, colors.teal] }) },
+              ]}
+            >
+              <Animated.View style={{ opacity: tick, transform: [{ scale: tick.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }] }}>
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={colors.bg} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+                  <Path d="m5 12.5 4.5 4.5L19 7.5" />
+                </Svg>
+              </Animated.View>
             </Animated.View>
-          </Animated.View>
-        </Panel>
-      </Pressable>
+          </Panel>
+        </Pressable>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -126,21 +139,21 @@ export function TodoScreen({
 }) {
   const confirmRemove = (group: TodoGroup) => {
     Alert.alert(
-      "Remove from list?",
-      "You will not get reminders to test for it. Do this only if you do not need a test.",
+      t("Remove from list?"),
+      t("You will not get reminders to test for it. Do this only if you do not need a test."),
       [
-        { text: "Keep it", style: "cancel" },
-        { text: "Remove", style: "destructive", onPress: () => onRemove(group) },
+        { text: t("Keep it"), style: "cancel" },
+        { text: t("Remove"), style: "destructive", onPress: () => onRemove(group) },
       ],
     );
   };
 
   // A row that cannot take a test (unknown type) can only be removed.
   const act = (group: TodoGroup) =>
-    group.sti !== UNSPECIFIED_STI && untested(group).length > 0 ? onTested(group) : confirmRemove(group);
+    group.sti !== UNSPECIFIED_STI ? onTested(group) : confirmRemove(group);
 
   const lastTest = (sti: string): string | null =>
-    tests.filter((t) => t.sti === sti).reduce<string | null>((a, t) => (a === null || t.testedAt > a ? t.testedAt : a), null);
+    tests.filter((x) => x.sti === sti).reduce<string | null>((a, x) => (a === null || x.testedAt > a ? x.testedAt : a), null);
 
   const shown = [...groups];
   if (celebrate && !shown.some((g) => g.sti === celebrate.group.sti)) {
@@ -150,10 +163,10 @@ export function TodoScreen({
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Header />
-      <Text style={styles.title}>To-do</Text>
+      <Text style={styles.title}>{t("To-do")}</Text>
       {shown.length === 0 ? (
         <Panel style={styles.empty}>
-          <Text style={styles.emptyText}>Nothing to do. Alerts that need a test will wait here until you add a result.</Text>
+          <Text style={styles.emptyText}>{t("Nothing to do. Alerts that need a test will wait here until you add a result.")}</Text>
         </Panel>
       ) : (
         <View>

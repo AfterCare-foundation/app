@@ -80,15 +80,15 @@ test("a test entered before the alert arrived is refused, from the day it arrive
   const at = (day: string) => new Date(`${day}T00:00:00`).toISOString();
   assert.equal(judgeEntry({ sti: "gonorrhoea", result: "negative", testedAt: at("2026-10-09") }, arrived, scanned, false), null);
   assert.equal(judgeEntry({ sti: "gonorrhoea", result: "positive", testedAt: at("2026-10-10") }, arrived, scanned, false)?.kind, "positive");
-  // Negative 12 days after the contact: gonorrhoea's window is 21 days, so too early.
-  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "negative", testedAt: at("2026-10-13") }, arrived, scanned, false)?.kind, "early");
+  // From the arrival day on, a negative clears the alert whatever the window (a retest follows).
+  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "negative", testedAt: at("2026-10-13") }, arrived, scanned, false)?.kind, "negative");
   assert.equal(judgeEntry({ sti: "gonorrhoea", result: "negative", testedAt: at("2026-10-22") }, arrived, scanned, false)?.kind, "negative");
 });
 
-test("a test on the contact day says nothing about it", () => {
+test("a test on the arrival day clears the alert even if it is also the contact day", () => {
   const at = (day: string) => new Date(`${day}T00:00:00`).toISOString();
   const scanned = "2026-10-01T12:00:00";
-  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "positive", testedAt: at("2026-10-01") }, "2026-10-01T15:00:00", scanned, false)?.kind, "none");
+  assert.equal(judgeEntry({ sti: "gonorrhoea", result: "positive", testedAt: at("2026-10-01") }, "2026-10-01T15:00:00", scanned, false)?.kind, "positive");
 });
 
 test("the first test on an exposure may be dated before the alert; it is judged and the free try is used", () => {
@@ -101,4 +101,13 @@ test("the first test on an exposure may be dated before the alert; it is judged 
   assert.equal(judgeEntry({ sti: "gonorrhoea", result: "negative", testedAt: at("2026-10-05") }, arrived, scanned, true)?.kind, "early");
   // Once it is used, the arrival day is the limit again.
   assert.equal(judgeEntry({ sti: "gonorrhoea", result: "positive", testedAt: at("2026-10-05") }, arrived, scanned, false), null);
+});
+
+import { windowPassed } from "../src/testRules.ts";
+
+test("windowPassed: a negative is conclusive only after the infection's window", () => {
+  const at = (day: string) => new Date(`${day}T00:00:00`).toISOString();
+  assert.equal(windowPassed("gonorrhoea", at("2026-10-13"), "2026-10-01T12:00:00"), false); // 12 days of 21
+  assert.equal(windowPassed("gonorrhoea", at("2026-10-22"), "2026-10-01T12:00:00"), true);
+  assert.equal(windowPassed("gonorrhoea", at("2026-10-22"), null), false);
 });

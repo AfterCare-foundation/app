@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View, type ImageSourcePropType } from "react-native";
 
+import { t, type Choice } from "../i18n";
 import { chooseIcon, currentIconChoice } from "../appIcon";
 import { Header } from "../components/Chrome";
 import { ArrowRightIcon } from "../components/Icons";
@@ -11,6 +12,12 @@ import { Panel } from "../components/Panel";
 import type { InboxStatus, PullStats } from "../flows";
 import type { AppIconChoice, DeviceIdentity } from "../storage/secureStore";
 import { colors, fonts, radius, type } from "../theme";
+
+const LANGUAGES: readonly { id: Choice; label: string }[] = [
+  { id: "auto", label: "Automatic" },
+  { id: "en", label: "English" },
+  { id: "de", label: "Deutsch" },
+];
 
 const PRIVACY_URL = "https://www.after-care.eu/privacy";
 
@@ -30,6 +37,9 @@ interface SettingsScreenProps {
   hasTests: boolean;
   onDeleteTests: () => Promise<void>;
   onResetInstall: () => void;
+  /** What the user picked: a language, or "auto" for the phone's. */
+  languageChoice: Choice;
+  onChooseLanguage: (choice: Choice) => void;
 }
 
 export function SettingsScreen({
@@ -42,6 +52,8 @@ export function SettingsScreen({
   hasTests,
   onDeleteTests,
   onResetInstall,
+  languageChoice,
+  onChooseLanguage,
 }: SettingsScreenProps) {
   const [icon, setIcon] = useState<AppIconChoice>("playful");
   const [iconError, setIconError] = useState<string | null>(null);
@@ -57,19 +69,19 @@ export function SettingsScreen({
     try {
       await chooseIcon(choice);
     } catch {
-      setIconError("The icon could not be changed.");
+      setIconError(t("The icon could not be changed."));
       setIcon(await currentIconChoice());
     }
   };
 
   const confirmDelete = () => {
     Alert.alert(
-      "Delete my data?",
-      "This removes your codes, contacts, alerts and test dates from this phone, and your device from the server. It cannot be undone.",
+      t("Delete my data?"),
+      t("This removes your codes, contacts, alerts and test dates from this phone, and your device from the server. It cannot be undone."),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t("Cancel"), style: "cancel" },
         {
-          text: "Delete",
+          text: t("Delete"),
           style: "destructive",
           onPress: async () => {
             setDeleting(true);
@@ -86,11 +98,11 @@ export function SettingsScreen({
 
   const confirmDeleteTests = () => {
     Alert.alert(
-      "Delete my test results?",
-      "Use this if you entered a test by mistake. New alerts will no longer take it into account. Alerts you already have stay as they are.",
+      t("Delete my test results?"),
+      t("Use this if you entered a test by mistake. New alerts will no longer take it into account. Alerts you already have stay as they are."),
       [
-        { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: () => void onDeleteTests() },
+        { text: t("Cancel"), style: "cancel" },
+        { text: t("Delete"), style: "destructive", onPress: () => void onDeleteTests() },
       ],
     );
   };
@@ -98,9 +110,9 @@ export function SettingsScreen({
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Header />
-      <Text style={styles.title}>Settings</Text>
+      <Text style={styles.title}>{t("Settings")}</Text>
 
-      <Text style={styles.sectionLabel}>App icon</Text>
+      <Text style={styles.sectionLabel}>{t("App icon")}</Text>
       <View style={styles.iconRow}>
         {ICONS.map((option) => {
           const selected = option.id === icon;
@@ -110,27 +122,39 @@ export function SettingsScreen({
               onPress={() => void pickIcon(option.id)}
               accessibilityRole="radio"
               accessibilityState={{ selected }}
-              accessibilityLabel={`${option.label} app icon`}
+              accessibilityLabel={t("{name} app icon", { name: t(option.label) })}
               style={[styles.iconOption, selected && styles.iconOptionSelected]}
             >
               <Image source={option.image} style={styles.iconImage} accessibilityIgnoresInvertColors />
-              <Text style={[styles.iconLabel, selected && styles.iconLabelSelected]}>{option.label}</Text>
+              <Text style={[styles.iconLabel, selected && styles.iconLabelSelected]}>{t(option.label)}</Text>
             </Pressable>
           );
         })}
       </View>
       {iconError ? <Text style={styles.error}>{iconError}</Text> : null}
 
-      <Text style={styles.sectionLabel}>Language</Text>
-      <Panel style={styles.rowSoon}>
-        <Text style={styles.rowTitle}>English</Text>
-        <Text style={styles.rowMeta}>Soon</Text>
-      </Panel>
+      <Text style={styles.sectionLabel}>{t("Language")}</Text>
+      <View style={styles.langRow}>
+        {LANGUAGES.map((option) => {
+          const selected = option.id === languageChoice;
+          return (
+            <Pressable
+              key={option.id}
+              onPress={() => onChooseLanguage(option.id)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected }}
+              style={[styles.langOption, selected && styles.iconOptionSelected]}
+            >
+              <Text style={[styles.iconLabel, selected && styles.iconLabelSelected]}>{t(option.label)}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
 
-      <Text style={styles.sectionLabel}>Privacy</Text>
+      <Text style={styles.sectionLabel}>{t("Privacy")}</Text>
       <Pressable onPress={() => void Linking.openURL(PRIVACY_URL)} accessibilityRole="link">
         <Panel style={styles.row}>
-          <Text style={styles.rowTitle}>Privacy policy</Text>
+          <Text style={styles.rowTitle}>{t("Privacy policy")}</Text>
           <ArrowRightIcon size={16} color={colors.teal} />
         </Panel>
       </Pressable>
@@ -138,10 +162,9 @@ export function SettingsScreen({
         <Pressable onPress={confirmDeleteTests} accessibilityRole="button">
           <Panel style={styles.row}>
             <View style={styles.rowBody}>
-              <Text style={styles.dangerTitle}>Delete my test results</Text>
+              <Text style={styles.dangerTitle}>{t("Delete my test results")}</Text>
               <Text style={styles.rowDesc}>
-                Only your most recent result for each infection is kept, on this phone only. It decides how new
-                alerts are treated.
+                {t("Only your most recent result for each infection is kept, on this phone only. It decides how new alerts are treated.")}
               </Text>
             </View>
           </Panel>
@@ -150,8 +173,8 @@ export function SettingsScreen({
       <Pressable onPress={confirmDelete} disabled={deleting} accessibilityRole="button">
         <Panel style={deleting ? styles.rowSoon : styles.row}>
           <View style={styles.rowBody}>
-            <Text style={styles.dangerTitle}>{deleting ? "Deleting…" : "Delete my data"}</Text>
-            <Text style={styles.rowDesc}>Removes everything from this phone and from the server.</Text>
+            <Text style={styles.dangerTitle}>{deleting ? t("Deleting…") : t("Delete my data")}</Text>
+            <Text style={styles.rowDesc}>{t("Removes everything from this phone and from the server.")}</Text>
           </View>
         </Panel>
       </Pressable>
@@ -209,6 +232,16 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(125, 71, 224, 0.22)",
   },
   iconImage: { width: 72, height: 72, borderRadius: 16 },
+  langRow: { flexDirection: "row", gap: 10 },
+  langOption: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 14,
+    borderRadius: radius.panel,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
+  },
   iconLabel: { color: colors.textSoft, fontFamily: fonts.regular, fontSize: 13.5 },
   iconLabelSelected: { color: colors.text, fontFamily: fonts.semibold },
   error: { color: colors.danger, fontFamily: fonts.regular, fontSize: 13.5 },

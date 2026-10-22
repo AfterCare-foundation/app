@@ -90,14 +90,18 @@ export function testCheck(c: Coverage, entered: string): TestCheck {
 }
 
 /**
- * Judges a test the user enters on one alert, against the hidden contact day. Each exposure gets one
- * free try: the first test entered on it may have any date, even one from before the alert arrived
- * or the contact (`firstTry`). Whatever it says is kept, so it is one yes/no and never the contact
- * day itself. After that a test counts only if it was taken on or after the day the alert arrived,
- * a date the user can see anyway; an earlier one is refused (null) and can be entered again.
- * A positive covers the alert, a negative covers it when the infection's window had passed by the
- * test day, otherwise it was too early ("early"). A test on the contact day or before says
- * nothing about it ("none"). A test that does not cover the alert leaves the item on the list.
+ * Judges a test the user enters on one alert. A test taken on the day the alert arrived or later
+ * always clears it: that date is visible to the user, and the test is necessarily after the
+ * contact, so it tells nothing about the contact day. (Retest reminders are not cancelled by a
+ * negative, so what happens next reveals nothing either; see recordTestForAlert.)
+ *
+ * Each exposure also gets one free try (`firstTry`): the first test entered on it may be dated
+ * before the alert arrived. It is judged once against the hidden contact day, and the verdict is
+ * kept: a positive after the contact covers it, a negative covers it when the infection's window
+ * had passed by the test day, otherwise it is too early ("early"); a test on the contact day or
+ * before says nothing ("none"). That is one yes/no about the contact day, never the day itself.
+ * Without the free try an earlier date is refused (null) and can be entered again. A verdict that
+ * does not clear the alert leaves the item on the To-do list, open to a test from the arrival day.
  */
 export function judgeEntry(
   entry: TestEntry,
@@ -106,7 +110,10 @@ export function judgeEntry(
   firstTry: boolean,
 ): TestCheck | null {
   const testDay = startOfLocalDay(new Date(entry.testedAt).getTime());
-  if (!firstTry && testDay < startOfLocalDay(new Date(receivedAt).getTime())) {
+  if (testDay >= startOfLocalDay(new Date(receivedAt).getTime())) {
+    return { kind: entry.result, testedAt: entry.testedAt };
+  }
+  if (!firstTry) {
     return null;
   }
   const contactMs = contactAt === null ? NaN : new Date(contactAt).getTime();
@@ -123,6 +130,20 @@ export function judgeEntry(
   const windowDays = ADVICE[entry.sti]?.windowDays ?? null;
   const waited = Math.round((testDay - contactDay) / DAY_MS);
   return { kind: windowDays !== null && waited >= windowDays ? "negative" : "early", testedAt: entry.testedAt };
+}
+
+/**
+ * A negative test is conclusive when the infection's window had passed between the contact and the
+ * test day. Then no retest is needed. Unknown contact or no window: not conclusive.
+ */
+export function windowPassed(sti: string, testedAt: string, contactAt: string | null): boolean {
+  const contactMs = contactAt === null ? NaN : new Date(contactAt).getTime();
+  const windowDays = ADVICE[sti]?.windowDays ?? null;
+  if (Number.isNaN(contactMs) || windowDays === null) {
+    return false;
+  }
+  const waited = Math.round((startOfLocalDay(new Date(testedAt).getTime()) - startOfLocalDay(contactMs)) / DAY_MS);
+  return waited >= windowDays;
 }
 
 /** The test makes this alert pointless: nothing is asked of the user. */

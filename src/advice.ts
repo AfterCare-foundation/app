@@ -27,6 +27,8 @@
 // Hepatitis B has no entry on purpose: the advice depends on vaccination status. HPV has none
 // either: the app does not offer it, because no guideline recommends notifying partners.
 
+import { t } from "./i18n";
+
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
@@ -89,7 +91,7 @@ export const ADVICE: Record<string, AdviceEntry> = {
   },
 };
 
-const DISCLAIMER = "This is general guidance, not a diagnosis. Please see a doctor or a sexual health clinic.";
+const disclaimer = () => t("This is general guidance, not a diagnosis. Please see a doctor or a sexual health clinic.");
 
 function startOfUtcDay(iso: string): number | null {
   const ms = new Date(iso).getTime();
@@ -114,8 +116,8 @@ export function pepLine(sti: string, scannedAt: string | null, now: number = Dat
     return null;
   }
   return sti === "mpox"
-    ? "It may not be too late for a preventive vaccination. Contact a clinic or your doctor today."
-    : "It may not be too late for preventive treatment (PEP). Contact a clinic or emergency department today.";
+    ? t("It may not be too late for a preventive vaccination. Contact a clinic or your doctor today.")
+    : t("It may not be too late for preventive treatment (PEP). Contact a clinic or emergency department today.");
 }
 
 /**
@@ -130,7 +132,7 @@ export function adviceLines(sti: string, scannedAt: string | null, now: number =
   const entry = ADVICE[sti];
   const day = scannedAt === null ? null : startOfUtcDay(scannedAt);
   if (!entry || day === null) {
-    return [DISCLAIMER];
+    return [disclaimer()];
   }
 
   const sinceScanDay = now - day;
@@ -143,22 +145,22 @@ export function adviceLines(sti: string, scannedAt: string | null, now: number =
 
   if (entry.windowDays !== null) {
     if (sinceScanDay >= entry.windowDays * DAY_MS) {
-      lines.push("A test now gives a reliable result.");
+      lines.push(t("A test now gives a reliable result."));
     } else {
       // The date is not written here: a reminder on the Home screen carries it (see `retestDue`).
-      lines.push("Get tested now. A reminder will show on the Home screen when it is time to test again.");
+      lines.push(t("Get tested now. A reminder will show on the Home screen when it is time to test again."));
     }
   }
 
   if (entry.watchDays !== undefined && sinceScanDay < entry.watchDays * DAY_MS) {
-    lines.push(`Watch for new symptoms for ${entry.watchDays} days. If any appear, see a doctor.`);
+    lines.push(t("Watch for new symptoms for {days} days. If any appear, see a doctor.", { days: entry.watchDays }));
   }
 
   if (entry.treatBeforeResults) {
-    lines.push("A clinic may treat you straight away, before your results.");
+    lines.push(t("A clinic may treat you straight away, before your results."));
   }
 
-  lines.push(DISCLAIMER);
+  lines.push(disclaimer());
   return lines;
 }
 

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import { colors, fonts, radius } from "../theme";
+import { t } from "../i18n";
 import { BackIcon, ChecklistIcon, GearIcon, HeartFilledIcon, InfoIcon } from "./Icons";
 import { Logo } from "./Logo";
 import { Wordmark } from "./Wordmark";
@@ -61,7 +62,7 @@ export function SubHeader({ title, onBack }: { title: string; onBack: () => void
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.subHeader, { paddingTop: insets.top + 10 }]}>
-      <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" hitSlop={12} style={styles.backButton}>
+      <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel={t("Back")} hitSlop={12} style={styles.backButton}>
         <BackIcon size={20} color={colors.text} />
       </Pressable>
       <Text style={styles.subTitle}>{title}</Text>
@@ -75,10 +76,10 @@ export type Tab = "home" | "todo" | "info" | "settings";
 export function TabBar({ active, onSelect, todoCount = 0 }: { active: Tab; onSelect: (tab: Tab) => void; todoCount?: number }) {
   const insets = useSafeAreaInsets();
   const items: Array<{ key: Tab; label: string; icon: (color: string) => ReactNode }> = [
-    { key: "home", label: "Home", icon: (c) => <HeartFilledIcon size={22} color={c} /> },
-    { key: "todo", label: "To-do", icon: (c) => <ChecklistIcon size={22} color={c} /> },
-    { key: "info", label: "Info", icon: (c) => <InfoIcon size={22} color={c} /> },
-    { key: "settings", label: "Settings", icon: (c) => <GearIcon size={22} color={c} /> },
+    { key: "home", label: t("Home"), icon: (c) => <HeartFilledIcon size={22} color={c} /> },
+    { key: "todo", label: t("To-do"), icon: (c) => <ChecklistIcon size={22} color={c} /> },
+    { key: "info", label: t("Info"), icon: (c) => <InfoIcon size={22} color={c} /> },
+    { key: "settings", label: t("Settings"), icon: (c) => <GearIcon size={22} color={c} /> },
   ];
   return (
     <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
@@ -96,7 +97,7 @@ export function TabBar({ active, onSelect, todoCount = 0 }: { active: Tab; onSel
             <View style={[styles.tabIcon, isActive && styles.tabIconActive]}>
               {item.icon(color)}
               {item.key === "todo" && todoCount > 0 ? (
-                <View style={styles.badge} accessibilityLabel={`${todoCount} open`}>
+                <View style={styles.badge} accessibilityLabel={t("{count} open", { count: todoCount })}>
                   <Text style={styles.badgeText}>{todoCount > 9 ? "9+" : todoCount}</Text>
                 </View>
               ) : null}

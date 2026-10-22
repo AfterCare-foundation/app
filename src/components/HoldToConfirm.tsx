@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Animated, type LayoutChangeEvent, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Rect } from "react-native-svg";
 
+import { t } from "../i18n";
 import { colors, fonts, gradients, radius } from "../theme";
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
@@ -25,8 +26,8 @@ interface HoldToConfirmProps {
 }
 
 export function HoldToConfirm({
-  label = "Confirm",
-  hint = "Press and hold",
+  label = t("Confirm"),
+  hint = t("Press and hold"),
   onConfirm,
   busy = false,
   disabled = false,
@@ -115,7 +116,7 @@ export function HoldToConfirm({
           ) : (
             <>
               <Text style={styles.label}>{label}</Text>
-              <Text style={styles.hint}>{holding ? "Keep holding…" : hint}</Text>
+              <Text style={styles.hint}>{holding ? t("Keep holding…") : hint}</Text>
             </>
           )}
         </LinearGradient>

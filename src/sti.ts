@@ -3,6 +3,8 @@
 // it knows. Anything else, including text from a modified app, reads as a
 // generic STI. Common one-word names, not medical terms. Edit here only.
 
+import { t } from "./i18n";
+
 export interface StiOption {
   /** Goes on the wire. Never change an id once released; add new ones. */
   id: string;
@@ -47,10 +49,16 @@ export const UNSPECIFIED_STI = "other";
 
 /** Short name for a chip. */
 export function chipText(option: StiOption): string {
-  return option.chipLabel ?? option.label;
+  return t(option.chipLabel ?? option.label);
 }
 
 /** The option for an id, or null for the generic type and for anything unknown. */
 export function findSti(id: string): StiOption | null {
   return STI_OPTIONS.find((option) => option.id === id) ?? null;
+}
+
+/** The name in the current language. */
+export function stiLabel(id: string): string {
+  const option = findSti(id);
+  return option ? t(option.label) : t("Unspecified STI");
 }
