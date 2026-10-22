@@ -14,6 +14,8 @@
   "dependencies": {
     "@noble/ciphers": "^2.4.0",
     "@noble/hashes": "^2.4.0",
+    "@react-navigation/native": "^7.5.1",
+    "@react-navigation/native-stack": "^7.21.0",
     "expo": "~57.0.26",
     "expo-alternate-app-icons": "^8.0.0",
     "expo-camera": "~57.0.6",
@@ -29,6 +31,7 @@
     "react-native": "0.86.3",
     "react-native-qrcode-svg": "^6.3.26",
     "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4"
   },
   "devDependencies": {

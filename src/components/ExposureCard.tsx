@@ -181,10 +181,14 @@ export function HelplineBlock() {
     <Panel style={styles.finder}>
       <Text style={styles.finderTitle}>{t("Want to talk to someone?")}</Text>
       <Text style={styles.finderText}>
-        {t("The AIDS-Hilfe offers anonymous phone counselling. Calls may cost something.")}
+        {t("The AIDS-Hilfe offers anonymous counselling by phone, and a chat for gay and bisexual men.")}
       </Text>
       <GhostButton label={t("Germany: 0180 33 19411")} onPress={() => call("01803319411")} />
       <GhostButton label={t("Berlin: 030 19411")} onPress={() => call("03019411")} />
+      <GhostButton label={t("Gay Health Chat (online)")} onPress={() => void Linking.openURL("https://www.gayhealthchat.de/")} />
+      <Text style={styles.helplineHours}>
+        {t("Germany: Mon–Fri 9–21, Sat and Sun 12–14. Berlin: daily 16–22. Chat: daily 17–20.")}
+      </Text>
     </Panel>
   );
 }
@@ -256,6 +260,7 @@ const styles = StyleSheet.create({
   stiName: {
     textDecorationLine: "underline",
   },
+  helplineHours: { ...type.cardDesc, fontSize: 12, textAlign: "center" },
   finderDismiss: {
     alignSelf: "center",
     paddingTop: 6,

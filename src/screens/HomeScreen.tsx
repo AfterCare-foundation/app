@@ -78,8 +78,8 @@ export function HomeScreen({
             contactAt={contactAt}
             onTested={canRecordTest ? () => onTested(current) : undefined}
           />
-          {current.noAction || isCovered(current.testCheck) ? null : <TestFinderBlock onFindTest={() => onAcknowledge(current)} />}
           {current.sti === "hiv" && !current.noAction && !isCovered(current.testCheck) ? <HelplineBlock /> : null}
+          {current.noAction || isCovered(current.testCheck) ? null : <TestFinderBlock onFindTest={() => onAcknowledge(current)} />}
           {fresh.length > 1 ? (
             <Text style={styles.moreAlerts}>
               {fresh.length - 1 === 1

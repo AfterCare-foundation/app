@@ -94,8 +94,11 @@ export const de: Record<string, string> = {
     "AfterCare ist kein medizinischer Dienst. Um eine Teststelle zu finden, empfehlen wir den European Test Finder.",
   "Find a test": "Test finden",
   "Want to talk to someone?": "Möchtest du mit jemandem sprechen?",
-  "The AIDS-Hilfe offers anonymous phone counselling. Calls may cost something.":
-    "Die Aidshilfe bietet anonyme telefonische Beratung an. Anrufe können Kosten verursachen.",
+  "The AIDS-Hilfe offers anonymous counselling by phone, and a chat for gay and bisexual men.":
+    "Die Aidshilfe bietet anonyme Beratung am Telefon und einen Chat für schwule und bisexuelle Männer an.",
+  "Gay Health Chat (online)": "Gay Health Chat (online)",
+  "Germany: Mon–Fri 9–21, Sat and Sun 12–14. Berlin: daily 16–22. Chat: daily 17–20.":
+    "Deutschlandweit: Mo–Fr 9–21, Sa und So 12–14 Uhr. Berlin: täglich 16–22 Uhr. Chat: täglich 17–20 Uhr.",
   "Germany: 0180 33 19411": "Deutschlandweit: 0180 33 19411",
   "Berlin: 030 19411": "Berlin: 030 19411",
 

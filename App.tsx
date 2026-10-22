@@ -1,9 +1,12 @@
 import { useFonts } from "expo-font";
+import { DarkTheme, NavigationContainer, useNavigationContainerRef } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AppState, Linking, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { FadeIn } from "./src/components/FadeIn";
 import { resolveChoice, setLang, t, type Choice } from "./src/i18n";
 import { apiBaseUrl, deleteDevice, health } from "./src/api/client";
 import { useAppLock } from "./src/appLock";
@@ -71,6 +74,9 @@ type Route =
 
 installNotificationHandler();
 
+const Stack = createNativeStackNavigator();
+const NAV_THEME = { ...DarkTheme, colors: { ...DarkTheme.colors, background: colors.bg, card: colors.bg } };
+
 /** Marks an alert as seen and schedules its retest reminders, counted from the day its card was saved. */
 async function openAlert(alert: AlertRecord): Promise<void> {
   const opened = await acknowledgeAlert(alert.id);
@@ -104,7 +110,21 @@ export default function App() {
   // The lock has nothing to protect on a fresh install; null until the first load is done.
   const [dataLoaded, setDataLoaded] = useState(false);
   const [route, setRoute] = useState<Route>({ name: "home" });
+  const lastDetail = useRef<Route>({ name: "home" });
+  const navigation = useNavigationContainerRef<{ Main: undefined; Detail: undefined }>();
   const [tab, setTab] = useState<Tab>("home");
+  // The stack follows `route`: a sub-screen is pushed over the tabs, and removed when the route is home again.
+  useEffect(() => {
+    if (!navigation.isReady()) {
+      return;
+    }
+    const onDetail = navigation.getCurrentRoute()?.name === "Detail";
+    if (route.name !== "home" && !onDetail) {
+      navigation.navigate("Detail");
+    } else if (route.name === "home" && onDetail) {
+      navigation.goBack();
+    }
+  }, [route, navigation]);
   const todoGroups = useMemo(() => openGroups(alerts), [alerts]);
   // A row ticked off in the To-do list, shown where it was while it animates away.
   const [celebrate, setCelebrate] = useState<Celebration | null>(null);
@@ -461,26 +481,33 @@ export default function App() {
     );
   }
 
-  let body;
-  if (route.name === "scan") {
-    body = <ScanScreen device={device} onBack={() => setRoute({ name: "home" })} onSubscribed={onSubscribed} />;
-  } else if (route.name === "generate") {
-    body = (
+  // The screen that slides over the tabs. While it slides away the route is already "home", so it
+  // keeps showing the last one instead of the tab underneath.
+  if (route.name !== "home") {
+    lastDetail.current = route;
+  }
+  const detail = lastDetail.current;
+
+  let detailBody = null;
+  if (detail.name === "scan") {
+    detailBody = <ScanScreen device={device} onBack={() => setRoute({ name: "home" })} onSubscribed={onSubscribed} />;
+  } else if (detail.name === "generate") {
+    detailBody = (
       <GenerateScreen device={device} onBack={() => setRoute({ name: "home" })} onGenerated={() => void reload()} />
     );
-  } else if (route.name === "tested") {
-    const testedAlerts = route.alerts;
+  } else if (detail.name === "tested") {
+    const testedAlerts = detail.alerts;
     const testedSti = testedAlerts[0]?.sti ?? null;
-    body = testedSti ? (
+    detailBody = testedSti ? (
       <TestedScreen
         sti={testedSti}
         existing={tests.filter((x) => x.sti === testedSti)}
         onBack={() => setRoute({ name: "home" })}
-        onSave={(result, testedAt) => void onSaveTest(testedAlerts, result, testedAt, route.from)}
+        onSave={(result, testedAt) => void onSaveTest(testedAlerts, result, testedAt, detail.from)}
         onRemove={
-          route.from
+          detail.from
             ? () => {
-                const group = (route.from as Celebration).group;
+                const group = (detail.from as Celebration).group;
                 setRoute({ name: "home" });
                 void onRemoveTodo(group);
               }
@@ -488,11 +515,14 @@ export default function App() {
         }
       />
     ) : null;
-  } else if (route.name === "notify") {
-    body = (
-      <NotifyScreen device={device} cards={cards} tests={tests} initialSti={route.sti} onBack={() => setRoute({ name: "home" })} onSent={onSent} />
+  } else if (detail.name === "notify") {
+    detailBody = (
+      <NotifyScreen device={device} cards={cards} tests={tests} initialSti={detail.sti} onBack={() => setRoute({ name: "home" })} onSent={onSent} />
     );
-  } else if (tab === "todo") {
+  }
+
+  let body;
+  if (tab === "todo") {
     body = (
       <TodoScreen
         groups={todoGroups}
@@ -538,20 +568,36 @@ export default function App() {
     );
   }
 
+  // Tabs change at once, as on iOS. The other screens use the system stack: they slide in from the
+  // right and can be swiped back. `route` stays the single source of truth; the stack follows it.
   return (
     <SafeAreaProvider>
-      <Screen>
-        <StatusBar style="light" />
-        <View style={styles.body}>{body}</View>
-        {route.name === "home" ? (
-          <TabBar
-            active={tab}
-            onSelect={setTab}
-            todoCount={todoGroups.length}
-          />
-        ) : null}
-        {lock.covered ? <PrivacyCover /> : null}
-      </Screen>
+      <StatusBar style="light" />
+      <NavigationContainer ref={navigation} theme={NAV_THEME}>
+        <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
+          <Stack.Screen name="Main">
+            {() => (
+              <Screen>
+                <View style={styles.body}>
+                  <FadeIn key={tab}>{body}</FadeIn>
+                </View>
+                <TabBar active={tab} onSelect={setTab} todoCount={todoGroups.length} />
+              </Screen>
+            )}
+          </Stack.Screen>
+          <Stack.Screen
+            name="Detail"
+            listeners={{ beforeRemove: () => setRoute((current) => (current.name === "home" ? current : { name: "home" })) }}
+          >
+            {() => (
+              <Screen>
+                <View style={styles.body}>{detailBody}</View>
+              </Screen>
+            )}
+          </Stack.Screen>
+        </Stack.Navigator>
+      </NavigationContainer>
+      {lock.covered ? <PrivacyCover /> : null}
     </SafeAreaProvider>
   );
 }
