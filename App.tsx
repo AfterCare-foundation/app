@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AppState, Linking, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { FadeIn } from "./src/components/FadeIn";
 import { resolveChoice, setLang, t, type Choice } from "./src/i18n";
 import { apiBaseUrl, deleteDevice, health } from "./src/api/client";
 import { useAppLock } from "./src/appLock";
@@ -578,9 +577,7 @@ export default function App() {
           <Stack.Screen name="Main">
             {() => (
               <Screen>
-                <View style={styles.body}>
-                  <FadeIn key={tab}>{body}</FadeIn>
-                </View>
+                <View style={styles.body}>{body}</View>
                 <TabBar active={tab} onSelect={setTab} todoCount={todoGroups.length} />
               </Screen>
             )}
