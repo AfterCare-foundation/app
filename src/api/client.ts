@@ -36,6 +36,8 @@ export interface SubscribeRequest {
   push_token: string;
   platform: Platform;
   device_credential: string;
+  /** Language of the push text, "en" or "de". The server keeps it per device and never returns it. */
+  lang?: string;
 }
 
 export interface DeleteDeviceRequest {
@@ -54,6 +56,7 @@ export interface UpdatePushIdRequest {
   new_push_token: string;
   new_platform: Platform;
   device_credential: string;
+  lang?: string;
 }
 
 export interface NotifyRequest {

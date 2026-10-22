@@ -16,6 +16,7 @@ import {
   raiseDueRetests,
   closeExposure,
   recordTestForAlert,
+  syncLanguage,
   syncPushToken,
   type InboxStatus,
   type PullStats,
@@ -108,14 +109,15 @@ export default function App() {
   // A row ticked off in the To-do list, shown where it was while it animates away.
   const [celebrate, setCelebrate] = useState<Celebration | null>(null);
   // The language is read by `t()` while rendering; this state only makes the app render again when it changes.
-  const [langChoice, setLangChoice] = useState<Choice>("auto");
   const [, setLangTick] = useState(0);
   const chooseLanguage = useCallback((choice: Choice) => {
-    setLangChoice(choice);
     setLang(resolveChoice(choice));
     setLangTick((n) => n + 1);
     void saveLanguageChoice(choice);
-  }, []);
+    if (device) {
+      void syncLanguage(device);
+    }
+  }, [device]);
   const lock = useAppLock(dataLoaded ? cards.length + alerts.length + sent.length + tests.length > 0 : null);
   const [serverOk, setServerOk] = useState<boolean | null>(null);
   const [inboxStatus, setInboxStatus] = useState<InboxStatus | null>(null);
@@ -153,7 +155,6 @@ export default function App() {
     let cancelled = false;
     (async () => {
       const savedLanguage = await loadLanguageChoice();
-      setLangChoice(savedLanguage);
       setLang(resolveChoice(savedLanguage));
       setLangTick((n) => n + 1);
       const loaded = await loadOrCreateDevice();
@@ -168,6 +169,8 @@ export default function App() {
       if (!cancelled && synced.pushToken !== loaded.pushToken) {
         setDevice(synced);
       }
+      // The server picks the push text language from this; a failure is retried at the next launch.
+      void syncLanguage(synced);
     })();
     return () => {
       cancelled = true;
@@ -512,7 +515,6 @@ export default function App() {
         hasTests={tests.length > 0}
         onDeleteTests={onDeleteTests}
         onResetInstall={onResetInstall}
-        languageChoice={langChoice}
         onChooseLanguage={chooseLanguage}
       />
     );

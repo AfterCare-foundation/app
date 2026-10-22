@@ -1,7 +1,7 @@
 // The three things this version does: subscribe to a card, notify one card,
 // and pull the development inbox. Screens call these and render the result.
 
-import { t } from "./i18n";
+import { getLang, t } from "./i18n";
 import { ApiError, confirmInbox, fetchInbox, notify, subscribe, updatePushId, type InboxMessage } from "./api/client";
 import { ADVICE, retestDueStage } from "./advice";
 import { contactBeforePositive } from "./alertRules";
@@ -47,6 +47,7 @@ export async function subscribeToCard(device: DeviceIdentity, scanned: string): 
     push_token: current.pushToken,
     platform: current.platform,
     device_credential: current.credentialHex,
+    lang: getLang(),
   });
   if (!current.subscribedAt) {
     await saveDevice({ ...(await loadOrCreateDevice()), subscribedAt: new Date().toISOString() });
@@ -310,6 +311,7 @@ export async function syncPushToken(passed: DeviceIdentity, current: string): Pr
       new_push_token: current,
       new_platform: device.platform,
       device_credential: device.credentialHex,
+      lang: getLang(),
     });
   } catch (error) {
     if (__DEV__) {
@@ -319,6 +321,29 @@ export async function syncPushToken(passed: DeviceIdentity, current: string): Pr
   }
   await saveDevice(next);
   return next;
+}
+
+/**
+ * Tells the server the language of the push text. Same call as a token update with nothing moved:
+ * old and new id are equal. Only for a device the server knows. Failing is harmless: the next
+ * launch or language change tries again.
+ */
+export async function syncLanguage(device: DeviceIdentity): Promise<void> {
+  if (!device.subscribedAt) {
+    return; // the first /subscribe carries the language
+  }
+  try {
+    await updatePushId({
+      old_push_id_hash: device.pushIdHash,
+      new_push_id_hash: device.pushIdHash,
+      new_push_token: device.pushToken,
+      new_platform: device.platform,
+      device_credential: device.credentialHex,
+      lang: getLang(),
+    });
+  } catch {
+    // retried later
+  }
 }
 
 export type InboxStatus = "ok" | "unavailable" | "offline";
