@@ -24,7 +24,7 @@ import { t } from "../i18n";
 import { GhostButton, GradientButton } from "../components/Buttons";
 import { SubHeader } from "../components/Chrome";
 import { Panel } from "../components/Panel";
-import { describeError, subscribeToCard } from "../flows";
+import { ApiError, describeError, subscribeToCard } from "../flows";
 import type { CardRecord, DeviceIdentity } from "../storage/secureStore";
 import { colors, fonts, radius, type } from "../theme";
 
@@ -120,6 +120,8 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [lastScan, setLastScan] = useState<string | null>(null);
   const lockRef = useRef(false);
+  // Codes the server answered "already in use" for: a final answer, so the camera does not send them again.
+  const refusedRef = useRef(new Set<string>());
 
   const submit = useCallback(
     async (raw: string, typed: boolean) => {
@@ -136,6 +138,9 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
         onSubscribed(card, alreadyKnown, typed);
       } catch (e) {
         setError(describeError(e));
+        if (e instanceof ApiError && e.status === 409 && e.detail === "code_in_use") {
+          refusedRef.current.add(raw.trim());
+        }
         // Allow another attempt after a short pause so one bad frame does
         // not spam the server.
         setTimeout(() => {
@@ -156,12 +161,16 @@ export function ScanScreen({ device, onBack, onSubscribed }: ScanScreenProps) {
       );
       return;
     }
+    if (refusedRef.current.has(pasted.trim())) {
+      setError(t("This code is already in use."));
+      return;
+    }
     await submit(pasted, true);
   }, [pasted, submit]);
 
   const onBarcode = useCallback(
     (result: BarcodeScanningResult) => {
-      if (lockRef.current || !result.data) {
+      if (lockRef.current || !result.data || refusedRef.current.has(result.data.trim())) {
         return;
       }
       setLastScan(result.data);
