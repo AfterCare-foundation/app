@@ -59,6 +59,35 @@ export async function subscribeToCard(device: DeviceIdentity, scanned: string): 
   return saveCard(token);
 }
 
+/**
+ * Joins the given codes again with the phone's current push token. The server may have dropped
+ * this device's subscriptions (for example after the phone was off for over 30 days with a dead
+ * token) while still knowing the device. Re-joining a code the device is still on is harmless (200,
+ * no slot used). Returns the cards that are still ours; a code someone else has taken (409
+ * `code_in_use`) stays a final answer and is left out. Other failures keep the card in the list.
+ */
+async function resubscribe(device: DeviceIdentity, cards: readonly CardRecord[]): Promise<CardRecord[]> {
+  const kept: CardRecord[] = [];
+  for (const card of cards) {
+    try {
+      await subscribe({
+        et_hash: card.etHash,
+        push_id_hash: device.pushIdHash,
+        push_token: device.pushToken,
+        platform: device.platform,
+        device_credential: device.credentialHex,
+        lang: getLang(),
+      });
+      kept.push(card);
+    } catch (error) {
+      if (!(error instanceof ApiError && error.status === 409)) {
+        kept.push(card);
+      }
+    }
+  }
+  return kept;
+}
+
 export interface NotifyOutcome {
   /** Devices reached right now. */
   pushed: number;
@@ -83,22 +112,39 @@ export async function notifyContacts(
     throw new Error(t("No contacts to notify."));
   }
   const campaignId = randomUuid();
-  const result = await notify({
-    sender_push_id_hash: device.pushIdHash,
-    device_credential: device.credentialHex,
-    campaign_id: campaignId,
-    deliveries: contacts.map((card) => ({
-      et_hash: card.etHash,
-      encrypted_payload: encryptAlert(cardToken(card), sti, randomNonce()),
-    })),
-  });
+  const send = (list: readonly CardRecord[]) =>
+    notify({
+      sender_push_id_hash: device.pushIdHash,
+      device_credential: device.credentialHex,
+      campaign_id: campaignId,
+      deliveries: list.map((card) => ({
+        et_hash: card.etHash,
+        encrypted_payload: encryptAlert(cardToken(card), sti, randomNonce()),
+      })),
+    });
+  let reached = contacts;
+  let result;
+  try {
+    result = await send(contacts);
+  } catch (error) {
+    // The server no longer lists this phone on one of the codes (its cleanup removed the
+    // subscriptions). Join again and retry once, with the codes that are still ours.
+    if (!(error instanceof ApiError && error.status === 403 && /subscriber/i.test(error.detail))) {
+      throw error;
+    }
+    reached = await resubscribe(device, contacts);
+    if (reached.length === 0) {
+      throw error;
+    }
+    result = await send(reached);
+  }
   const retrying = result.retrying;
   // Nobody else is on those codes yet: the server gave the slot back, so do
   // not mark anyone as notified and let a later tap reach them.
   const delivered = result.pushed + retrying > 0;
   if (delivered) {
     const notifiedAt = new Date().toISOString();
-    for (const card of contacts) {
+    for (const card of reached) {
       await updateCard(card.etHash, {
         notifiedAt,
         notifiedStis: card.notifiedStis.includes(sti) ? card.notifiedStis : [...card.notifiedStis, sti],
@@ -112,7 +158,7 @@ export async function notifyContacts(
   return {
     pushed: result.pushed,
     retrying,
-    contacts: contacts.length,
+    contacts: reached.length,
     campaignId,
   };
 }
@@ -324,6 +370,8 @@ export async function syncPushToken(passed: DeviceIdentity, current: string): Pr
     return device;
   }
   await saveDevice(next);
+  // The server may have dropped the subscriptions meanwhile; join the stored codes again (best effort).
+  void listCards().then((cards) => resubscribe(next, cards)).catch(() => undefined);
   return next;
 }
 
@@ -481,6 +529,9 @@ export function describeError(error: unknown): string {
     }
     if (error.status === 429) {
       return error.detail;
+    }
+    if (error.status === 403 && /subscriber/i.test(error.detail)) {
+      return t("Your contacts could not be reached. Their connections may have expired.");
     }
     if (error.status === 403 && /credential/i.test(error.detail)) {
       return t("The server does not recognise this phone. Delete the app and install it again.");

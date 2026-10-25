@@ -211,6 +211,8 @@ export const de: Record<string, string> = {
   "This notification was already sent.": "Diese Benachrichtigung wurde schon gesendet.",
   "The server does not recognise this phone. Delete the app and install it again.":
     "Der Server erkennt dieses Handy nicht. Lösche die App und installiere sie neu.",
+  "Your contacts could not be reached. Their connections may have expired.":
+    "Deine Kontakte konnten nicht erreicht werden. Die Verbindungen sind möglicherweise abgelaufen.",
   "Refused. {detail}": "Abgelehnt. {detail}",
 
   // Scan and create
