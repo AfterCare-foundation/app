@@ -142,7 +142,7 @@ export function NotifyScreen({ device, cards, tests, initialSti, onBack, onSent 
           </Panel>
           <Panel tint="blue" style={styles.preview}>
             <Text style={styles.previewLabel}>{t("They will see")}</Text>
-            <Text style={styles.previewLock}>You have a new message. Open the app to read it.</Text>
+            <Text style={styles.previewLock}>{t("You have a new message. Open the app to read it.")}</Text>
             <Text style={styles.previewIn}>
               {rich('Inside the app: "{text}"', { text: <ReportedText sti={stiValue} /> })}
             </Text>

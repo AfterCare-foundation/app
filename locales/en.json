@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "AfterCare uses the camera to scan the QR code on your card.",
+    "NSFaceIDUsageDescription": "AfterCare uses Face ID to keep your private data from being opened by someone else."
+  }
+}

@@ -20,6 +20,8 @@
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
+        "CFBundleDevelopmentRegion": "en",
+        "CFBundleLocalizations": ["en", "de"],
         "NSCameraUsageDescription": "AfterCare uses the camera to scan the QR code on your card.",
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true,
@@ -83,6 +85,10 @@
       "eas": {
         "projectId": "a9341236-bd0d-4589-9334-842186946b32"
       }
+    },
+    "locales": {
+      "en": "./locales/en.json",
+      "de": "./locales/de.json"
     },
     "owner": "aftercare"
   }

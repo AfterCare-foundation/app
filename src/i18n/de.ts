@@ -49,7 +49,7 @@ export const de: Record<string, string> = {
 
   // Home
   "Notifications are off. You will not be told if someone reports an exposure. Tap to turn them on.":
-    "Benachrichtigungen sind aus. Du erfährst nicht, wenn jemand eine Ansteckungsmöglichkeit meldet. Tippe hier, um sie einzuschalten.",
+    "Benachrichtigungen sind aus. Du erfährst nicht, wenn jemand, mit dem du Kontakt hattest, eine STI meldet. Tippe hier, um sie einzuschalten.",
   "1 more alert waiting": "1 weitere Meldung wartet",
   "{count} more alerts waiting": "{count} weitere Meldungen warten",
   "No new alerts": "Keine neuen Meldungen",
@@ -71,7 +71,7 @@ export const de: Record<string, string> = {
   // Alert card
   "No action needed": "Nichts zu tun",
   "Time to get\ntested again": "Zeit für einen\nerneuten Test",
-  "You may have been\nexposed to an STI": "Du warst möglicherweise\neiner STI ausgesetzt",
+  "You may have been\nexposed to an STI": "Du hattest Kontakt mit\njemandem mit einer STI",
   "Someone you connected with has reported {sti}. Get tested when you can.":
     "Jemand, mit dem du Kontakt hattest, hat {sti} gemeldet. Lass dich testen, wenn du kannst.",
   "Someone you connected with has reported {sti}. You have already been tested, so {action}.":
@@ -81,7 +81,7 @@ export const de: Record<string, string> = {
   "no further action is needed from you": "ist von dir nichts weiter zu tun",
   "This follows the alert about {sti}. One test soon after contact can miss an infection, so get tested again when you can, even if you already have.":
     "Das ist die Folgemeldung zu {sti}. Ein Test kurz nach dem Kontakt kann eine Infektion übersehen, lass dich deshalb noch einmal testen, wenn du kannst, auch wenn du es schon getan hast.",
-  "Exposure does not mean infection.": "Ausgesetzt sein heißt nicht infiziert sein.",
+  "Exposure does not mean infection.": "Kontakt heißt nicht gleich Infektion.",
   "Most exposures do not lead to HIV, and treatment today works very well.":
     "Die meisten Kontakte führen nicht zu HIV, und die Behandlung wirkt heute sehr gut.",
   "Last test: {date}": "Letzter Test: {date}",
@@ -197,7 +197,7 @@ export const de: Record<string, string> = {
   "The infection is encrypted on this phone. The server cannot read it.":
     "Die Infektion wird auf diesem Handy verschlüsselt. Der Server kann sie nicht lesen.",
   "Send this notification?": "Diese Benachrichtigung senden?",
-  "They will see": "Sie sehen",
+  "They will see": "Deine Kontakte sehen",
   'Inside the app: "{text}"': 'In der App: „{text}“',
   "This cannot be undone.": "Das lässt sich nicht rückgängig machen.",
   "Press and hold": "Gedrückt halten",
