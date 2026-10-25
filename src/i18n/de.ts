@@ -203,8 +203,8 @@ export const de: Record<string, string> = {
   "Press and hold": "Gedrückt halten",
   "Keep holding…": "Weiter gedrückt halten…",
   "No contacts to notify.": "Keine Kontakte zu benachrichtigen.",
-  "Nobody has scanned these cards yet, so your alert has not reached anyone. You can try again later.":
-    "Bisher hat niemand diese Karten gescannt, deine Benachrichtigung hat also noch niemanden erreicht. Du kannst es später noch einmal versuchen.",
+  "Nobody has scanned these cards yet, so your alert has not reached anyone.":
+    "Bisher hat niemand diese Karten gescannt, deine Benachrichtigung hat also noch niemanden erreicht.",
   "Your partners have been notified. Thanks for taking care of them.":
     "Deine Partner*innen wurden benachrichtigt. Danke, dass du dich um sie kümmerst.",
   "This code is already in use.": "Dieser Code wird bereits verwendet.",

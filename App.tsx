@@ -348,7 +348,7 @@ export default function App() {
         outcome.contacts === 0
           ? outcome.expired > 0
               ? t("Your contacts could not be reached. Their connections may have expired.")
-              : t("Nobody has scanned these cards yet, so your alert has not reached anyone. You can try again later.")
+              : t("Nobody has scanned these cards yet, so your alert has not reached anyone.")
           : t("Your partners have been notified. Thanks for taking care of them."),
         9000,
       );
