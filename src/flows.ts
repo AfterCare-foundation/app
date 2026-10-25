@@ -562,6 +562,12 @@ export function describeError(error: unknown): string {
     if (error.status === 409 && error.detail === "campaign_already_used") {
       return t("This notification was already sent.");
     }
+    if (error.status === 429 && /campaigns/i.test(error.detail)) {
+      return t("You have reached the limit for notifications for now.");
+    }
+    if (error.status === 429 && /connections/i.test(error.detail)) {
+      return t("You have added the most new codes allowed for today.");
+    }
     if (error.status === 429) {
       return error.detail;
     }

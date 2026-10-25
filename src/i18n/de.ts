@@ -213,6 +213,8 @@ export const de: Record<string, string> = {
     "Der Server erkennt dieses Handy nicht. Lösche die App und installiere sie neu.",
   "Your contacts could not be reached. Their connections may have expired.":
     "Deine Kontakte konnten nicht erreicht werden. Die Verbindungen sind möglicherweise abgelaufen.",
+  "You have reached the limit for notifications for now.": "Du hast das Limit für Benachrichtigungen vorerst erreicht.",
+  "You have added the most new codes allowed for today.": "Du hast heute die höchste Zahl neuer Codes erreicht.",
   "Refused. {detail}": "Abgelehnt. {detail}",
 
   // Scan and create
