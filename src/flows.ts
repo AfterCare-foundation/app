@@ -2,7 +2,7 @@
 // and pull the development inbox. Screens call these and render the result.
 
 import { getLang, t } from "./i18n";
-import { ApiError, confirmInbox, fetchInbox, notify, subscribe, updatePushId, type InboxMessage } from "./api/client";
+import { ApiError, confirmInbox, deleteDevice, fetchInbox, notify, subscribe, updatePushId, type InboxMessage } from "./api/client";
 import { ADVICE, retestDueStage } from "./advice";
 import { contactBeforePositive } from "./alertRules";
 import { coverage, isCovered, judgeEntry, testCheck, windowPassed, type TestResult } from "./testRules";
@@ -25,6 +25,10 @@ import {
   saveTest,
   setAlertTestCheck,
   loadOrCreateDevice,
+  clearLocalData,
+  setWipePending,
+  clearWipePending,
+  isWipePending,
   saveCard,
   saveDevice,
   updateCard,
@@ -478,6 +482,9 @@ export function describeError(error: unknown): string {
     if (error.status === 429) {
       return error.detail;
     }
+    if (error.status === 403 && /credential/i.test(error.detail)) {
+      return t("The server does not recognise this phone. Delete the app and install it again.");
+    }
     if (error.status === 403) {
       return t("Refused. {detail}", { detail: error.detail });
     }
@@ -487,4 +494,38 @@ export function describeError(error: unknown): string {
     return error.message;
   }
   return t("Something went wrong");
+}
+
+/**
+ * "Delete my data": the server first, then this phone. A marker is written before the first step
+ * and removed after the last, so if the app is killed in between, `resumePendingWipe` finishes the
+ * job at the next launch instead of leaving cards that the server no longer knows. A 403 from the
+ * server means it has already forgotten this device, which is what we want. Any other failure
+ * (offline, server error) throws and leaves the marker for the caller to deal with.
+ */
+export async function deleteAllData(): Promise<void> {
+  const stored = await loadOrCreateDevice();
+  await setWipePending();
+  try {
+    await deleteDevice({ push_id_hash: stored.pushIdHash, device_credential: stored.credentialHex });
+  } catch (error) {
+    if (!(error instanceof ApiError && error.status === 403)) {
+      throw error;
+    }
+  }
+  await clearLocalData();
+  await clearWipePending();
+}
+
+/** At launch: finishes a "Delete my data" that was interrupted. True when it did. Offline, it tries again next time. */
+export async function resumePendingWipe(): Promise<boolean> {
+  if (!(await isWipePending())) {
+    return false;
+  }
+  try {
+    await deleteAllData();
+    return true;
+  } catch {
+    return false;
+  }
 }

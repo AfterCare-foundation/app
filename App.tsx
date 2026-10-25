@@ -18,6 +18,8 @@ import {
   raiseDueRetests,
   closeExposure,
   recordTestForAlert,
+  deleteAllData,
+  resumePendingWipe,
   syncLanguage,
   syncPushToken,
   type InboxStatus,
@@ -46,6 +48,7 @@ import { TestedScreen } from "./src/screens/TestedScreen";
 import {
   acknowledgeAlert,
   clearLocalData,
+  clearWipePending,
   listAlerts,
   listCards,
   listSent,
@@ -176,6 +179,10 @@ export default function App() {
       const savedLanguage = await loadLanguageChoice();
       setLang(resolveChoice(savedLanguage));
       setLangTick((n) => n + 1);
+      // A "Delete my data" that was cut off earlier is finished before anything is shown.
+      if (await resumePendingWipe()) {
+        void cancelAllRetestReminders();
+      }
       const loaded = await loadOrCreateDevice();
       if (cancelled) {
         return;
@@ -310,6 +317,9 @@ export default function App() {
 
   const onSubscribed = useCallback(
     async (card: CardRecord, alreadyKnown: boolean, typed: boolean) => {
+      // The scan may have moved the device to the real push token and marked it subscribed; the
+      // copy in memory must follow, or later calls (notify, delete, inbox) use a stale identity.
+      setDevice(await loadOrCreateDevice());
       await reload();
       checkPush();
       setRoute({ name: "home" });
@@ -421,15 +431,17 @@ export default function App() {
       return;
     }
     try {
-      await deleteDevice({ push_id_hash: device.pushIdHash, device_credential: device.credentialHex });
+      await deleteAllData();
     } catch (e) {
+      await clearWipePending(); // the user is told it failed; nothing was deleted on this phone
       Alert.alert(t("Could not delete your data"), describeError(e));
       return;
     }
-    await clearLocalData();
     void cancelAllRetestReminders();
     const identity = await loadOrCreateDevice();
-    setDevice(identity);
+    // A fresh identity starts with a placeholder token; move it to the phone's real one right away.
+    const synced = await syncPushToken(identity, await currentPushToken(identity));
+    setDevice(synced);
     await reload();
     setTab("home");
     say(t("Your data was deleted."));
@@ -445,10 +457,19 @@ export default function App() {
           text: "Reset",
           style: "destructive",
           onPress: async () => {
+            // Tell the server first: it keeps the old credential for this push token, and a new
+            // credential would be refused from then on.
+            const stored = await loadOrCreateDevice();
+            try {
+              await deleteDevice({ push_id_hash: stored.pushIdHash, device_credential: stored.credentialHex });
+            } catch {
+              // not known to the server, or offline: reset locally anyway
+            }
             await clearLocalData();
-    void cancelAllRetestReminders();
+            void cancelAllRetestReminders();
             const identity = await loadOrCreateDevice();
-            setDevice(identity);
+            const synced = await syncPushToken(identity, await currentPushToken(identity));
+            setDevice(synced);
             await reload();
             say("Fresh install. New device credential and push token.");
           },

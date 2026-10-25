@@ -368,6 +368,21 @@ export async function clearLocalData(): Promise<void> {
   await SecureStore.deleteItemAsync(KEY_FINDER_DISMISSED, OPTIONS);
 }
 
+const KEY_WIPE_PENDING = "wipe.pending";
+
+/** Written before "Delete my data" starts, removed when it is done, so an interrupted run is finished at the next launch. */
+export async function setWipePending(): Promise<void> {
+  await SecureStore.setItemAsync(KEY_WIPE_PENDING, "1", OPTIONS);
+}
+
+export async function clearWipePending(): Promise<void> {
+  await SecureStore.deleteItemAsync(KEY_WIPE_PENDING, OPTIONS);
+}
+
+export async function isWipePending(): Promise<boolean> {
+  return (await SecureStore.getItemAsync(KEY_WIPE_PENDING, OPTIONS)) !== null;
+}
+
 const KEY_LANGUAGE = "settings.language";
 
 /** The language the user picked in Settings; "auto" follows the phone. */

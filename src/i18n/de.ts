@@ -209,6 +209,8 @@ export const de: Record<string, string> = {
     "Deine Partner*innen wurden benachrichtigt. Danke, dass du dich um sie kümmerst.",
   "This code is already in use.": "Dieser Code wird bereits verwendet.",
   "This notification was already sent.": "Diese Benachrichtigung wurde schon gesendet.",
+  "The server does not recognise this phone. Delete the app and install it again.":
+    "Der Server erkennt dieses Handy nicht. Lösche die App und installiere sie neu.",
   "Refused. {detail}": "Abgelehnt. {detail}",
 
   // Scan and create
