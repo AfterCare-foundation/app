@@ -173,23 +173,22 @@ export function NotifyScreen({ device, cards, tests, initialSti, onBack, onSent 
             />
           ))}
           {pickedExtra ? <Chip label={chipText(pickedExtra)} selected onPress={() => undefined} /> : null}
+          {moreOpen
+            ? MORE.filter((option) => option.id !== choice).map((option) => (
+                <Chip
+                  key={option.id}
+                  label={chipText(option)}
+                  selected={choice === option.id}
+                  onPress={() => {
+                    setChoice(option.id);
+                    setMoreOpen(false);
+                  }}
+                />
+              ))
+            : null}
+          {/* Last in the list, so "Less" is where the eye ends up after the expanded chips. */}
           <Chip label={moreOpen ? t("Less") : t("More…")} selected={false} onPress={() => setMoreOpen(!moreOpen)} />
         </View>
-        {moreOpen ? (
-          <View style={styles.chips}>
-            {MORE.filter((option) => option.id !== choice).map((option) => (
-              <Chip
-                key={option.id}
-                label={chipText(option)}
-                selected={choice === option.id}
-                onPress={() => {
-                  setChoice(option.id);
-                  setMoreOpen(false);
-                }}
-              />
-            ))}
-          </View>
-        ) : null}
 
         <Text style={[styles.sectionTitle, styles.spaced]}>
           {rich("When were you last {negative}?", { negative: <Text style={styles.underline}>{t("negative")}</Text> })}
