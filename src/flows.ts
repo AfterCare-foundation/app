@@ -95,6 +95,10 @@ export interface NotifyOutcome {
   retrying: number;
   /** Contacts this send covered. */
   contacts: number;
+  /** Contacts left out because nobody else is on their code yet. */
+  waiting: number;
+  /** Contacts left out because the server no longer lists this phone on their code (and joining again did not help). */
+  expired: number;
   campaignId: string;
 }
 
@@ -112,37 +116,86 @@ export async function notifyContacts(
     throw new Error(t("No contacts to notify."));
   }
   const campaignId = randomUuid();
-  const send = (list: readonly CardRecord[]) =>
+  const send = (list: readonly CardRecord[], id: string) =>
     notify({
       sender_push_id_hash: device.pushIdHash,
       device_credential: device.credentialHex,
-      campaign_id: campaignId,
+      campaign_id: id,
       deliveries: list.map((card) => ({
         et_hash: card.etHash,
         encrypted_payload: encryptAlert(cardToken(card), sti, randomNonce()),
       })),
     });
-  let reached = contacts;
+  let sentTo = contacts;
   let result;
   try {
-    result = await send(contacts);
+    result = await send(contacts, campaignId);
   } catch (error) {
-    // The server no longer lists this phone on one of the codes (its cleanup removed the
-    // subscriptions). Join again and retry once, with the codes that are still ours.
+    // An older server rejects the whole batch when this phone is not on one of the codes. Join
+    // again and retry once, with the codes that are still ours.
     if (!(error instanceof ApiError && error.status === 403 && /subscriber/i.test(error.detail))) {
       throw error;
     }
-    reached = await resubscribe(device, contacts);
-    if (reached.length === 0) {
+    sentTo = await resubscribe(device, contacts);
+    if (sentTo.length === 0) {
       throw error;
     }
-    result = await send(reached);
+    result = await send(sentTo, campaignId);
   }
-  const retrying = result.retrying;
-  // Nobody else is on those codes yet: the server gave the slot back, so do
-  // not mark anyone as notified and let a later tap reach them.
-  const delivered = result.pushed + retrying > 0;
-  if (delivered) {
+
+  let pushed = result.pushed;
+  let retrying = result.retrying;
+  let waiting = 0;
+  let expired = 0;
+  // Cards the server reached. An older server has no `skipped`: it reached all it was given
+  // when anything was pushed.
+  let reached: CardRecord[] = [];
+  if (result.skipped === undefined) {
+    reached = result.pushed + result.retrying > 0 ? [...sentTo] : [];
+  } else {
+    const skippedHashes = new Map(result.skipped.map((x) => [x.et_hash, x.reason]));
+    const missed: CardRecord[] = [];
+    for (const card of sentTo) {
+      const reason = skippedHashes.get(card.etHash);
+      if (reason === undefined) {
+        reached.push(card);
+      } else if (reason === "no_recipient") {
+        waiting += 1;
+      } else {
+        missed.push(card);
+      }
+    }
+    // The server no longer has this phone on some codes: join them again and send to those once
+    // more, in a second campaign (it counts toward the campaign limits, so no loop). A code that
+    // someone else took stays out.
+    if (missed.length > 0) {
+      const rejoined = await resubscribe(device, missed);
+      expired = missed.length - rejoined.length;
+      if (rejoined.length > 0) {
+        try {
+          const second = await send(rejoined, randomUuid());
+          pushed += second.pushed;
+          retrying += second.retrying;
+          const again = new Map((second.skipped ?? []).map((x) => [x.et_hash, x.reason]));
+          for (const card of rejoined) {
+            const reason = again.get(card.etHash);
+            if (reason === undefined) {
+              reached.push(card);
+            } else if (reason === "no_recipient") {
+              waiting += 1;
+            } else {
+              expired += 1;
+            }
+          }
+        } catch {
+          expired += rejoined.length; // not reached; they stay unmarked so a later tap can try again
+        }
+      }
+    }
+  }
+
+  // Nobody reached: do not mark anyone as notified and let a later tap try again.
+  if (reached.length > 0) {
     const notifiedAt = new Date().toISOString();
     for (const card of reached) {
       await updateCard(card.etHash, {
@@ -156,9 +209,11 @@ export async function notifyContacts(
     await settleUnreadAlerts(sti);
   }
   return {
-    pushed: result.pushed,
+    pushed,
     retrying,
     contacts: reached.length,
+    waiting,
+    expired,
     campaignId,
   };
 }
@@ -370,8 +425,6 @@ export async function syncPushToken(passed: DeviceIdentity, current: string): Pr
     return device;
   }
   await saveDevice(next);
-  // The server may have dropped the subscriptions meanwhile; join the stored codes again (best effort).
-  void listCards().then((cards) => resubscribe(next, cards)).catch(() => undefined);
   return next;
 }
 

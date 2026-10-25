@@ -341,13 +341,17 @@ export default function App() {
       if (__DEV__) {
         // Development log only. Counts are never shown in the UI.
         console.log(
-          `[notify] campaign ${outcome.campaignId}: contacts ${outcome.contacts}, pushed ${outcome.pushed}, retrying ${outcome.retrying}`,
+          `[notify] campaign ${outcome.campaignId}: contacts ${outcome.contacts}, waiting ${outcome.waiting}, expired ${outcome.expired}, pushed ${outcome.pushed}, retrying ${outcome.retrying}`,
         );
       }
       say(
-        outcome.pushed === 0 && outcome.retrying === 0
-          ? t("Sent, but nobody else has scanned yet. Your campaign limit was not used.")
-          : t("Your partners have been notified. Thanks for taking care of them."),
+        outcome.contacts === 0
+          ? outcome.expired > 0
+              ? t("Your contacts could not be reached. Their connections may have expired.")
+              : t("Sent, but nobody else has scanned yet. Your campaign limit was not used.")
+          : outcome.waiting + outcome.expired > 0
+            ? t("Your partners have been notified. Some contacts could not be reached yet.")
+            : t("Your partners have been notified. Thanks for taking care of them."),
         9000,
       );
     },
