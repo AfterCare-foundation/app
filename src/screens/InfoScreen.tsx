@@ -95,7 +95,7 @@ const FAQ = [
   },
   {
     q: "What if I get a new phone?",
-    a: "Your codes and contacts live only on your phone, so a new phone or a reinstall starts fresh.",
+    a: "Your codes and contacts live only on your phone, never on a server. A new phone starts fresh.",
   },
 ];
 

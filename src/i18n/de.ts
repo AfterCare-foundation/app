@@ -340,8 +340,8 @@ export const de: Record<string, string> = {
   "Why can I not see how many people I notified?": "Warum sehe ich nicht, wie viele Menschen ich benachrichtigt habe?",
   "So it never becomes a score. You only see that it was sent.": "Damit es nie zu einer Punktzahl wird. Du siehst nur, dass es gesendet wurde.",
   "What if I get a new phone?": "Was, wenn ich ein neues Handy bekomme?",
-  "Your codes and contacts live only on your phone, so a new phone or a reinstall starts fresh.":
-    "Deine Codes und Kontakte liegen nur auf deinem Handy, mit einem neuen Handy oder nach einer Neuinstallation beginnst du also von vorn.",
+  "Your codes and contacts live only on your phone, never on a server. A new phone starts fresh.":
+    "Deine Codes und Kontakte liegen nur auf deinem Handy, nie auf einem Server. Mit einem neuen Handy beginnst du von vorn.",
   "European Test Finder": "European Test Finder",
   "Contact us": "Kontakt aufnehmen",
   "AfterCare website": "AfterCare-Website",
