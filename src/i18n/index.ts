@@ -12,14 +12,46 @@ export type Choice = Lang | "auto";
 
 const DICTIONARIES: Record<Lang, Record<string, string>> = { en: {}, de };
 
+/**
+ * The phone's preferred language. The Intl locale follows the region format ("English (UK)" with
+ * German as language still gives en-GB), so iOS is asked for its language list first.
+ */
+function phoneTags(): string[] {
+  const tags: string[] = [];
+  try {
+    // Loaded here so the unit tests (plain Node) can import this file.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { NativeModules, Platform } = require("react-native") as typeof import("react-native");
+    if (Platform.OS === "ios") {
+      const settings = NativeModules.SettingsManager?.settings;
+      const list: unknown = settings?.AppleLanguages;
+      if (Array.isArray(list)) tags.push(...list.filter((x): x is string => typeof x === "string"));
+      if (typeof settings?.AppleLocale === "string") tags.push(settings.AppleLocale);
+    } else {
+      const id: unknown = NativeModules.I18nManager?.localeIdentifier;
+      if (typeof id === "string") tags.push(id);
+    }
+  } catch {
+    // fall through to Intl
+  }
+  try {
+    const tag = Intl.DateTimeFormat().resolvedOptions().locale;
+    if (tag) tags.push(tag);
+  } catch {
+    // ignore
+  }
+  return tags;
+}
+
 /** The language the phone is set to, as far as the app supports it. */
 export function detectLang(): Lang {
-  try {
-    const tag = Intl.DateTimeFormat().resolvedOptions().locale ?? "";
-    return tag.toLowerCase().startsWith("de") ? "de" : "en";
-  } catch {
-    return "en";
+  // The first language the app supports wins, like the system does when picking an app language.
+  for (const tag of phoneTags()) {
+    const code = tag.toLowerCase().split(/[-_]/)[0];
+    if (code === "de") return "de";
+    if (code === "en") return "en";
   }
+  return "en";
 }
 
 let current: Lang = detectLang();
