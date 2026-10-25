@@ -126,36 +126,18 @@ export async function notifyContacts(
         encrypted_payload: encryptAlert(cardToken(card), sti, randomNonce()),
       })),
     });
-  let sentTo = contacts;
-  let result;
-  try {
-    result = await send(contacts, campaignId);
-  } catch (error) {
-    // An older server rejects the whole batch when this phone is not on one of the codes. Join
-    // again and retry once, with the codes that are still ours.
-    if (!(error instanceof ApiError && error.status === 403 && /subscriber/i.test(error.detail))) {
-      throw error;
-    }
-    sentTo = await resubscribe(device, contacts);
-    if (sentTo.length === 0) {
-      throw error;
-    }
-    result = await send(sentTo, campaignId);
-  }
+  const result = await send(contacts, campaignId);
 
   let pushed = result.pushed;
   let retrying = result.retrying;
   let waiting = 0;
   let expired = 0;
-  // Cards the server reached. An older server has no `skipped`: it reached all it was given
-  // when anything was pushed.
-  let reached: CardRecord[] = [];
-  if (result.skipped === undefined) {
-    reached = result.pushed + result.retrying > 0 ? [...sentTo] : [];
-  } else {
+  // Cards the server reached: everything it did not list under `skipped` (always present).
+  const reached: CardRecord[] = [];
+  {
     const skippedHashes = new Map(result.skipped.map((x) => [x.et_hash, x.reason]));
     const missed: CardRecord[] = [];
-    for (const card of sentTo) {
+    for (const card of contacts) {
       const reason = skippedHashes.get(card.etHash);
       if (reason === undefined) {
         reached.push(card);
@@ -176,7 +158,7 @@ export async function notifyContacts(
           const second = await send(rejoined, randomUuid());
           pushed += second.pushed;
           retrying += second.retrying;
-          const again = new Map((second.skipped ?? []).map((x) => [x.et_hash, x.reason]));
+          const again = new Map(second.skipped.map((x) => [x.et_hash, x.reason]));
           for (const card of rejoined) {
             const reason = again.get(card.etHash);
             if (reason === undefined) {
@@ -582,9 +564,6 @@ export function describeError(error: unknown): string {
     }
     if (error.status === 429) {
       return error.detail;
-    }
-    if (error.status === 403 && /subscriber/i.test(error.detail)) {
-      return t("Your contacts could not be reached. Their connections may have expired.");
     }
     if (error.status === 403 && /credential/i.test(error.detail)) {
       return t("The server does not recognise this phone. Delete the app and install it again.");

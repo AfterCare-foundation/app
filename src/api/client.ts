@@ -73,11 +73,8 @@ export interface NotifyResponse {
   retrying: number;
   /** Contacts actually reached. */
   contacts: number;
-  /**
-   * Deliveries the server left out, always present on a server that has this field (an older
-   * one omits it). "not_subscribed": this phone is not on that code; "no_recipient": nobody else is.
-   */
-  skipped?: { et_hash: string; reason: "not_subscribed" | "no_recipient" }[];
+  /** Deliveries the server left out; empty when none. "not_subscribed": this phone is not on that code; "no_recipient": nobody else is. */
+  skipped: { et_hash: string; reason: "not_subscribed" | "no_recipient" }[];
 }
 
 export interface InboxRequest {

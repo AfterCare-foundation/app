@@ -203,8 +203,8 @@ export const de: Record<string, string> = {
   "Press and hold": "Gedrückt halten",
   "Keep holding…": "Weiter gedrückt halten…",
   "No contacts to notify.": "Keine Kontakte zu benachrichtigen.",
-  "Sent, but nobody else has scanned yet. Your campaign limit was not used.":
-    "Gesendet, aber bisher hat niemand sonst gescannt. Dein Limit für Benachrichtigungen wurde nicht verbraucht.",
+  "Nobody has scanned these cards yet, so your alert has not reached anyone. You can try again later.":
+    "Bisher hat niemand diese Karten gescannt, deine Benachrichtigung hat also noch niemanden erreicht. Du kannst es später noch einmal versuchen.",
   "Your partners have been notified. Thanks for taking care of them.":
     "Deine Partner*innen wurden benachrichtigt. Danke, dass du dich um sie kümmerst.",
   "This code is already in use.": "Dieser Code wird bereits verwendet.",
@@ -213,8 +213,6 @@ export const de: Record<string, string> = {
     "Der Server erkennt dieses Handy nicht. Lösche die App und installiere sie neu.",
   "Your contacts could not be reached. Their connections may have expired.":
     "Deine Kontakte konnten nicht erreicht werden. Die Verbindungen sind möglicherweise abgelaufen.",
-  "Your partners have been notified. Some contacts could not be reached yet.":
-    "Deine Partner*innen wurden benachrichtigt. Einige Kontakte konnten noch nicht erreicht werden.",
   "Refused. {detail}": "Abgelehnt. {detail}",
 
   // Scan and create
