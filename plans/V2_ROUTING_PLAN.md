@@ -1,6 +1,6 @@
 # App switch to v2.1 routing — plan
 
-Status: **Chunk 1 built (keys, seals, vectors; not wired). Chunk 2's API client in progress.** Written 2026-11-06 against `backend/docs/CRYPTO.md` §4
+Status: **Chunk 1 built (keys, seals, vectors; not wired). Chunk 2's API client built (typed `/v2` calls and `V2Error`, not called by the app).** Written 2026-11-06 against `backend/docs/CRYPTO.md` §4
 (server side done and unpushed on backend `main`: `/v2/slots`, `/v2/slots/reseal`,
 `/v2/notify`, `/v2/inbox`, `/v2/inbox/confirm`, `/v2/forget`). App baseline: `752ceff`
 (fix-plan step 1.5: v2 padded messages, reader accepts v1 and v2).
@@ -115,6 +115,17 @@ Errors become a typed value, not regex on `detail`:
 (`v2_flow.run_notify`), so the campaign claim rolls back. The same `campaign_id` is safe to
 reuse after dropping a card. Chunk 6 relies on this; pinned by the server's
 `tests/test_v2_notify.py` (403 and 429 cases).
+
+**Gate 2 (client built, 2026-11-06):** what turned out different:
+- `expo-constants` loads lazily inside `apiBaseUrl`; v1's `request` and `v2Request` share a
+  private `send`, and v1's error text and logs are unchanged.
+- Every card and delivery is copied field by field (`pickCard` etc.), so extra input fields
+  never reach the body.
+- `v2Reseal` and `v2Forget` take one card; a list is a compile error (`tsc -p test` checks it).
+- `v2Inbox` throws `unexpected` when a 200 lacks `notifications` or `cards` arrays.
+- `V2Error.code` is mapped on exact `(status, detail)`; 413 and 422 map on status alone.
+- No timeout yet; Chunk 6 decides. Error copy still waits for Q4.
+- Tests need `globalThis.__DEV__` defined (bare `__DEV__` throws in plain Node).
 
 ---
 
