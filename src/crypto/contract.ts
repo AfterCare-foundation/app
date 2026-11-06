@@ -95,13 +95,35 @@ export function alertPlaintext(messageId: Uint8Array, date: string, sti: readonl
   if (new Set(sti).size !== sti.length) {
     throw new Error("sti must not contain duplicates");
   }
-  const json = utf8Encode(JSON.stringify({ v: 2, id: bytesToBase64Url(messageId), d: date, sti }));
-  if (json.length > PLAINTEXT_BYTES) {
-    throw new Error(`alert is ${json.length} bytes, the limit is ${PLAINTEXT_BYTES}`);
+  return padPlaintext(JSON.stringify({ v: 2, id: bytesToBase64Url(messageId), d: date, sti }), "alert");
+}
+
+/** UTF-8 encodes `json` and zero-pads to PLAINTEXT_BYTES. Throws rather than truncating. */
+export function padPlaintext(json: string, what: string): Uint8Array {
+  const bytes = utf8Encode(json);
+  if (bytes.length > PLAINTEXT_BYTES) {
+    throw new Error(`${what} is ${bytes.length} bytes, the limit is ${PLAINTEXT_BYTES}`);
   }
   const padded = new Uint8Array(PLAINTEXT_BYTES);
-  padded.set(json);
+  padded.set(bytes);
   return padded;
+}
+
+/** Base64 of `nonce || ciphertext || tag`: AES-256-GCM, 12-byte nonce, no AAD. */
+export function sealPaddedWithKey(key: Uint8Array, padded: Uint8Array, nonce: Uint8Array): string {
+  assertLength(nonce, NONCE_BYTES, "nonce");
+  return bytesToBase64(concatBytes(nonce, gcm(key, nonce).encrypt(padded)));
+}
+
+/** Mirror of `decryptAlertWithKey`. */
+export function encryptAlertWithKey(
+  key: Uint8Array,
+  sti: readonly string[],
+  date: string,
+  messageId: Uint8Array,
+  nonce: Uint8Array,
+): string {
+  return sealPaddedWithKey(key, alertPlaintext(messageId, date, sti), nonce);
 }
 
 /**
@@ -117,10 +139,7 @@ export function encryptAlert(
   messageId: Uint8Array,
   nonce: Uint8Array,
 ): string {
-  assertLength(nonce, NONCE_BYTES, "nonce");
-  const key = encryptionKey(token);
-  const sealed = gcm(key, nonce).encrypt(alertPlaintext(messageId, date, sti));
-  return bytesToBase64(concatBytes(nonce, sealed));
+  return encryptAlertWithKey(encryptionKey(token), sti, date, messageId, nonce);
 }
 
 /** Reverse of `encryptAlert`. Throws if the token is wrong or data is bad. */

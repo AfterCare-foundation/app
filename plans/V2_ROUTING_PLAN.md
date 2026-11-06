@@ -1,6 +1,6 @@
 # App switch to v2.1 routing — plan
 
-Status: **plan only, nothing built.** Written 2026-11-06 against `backend/docs/CRYPTO.md` §4
+Status: **Chunk 1 built (keys, seals, vectors; not wired). Chunk 2's API client built (typed `/v2` calls and `V2Error`, not called by the app).** Written 2026-11-06 against `backend/docs/CRYPTO.md` §4
 (server side done and unpushed on backend `main`: `/v2/slots`, `/v2/slots/reseal`,
 `/v2/notify`, `/v2/inbox`, `/v2/inbox/confirm`, `/v2/forget`). App baseline: `752ceff`
 (fix-plan step 1.5: v2 padded messages, reader accepts v1 and v2).
@@ -72,6 +72,18 @@ secrets; two seals of the same input differ; length is always 380; over-long tok
 **Gate 1 (folded in now):** the vector nonces in §4.5 tempt a "fixed nonce for tests" global.
 Hence the import-guard test rather than a comment.
 
+**Gate 1 (built, 2026-11-06):** what turned out different:
+- `random.ts` loads `expo-crypto` lazily (plain Node can't import it) and has one
+  `setRandomSourceForTesting` hook. The guard test covers it (it ends in `ForTesting`).
+- Keys return raw bytes, so a hex salt is a type error and fails at runtime (64 bytes ≠ 32).
+  Callers hex with `bytesToHex` when building API bodies (Chunks 4–7).
+- `decryptMessage` throws on a v1 plaintext: under `msg_key` only the padded v2 form is honest.
+  Chunk 5 decrypts v2 inbox items with `decryptMessage` only, never `decryptAlert`.
+- The import guard normalizes Windows path separators and asserts it really scanned
+  `flows.ts` and skipped `crypto/v2.ts`, so it can't pass vacuously.
+- `contract.ts` gained `padPlaintext`, `sealPaddedWithKey`, `encryptAlertWithKey`; v1 is unchanged.
+- Fresh worktrees need `npm ci` before tests run.
+
 ---
 
 ## Chunk 2 — API client and error mapping (§4.3)
@@ -103,6 +115,17 @@ Errors become a typed value, not regex on `detail`:
 (`v2_flow.run_notify`), so the campaign claim rolls back. The same `campaign_id` is safe to
 reuse after dropping a card. Chunk 6 relies on this; pinned by the server's
 `tests/test_v2_notify.py` (403 and 429 cases).
+
+**Gate 2 (client built, 2026-11-06):** what turned out different:
+- `expo-constants` loads lazily inside `apiBaseUrl`; v1's `request` and `v2Request` share a
+  private `send`, and v1's error text and logs are unchanged.
+- Every card and delivery is copied field by field (`pickCard` etc.), so extra input fields
+  never reach the body.
+- `v2Reseal` and `v2Forget` take one card; a list is a compile error (`tsc -p test` checks it).
+- `v2Inbox` throws `unexpected` when a 200 lacks `notifications` or `cards` arrays.
+- `V2Error.code` is mapped on exact `(status, detail)`; 413 and 422 map on status alone.
+- No timeout yet; Chunk 6 decides. Error copy still waits for Q4.
+- Tests need `globalThis.__DEV__` defined (bare `__DEV__` throws in plain Node).
 
 ---
 
@@ -156,7 +179,7 @@ normal 200 (sealed push replaced, expiry not extended).
 
 `pullInbox` sends `/v2/inbox {cards: joined cards' (route_id, slot_secret)}`, with
 `first_open_today` / `first_open_this_month` when due. Decrypt each `enc` with each joined
-card's `msg_key` (keys derived once per pull, as today). Store `connected` per card from the
+card's `msg_key` with `decryptMessage` (keys derived once per pull, as today). Store `connected` per card from the
 response. Confirm with `/v2/inbox/confirm` after saving, same paging (200) and round cap.
 Dedupe by the message `id` inside the plaintext plus STI (stronger than `enc`, which differs
 per card when one sender reaches us through several codes).
