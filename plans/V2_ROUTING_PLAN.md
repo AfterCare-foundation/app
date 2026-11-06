@@ -101,8 +101,8 @@ Errors become a typed value, not regex on `detail`:
 
 **Gate 2 (folded in now):** 403 and 429 are raised inside the server's notify transaction
 (`v2_flow.run_notify`), so the campaign claim rolls back. The same `campaign_id` is safe to
-reuse after dropping a card. Chunk 6 relies on this; a server test should pin it (ask backend
-before 2.9; do not edit it from here).
+reuse after dropping a card. Chunk 6 relies on this; pinned by the server's
+`tests/test_v2_notify.py` (403 and 429 cases).
 
 ---
 
@@ -277,8 +277,8 @@ updated (Q1) → backend 2.9 removes v1 → a later app build removes the v1 cal
 - **T1. Resolved** (backend `b54716e`): §4.4 now says reseal and forget go one card per request.
 - **T2. Resolved** (backend `b54716e`): §2 vector prose corrected to 81 + 175 bytes. The app
   test's comment about the old prose can go in Chunk 1.
-- **T3.** A test on the server pinning that 403/429 on `/v2/notify` leave the `campaign_id`
-  unclaimed (Gate 2).
+- **T3. Resolved:** the server's `tests/test_v2_notify.py` already checks that a 403 or 429
+  leaves the `campaign_id` unused and sendable again.
 
 ## Questions for the founders (clinical or product; no answer assumed)
 
