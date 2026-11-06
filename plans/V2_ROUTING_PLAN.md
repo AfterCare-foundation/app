@@ -1,6 +1,6 @@
 # App switch to v2.1 routing — plan
 
-Status: **plan only, nothing built.** Written 2026-11-06 against `backend/docs/CRYPTO.md` §4
+Status: **Chunk 1 built (keys, seals, vectors; not wired). Chunk 2's API client in progress.** Written 2026-11-06 against `backend/docs/CRYPTO.md` §4
 (server side done and unpushed on backend `main`: `/v2/slots`, `/v2/slots/reseal`,
 `/v2/notify`, `/v2/inbox`, `/v2/inbox/confirm`, `/v2/forget`). App baseline: `752ceff`
 (fix-plan step 1.5: v2 padded messages, reader accepts v1 and v2).
@@ -71,6 +71,18 @@ secrets; two seals of the same input differ; length is always 380; over-long tok
 
 **Gate 1 (folded in now):** the vector nonces in §4.5 tempt a "fixed nonce for tests" global.
 Hence the import-guard test rather than a comment.
+
+**Gate 1 (built, 2026-11-06):** what turned out different:
+- `random.ts` loads `expo-crypto` lazily (plain Node can't import it) and has one
+  `setRandomSourceForTesting` hook. The guard test covers it (it ends in `ForTesting`).
+- Keys return raw bytes, so a hex salt is a type error and fails at runtime (64 bytes ≠ 32).
+  Callers hex with `bytesToHex` when building API bodies (Chunks 4–7).
+- `decryptMessage` throws on a v1 plaintext: under `msg_key` only the padded v2 form is honest.
+  Chunk 5 decrypts v2 inbox items with `decryptMessage` only, never `decryptAlert`.
+- The import guard normalizes Windows path separators and asserts it really scanned
+  `flows.ts` and skipped `crypto/v2.ts`, so it can't pass vacuously.
+- `contract.ts` gained `padPlaintext`, `sealPaddedWithKey`, `encryptAlertWithKey`; v1 is unchanged.
+- Fresh worktrees need `npm ci` before tests run.
 
 ---
 
@@ -156,7 +168,7 @@ normal 200 (sealed push replaced, expiry not extended).
 
 `pullInbox` sends `/v2/inbox {cards: joined cards' (route_id, slot_secret)}`, with
 `first_open_today` / `first_open_this_month` when due. Decrypt each `enc` with each joined
-card's `msg_key` (keys derived once per pull, as today). Store `connected` per card from the
+card's `msg_key` with `decryptMessage` (keys derived once per pull, as today). Store `connected` per card from the
 response. Confirm with `/v2/inbox/confirm` after saving, same paging (200) and round cap.
 Dedupe by the message `id` inside the plaintext plus STI (stronger than `enc`, which differs
 per card when one sender reaches us through several codes).

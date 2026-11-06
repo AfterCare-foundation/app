@@ -98,7 +98,6 @@ const padTo256 = (json: string) => {
 const V2_VECTOR = {
   stis: ["gonorrhoea", "hiv"],
   jsonText: '{"v":2,"id":"QEFCQ0RFRkdISUpLTE1OTw","d":"2026-11-04","sti":["gonorrhoea","hiv"]}',
-  // CRYPTO.md's prose says 80 bytes + 176 zeros; the JSON it prints is 81 bytes + 175 zeros.
   jsonBytes: 81,
   payload:
     "oKGio6SlpqeoqaqrHjn3jZsQ/uuY91afMvEAPlnWO9N/MIuDIrsLhRnYppG1EXjRBY0qzFXOXBs+bsaTmS1ygZCVHejLeeHeACFYQEQVf3aFyYS8k+12fP8eJUdgjxAn4qTKyF8Fa5MuFoifKTOo4WSfRXFgr1Z4FCFm8YLy/mjZbrNM/ylbR/rtJYqQXi77wwkCmkWvcDVqsF2ZohSiIS9lqUfYrcpamjR+cUw0c2c+FTDjGTD50Eo9aH5Ij26tupHIxMOo4wq/8vl6uqJVGMNHIK68YFt+zN5F4KtVLFPWpJ1vQisuEf05o7JpBrmnjwOb5aS9sARhup7mkkjg6+NqdxwPhfm8BSygs50Q3NNJK5V0124hcLHwNUk=",
