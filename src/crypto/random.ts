@@ -2,10 +2,14 @@
 
 import * as Crypto from "expo-crypto";
 
-import { CREDENTIAL_BYTES, NONCE_BYTES, TOKEN_BYTES } from "./contract";
+import { CREDENTIAL_BYTES, MESSAGE_ID_BYTES, NONCE_BYTES, TOKEN_BYTES } from "./contract";
 
 export function randomNonce(): Uint8Array {
   return Crypto.getRandomBytes(NONCE_BYTES);
+}
+
+export function randomMessageId(): Uint8Array {
+  return Crypto.getRandomBytes(MESSAGE_ID_BYTES);
 }
 
 export function randomCredential(): Uint8Array {

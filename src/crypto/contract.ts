@@ -1,4 +1,4 @@
-// App <-> server crypto contract, v1.
+// App <-> server crypto contract, v2 messages (v1 still readable).
 // Source of truth: backend/docs/CRYPTO.md. Every value here must match it
 // byte for byte or the two phones will not interoperate.
 //
@@ -21,15 +21,25 @@ export const TOKEN_BYTES = 16;
 export const CREDENTIAL_BYTES = 32;
 export const NONCE_BYTES = 12;
 export const TAG_BYTES = 16;
+export const MESSAGE_ID_BYTES = 16;
+/** Every v2 message pads its plaintext to this size so ciphertext length reveals nothing. */
+export const PLAINTEXT_BYTES = 256;
+export const PAYLOAD_BYTES = NONCE_BYTES + PLAINTEXT_BYTES + TAG_BYTES;
+export const PAYLOAD_B64_CHARS = Math.ceil(PAYLOAD_BYTES / 3) * 4;
 export const CONNECT_URL_PREFIX = "https://after-care.eu/connect#et=";
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const ENC_KEY_LABEL = utf8Encode("aftercare-enc-v1");
 
 export type Platform = "ios" | "android";
 
+/** A decoded message. `id` and `d` are null for legacy v1 messages. */
 export interface AlertPayload {
-  v: 1;
-  sti: string;
+  v: 1 | 2;
+  id: string | null;
+  d: string | null;
+  sti: string[];
 }
 
 function assertLength(bytes: Uint8Array, expected: number, what: string): void {
@@ -61,24 +71,55 @@ export function encryptionKey(token: Uint8Array): Uint8Array {
   return sha256(concatBytes(ENC_KEY_LABEL, token));
 }
 
-/** UTF-8 JSON plaintext with no whitespace: `{"v":1,"sti":"..."}`. */
-export function alertPlaintext(sti: string): Uint8Array {
-  return utf8Encode(JSON.stringify({ v: 1, sti }));
+function assertDate(date: string): void {
+  const parsed = new Date(`${date}T00:00:00Z`);
+  if (!DATE_PATTERN.test(date) || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
+    throw new Error("d must be a valid YYYY-MM-DD date");
+  }
+}
+
+function assertStiList(sti: unknown): asserts sti is string[] {
+  if (!Array.isArray(sti) || sti.length === 0 || sti.some((s) => typeof s !== "string")) {
+    throw new Error("sti must be a non-empty list of strings");
+  }
 }
 
 /**
- * `encrypted_payload` for one card: Base64 of `nonce || ciphertext || tag`.
- * AES-256-GCM, 12-byte nonce, no AAD. The nonce is passed in so tests are
- * deterministic; callers in the app must supply 12 fresh random bytes.
+ * v2 plaintext: UTF-8 JSON with no whitespace, `{"v":2,"id":"...","d":"YYYY-MM-DD","sti":[...]}`,
+ * followed by 0x00 bytes up to exactly PLAINTEXT_BYTES. Throws rather than truncating.
+ */
+export function alertPlaintext(messageId: Uint8Array, date: string, sti: readonly string[]): Uint8Array {
+  assertLength(messageId, MESSAGE_ID_BYTES, "message id");
+  assertDate(date);
+  assertStiList(sti);
+  if (new Set(sti).size !== sti.length) {
+    throw new Error("sti must not contain duplicates");
+  }
+  const json = utf8Encode(JSON.stringify({ v: 2, id: bytesToBase64Url(messageId), d: date, sti }));
+  if (json.length > PLAINTEXT_BYTES) {
+    throw new Error(`alert is ${json.length} bytes, the limit is ${PLAINTEXT_BYTES}`);
+  }
+  const padded = new Uint8Array(PLAINTEXT_BYTES);
+  padded.set(json);
+  return padded;
+}
+
+/**
+ * `encrypted_payload` for one card: Base64 of `nonce || ciphertext || tag`, always
+ * PAYLOAD_B64_CHARS characters. AES-256-GCM, 12-byte nonce, no AAD. The nonce and message id
+ * are passed in so tests are deterministic; callers in the app must supply fresh random bytes
+ * for both, and `date` is the UTC send date.
  */
 export function encryptAlert(
   token: Uint8Array,
-  sti: string,
+  sti: readonly string[],
+  date: string,
+  messageId: Uint8Array,
   nonce: Uint8Array,
 ): string {
   assertLength(nonce, NONCE_BYTES, "nonce");
   const key = encryptionKey(token);
-  const sealed = gcm(key, nonce).encrypt(alertPlaintext(sti));
+  const sealed = gcm(key, nonce).encrypt(alertPlaintext(messageId, date, sti));
   return bytesToBase64(concatBytes(nonce, sealed));
 }
 
@@ -99,16 +140,31 @@ export function decryptAlertWithKey(key: Uint8Array, encryptedPayload: string): 
   const nonce = blob.subarray(0, NONCE_BYTES);
   const sealed = blob.subarray(NONCE_BYTES);
   const plain = gcm(key, nonce).decrypt(sealed);
-  const parsed: unknown = JSON.parse(utf8Decode(plain));
-  if (
-    typeof parsed !== "object" ||
-    parsed === null ||
-    (parsed as { v?: unknown }).v !== 1 ||
-    typeof (parsed as { sti?: unknown }).sti !== "string"
-  ) {
+  // The JSON ends at the last non-zero byte; JSON.parse rejects anything else in front of it.
+  let end = plain.length;
+  while (end > 0 && plain[end - 1] === 0) {
+    end -= 1;
+  }
+  const parsed = JSON.parse(utf8Decode(plain.subarray(0, end))) as Record<string, unknown> | null;
+  if (typeof parsed !== "object" || parsed === null) {
     throw new Error("Unexpected alert payload");
   }
-  return parsed as AlertPayload;
+  if (parsed.v === 2) {
+    if (plain.length !== PLAINTEXT_BYTES || !plain.subarray(end).every((b) => b === 0)) {
+      throw new Error("Unexpected alert payload");
+    }
+    if (typeof parsed.id !== "string" || !/^[A-Za-z0-9_-]{22}$/.test(parsed.id) || typeof parsed.d !== "string") {
+      throw new Error("Unexpected alert payload");
+    }
+    assertDate(parsed.d);
+    assertStiList(parsed.sti);
+    return { v: 2, id: parsed.id, d: parsed.d, sti: parsed.sti };
+  }
+  // Legacy v1 is only accepted unpadded.
+  if (parsed.v === 1 && end === plain.length && typeof parsed.sti === "string") {
+    return { v: 1, id: null, d: null, sti: [parsed.sti] };
+  }
+  throw new Error("Unexpected alert payload");
 }
 
 /** Builds the URL a card QR encodes. Used for the paste field and tests. */

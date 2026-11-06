@@ -23,7 +23,11 @@ import {
   etHash,
   parseConnectInput,
   pushIdHash,
+  PAYLOAD_B64_CHARS,
+  PAYLOAD_BYTES,
+  PLAINTEXT_BYTES,
 } from "../src/crypto/contract";
+import { STI_OPTIONS, UNSPECIFIED_STI } from "../src/sti";
 
 const TOKEN = Uint8Array.from({ length: 16 }, (_, i) => i);
 const NONCE = Uint8Array.from({ length: 12 }, (_, i) => 0xa0 + i);
@@ -72,42 +76,150 @@ test("enc_key is SHA-256(label || TOKEN) and is not et_hash", () => {
   assert.notEqual(key, etHash(TOKEN));
 });
 
-test("plaintext is compact JSON", () => {
-  assert.equal(Buffer.from(alertPlaintext("gonorrhoea")).toString("utf8"), '{"v":1,"sti":"gonorrhoea"}');
+const ALL_STI = [...STI_OPTIONS.map((o) => o.id), UNSPECIFIED_STI];
+const MSG_ID = Uint8Array.from({ length: 16 }, (_, i) => 0x40 + i);
+const DATE = "2026-11-04";
+const seal = (sti: readonly string[], id = MSG_ID, nonce = NONCE) => encryptAlert(TOKEN, sti, DATE, id, nonce);
+
+// Sealed with Node, so the tests can build plaintexts the app itself would never send.
+function sealRaw(plain: Buffer): string {
+  const cipher = createCipheriv("aes-256-gcm", nodeKey(TOKEN), Buffer.from(NONCE));
+  const ct = Buffer.concat([cipher.update(plain), cipher.final()]);
+  return Buffer.concat([Buffer.from(NONCE), ct, cipher.getAuthTag()]).toString("base64");
+}
+const padTo256 = (json: string) => {
+  const out = Buffer.alloc(PLAINTEXT_BYTES);
+  out.write(json, "utf8");
+  return out;
+};
+
+// The §2 test vector from backend/docs/CRYPTO.md, verbatim. TOKEN, NONCE, MSG_ID and DATE above
+// are its inputs; the server's tests/test_payload_size.py checks the same values.
+const V2_VECTOR = {
+  stis: ["gonorrhoea", "hiv"],
+  jsonText: '{"v":2,"id":"QEFCQ0RFRkdISUpLTE1OTw","d":"2026-11-04","sti":["gonorrhoea","hiv"]}',
+  // CRYPTO.md's prose says 80 bytes + 176 zeros; the JSON it prints is 81 bytes + 175 zeros.
+  jsonBytes: 81,
+  payload:
+    "oKGio6SlpqeoqaqrHjn3jZsQ/uuY91afMvEAPlnWO9N/MIuDIrsLhRnYppG1EXjRBY0qzFXOXBs+bsaTmS1ygZCVHejLeeHeACFYQEQVf3aFyYS8k+12fP8eJUdgjxAn4qTKyF8Fa5MuFoifKTOo4WSfRXFgr1Z4FCFm8YLy/mjZbrNM/ylbR/rtJYqQXi77wwkCmkWvcDVqsF2ZohSiIS9lqUfYrcpamjR+cUw0c2c+FTDjGTD50Eo9aH5Ij26tupHIxMOo4wq/8vl6uqJVGMNHIK68YFt+zN5F4KtVLFPWpJ1vQisuEf05o7JpBrmnjwOb5aS9sARhup7mkkjg6+NqdxwPhfm8BSygs50Q3NNJK5V0124hcLHwNUk=",
+};
+
+test("plaintext is padded compact JSON, exactly 256 bytes", () => {
+  const plain = alertPlaintext(MSG_ID, DATE, V2_VECTOR.stis);
+  assert.equal(Buffer.byteLength(V2_VECTOR.jsonText, "utf8"), V2_VECTOR.jsonBytes);
+  assert.deepEqual(Buffer.from(plain), padTo256(V2_VECTOR.jsonText));
 });
 
-test("encryptAlert matches the fixed vector and Node AES-256-GCM", () => {
-  const payload = encryptAlert(TOKEN, "gonorrhoea", NONCE);
-  assert.equal(payload, EXPECTED.payload);
+test("v2 fixed vector matches and Node AES-256-GCM opens it", () => {
+  const payload = seal(V2_VECTOR.stis);
+  assert.equal(payload, V2_VECTOR.payload);
 
   const blob = Buffer.from(payload, "base64");
-  assert.equal(blob.length, 12 + '{"v":1,"sti":"gonorrhoea"}'.length + 16);
+  assert.equal(blob.length, PAYLOAD_BYTES);
   assert.deepEqual(blob.subarray(0, 12), Buffer.from(NONCE));
 
   const decipher = createDecipheriv("aes-256-gcm", nodeKey(TOKEN), blob.subarray(0, 12));
   decipher.setAuthTag(blob.subarray(blob.length - 16));
-  const plain = Buffer.concat([
-    decipher.update(blob.subarray(12, blob.length - 16)),
-    decipher.final(),
-  ]).toString("utf8");
-  assert.equal(plain, '{"v":1,"sti":"gonorrhoea"}');
+  const plain = Buffer.concat([decipher.update(blob.subarray(12, blob.length - 16)), decipher.final()]);
+  assert.deepEqual(plain, padTo256(V2_VECTOR.jsonText));
 });
 
-test("decryptAlert opens a payload sealed by Node", () => {
-  const cipher = createCipheriv("aes-256-gcm", nodeKey(TOKEN), Buffer.from(NONCE));
-  const ct = Buffer.concat([cipher.update('{"v":1,"sti":"syphilis"}', "utf8"), cipher.final()]);
-  const payload = Buffer.concat([Buffer.from(NONCE), ct, cipher.getAuthTag()]).toString("base64");
-  assert.deepEqual(decryptAlert(TOKEN, payload), { v: 1, sti: "syphilis" });
+test("every single STI id gives exactly 380 base64 chars / 284 bytes", () => {
+  assert.equal(PLAINTEXT_BYTES, 256);
+  assert.equal(PAYLOAD_BYTES, 284);
+  assert.equal(PAYLOAD_B64_CHARS, 380);
+  for (const sti of ALL_STI) {
+    const payload = seal([sti]);
+    assert.equal(payload.length, PAYLOAD_B64_CHARS, sti);
+    assert.equal(base64ToBytes(payload).length, PAYLOAD_BYTES, sti);
+  }
+});
+
+test("messages for different STIs have identical lengths", () => {
+  assert.equal(seal(["hiv"]).length, seal(["gonorrhoea"]).length);
+  assert.equal(seal(["hiv"]).length, seal(["hepatitis_a", "trichomoniasis"]).length);
+});
+
+test("worst case: all STI ids in one message still fits 256 bytes", () => {
+  const json = JSON.stringify({ v: 2, id: bytesToBase64Url(MSG_ID), d: DATE, sti: ALL_STI });
+  const bytes = Buffer.byteLength(json, "utf8");
+  console.log(`# all ${ALL_STI.length} STI ids: JSON is ${bytes} of ${PLAINTEXT_BYTES} bytes`);
+  assert.ok(bytes <= PLAINTEXT_BYTES);
+  const payload = seal(ALL_STI);
+  assert.equal(payload.length, PAYLOAD_B64_CHARS);
+  assert.deepEqual(decryptAlert(TOKEN, payload).sti, ALL_STI);
+});
+
+test("v2 round trip returns id, date and the STI list", () => {
+  assert.deepEqual(decryptAlert(TOKEN, seal(V2_VECTOR.stis)), {
+    v: 2,
+    id: bytesToBase64Url(MSG_ID),
+    d: DATE,
+    sti: V2_VECTOR.stis,
+  });
+  assert.equal(bytesToBase64Url(MSG_ID).length, 22);
+});
+
+test("v2 encrypt refuses bad input", () => {
+  assert.throws(() => seal([]), /non-empty/);
+  assert.throws(() => seal(["hiv", "hiv"]), /duplicates/);
+  assert.throws(() => seal([1 as unknown as string]));
+  assert.throws(() => encryptAlert(TOKEN, ["hiv"], "2026-13-01", MSG_ID, NONCE));
+  assert.throws(() => encryptAlert(TOKEN, ["hiv"], "2026-2-1", MSG_ID, NONCE));
+  assert.throws(() => encryptAlert(TOKEN, ["hiv"], DATE, new Uint8Array(15), NONCE));
+});
+
+test("v2 encrypt throws when the JSON is over 256 bytes, never truncates", () => {
+  assert.throws(() => seal(["x".repeat(200)]), /limit is 256/);
+  assert.throws(() => seal([...ALL_STI, "x".repeat(40)]), /limit is 256/);
+});
+
+test("decryptAlert refuses malformed v2 plaintexts", () => {
+  const good = '{"v":2,"id":"QEFCQ0RFRkdISUpLTE1OTw","d":"2026-11-04","sti":["hiv"]}';
+  assert.deepEqual(decryptAlert(TOKEN, sealRaw(padTo256(good))).sti, ["hiv"]);
+
+  const junk = padTo256(good);
+  junk[200] = 0x41; // non-zero byte after the JSON
+  assert.throws(() => decryptAlert(TOKEN, sealRaw(junk)));
+  assert.throws(() => decryptAlert(TOKEN, sealRaw(Buffer.from(good)))); // unpadded v2
+  const longer = Buffer.alloc(300);
+  longer.write(good);
+  assert.throws(() => decryptAlert(TOKEN, sealRaw(longer))); // padded past 256
+  assert.throws(() => decryptAlert(TOKEN, sealRaw(padTo256(good.replace('"v":2', '"v":3')))));
+  assert.throws(() => decryptAlert(TOKEN, sealRaw(padTo256(good.replace('"sti":["hiv"]', '"sti":"hiv"')))));
+  assert.throws(() => decryptAlert(TOKEN, sealRaw(padTo256(good.replace('["hiv"]', "[1]")))));
+  assert.throws(() => decryptAlert(TOKEN, sealRaw(padTo256(good.replace('["hiv"]', "[]")))));
+  assert.throws(() => decryptAlert(TOKEN, sealRaw(padTo256(good.replace("2026-11-04", "2026-11-4")))));
+  assert.throws(() => decryptAlert(TOKEN, sealRaw(padTo256(good.replace("QEFCQ0RFRkdISUpLTE1OTw", "short")))));
+});
+
+test("decryptAlert keeps unknown STI ids as received", () => {
+  const json = '{"v":2,"id":"QEFCQ0RFRkdISUpLTE1OTw","d":"2026-11-04","sti":["hiv","future_sti"]}';
+  assert.deepEqual(decryptAlert(TOKEN, sealRaw(padTo256(json))).sti, ["hiv", "future_sti"]);
+});
+
+test("legacy v1 still decrypts to a one-item list", () => {
+  assert.deepEqual(decryptAlert(TOKEN, EXPECTED.payload), { v: 1, id: null, d: null, sti: ["gonorrhoea"] });
+  assert.deepEqual(decryptAlert(TOKEN, sealRaw(Buffer.from('{"v":1,"sti":"syphilis"}'))), {
+    v: 1,
+    id: null,
+    d: null,
+    sti: ["syphilis"],
+  });
+});
+
+test("v1 is refused when padded", () => {
+  assert.throws(() => decryptAlert(TOKEN, sealRaw(padTo256('{"v":1,"sti":"hiv"}'))));
 });
 
 test("decryptAlert fails with another card's token", () => {
-  const payload = encryptAlert(TOKEN, "hiv", NONCE);
+  const payload = seal(["hiv"]);
   const other = Uint8Array.from({ length: 16 }, (_, i) => i + 1);
   assert.throws(() => decryptAlert(other, payload));
 });
 
 test("decryptAlert rejects tampered bytes and short input", () => {
-  const payload = encryptAlert(TOKEN, "mpox", NONCE);
+  const payload = seal(["mpox"]);
   const blob = Buffer.from(payload, "base64");
   blob[20] = blob[20]! ^ 0x01;
   assert.throws(() => decryptAlert(TOKEN, blob.toString("base64")));
@@ -155,14 +267,14 @@ test("Base64 helpers round-trip and match Node", () => {
 
 test("random nonces produce different ciphertexts for the same STI", () => {
   const nonce2 = Uint8Array.from({ length: 12 }, (_, i) => 0x10 + i);
-  assert.notEqual(encryptAlert(TOKEN, "hpv", NONCE), encryptAlert(TOKEN, "hpv", nonce2));
-  assert.deepEqual(decryptAlert(TOKEN, encryptAlert(TOKEN, "hpv", nonce2)), { v: 1, sti: "hpv" });
+  assert.notEqual(seal(["hpv"]), seal(["hpv"], MSG_ID, nonce2));
+  assert.deepEqual(decryptAlert(TOKEN, seal(["hpv"], MSG_ID, nonce2)).sti, ["hpv"]);
 });
 
 test("worst case: 200 messages tried against 100 cards with cached keys", () => {
   const tokens = Array.from({ length: 100 }, (_, c) => Uint8Array.from({ length: 16 }, (_, i) => (c * 7 + i) & 0xff));
   const messages = Array.from({ length: 200 }, (_, m) =>
-    encryptAlert(tokens[m % 100]!, "chlamydia", Uint8Array.from({ length: 12 }, (_, i) => (m + i) & 0xff)),
+    encryptAlert(tokens[m % 100]!, ["chlamydia"], DATE, MSG_ID, Uint8Array.from({ length: 12 }, (_, i) => (m + i) & 0xff)),
   );
   const started = performance.now();
   const keys = tokens.map((token) => encryptionKey(token));

@@ -10,7 +10,7 @@ import { requestPushToken } from "./push";
 import { cancelRetestReminder } from "./reminders";
 import { UNSPECIFIED_STI } from "./sti";
 import { decryptAlertWithKey, encryptAlert, encryptionKey, etHash, parseConnectInput, pushIdHash } from "./crypto/contract";
-import { randomNonce, randomUuid } from "./crypto/random";
+import { randomMessageId, randomNonce, randomUuid } from "./crypto/random";
 import {
   cardToken,
   listCards,
@@ -116,6 +116,8 @@ export async function notifyContacts(
     throw new Error(t("No contacts to notify."));
   }
   const campaignId = randomUuid();
+  // The send date (UTC), not a clinical date; each delivery gets its own message id.
+  const sentOn = new Date().toISOString().slice(0, 10);
   const send = (list: readonly CardRecord[], id: string) =>
     notify({
       sender_push_id_hash: device.pushIdHash,
@@ -123,7 +125,7 @@ export async function notifyContacts(
       campaign_id: id,
       deliveries: list.map((card) => ({
         et_hash: card.etHash,
-        encrypted_payload: encryptAlert(cardToken(card), sti, randomNonce()),
+        encrypted_payload: encryptAlert(cardToken(card), [sti], sentOn, randomMessageId(), randomNonce()),
       })),
     });
   const result = await send(contacts, campaignId);
@@ -522,10 +524,10 @@ async function saveMessages(messages: InboxMessage[]): Promise<{ saved: AlertRec
   const saved: AlertRecord[] = [];
   const confirmIds: string[] = [];
   for (const message of messages) {
-    let match: { etHash: string; sti: string } | null = null;
+    let match: { etHash: string; stis: string[] } | null = null;
     for (const { card, key } of keyed) {
       try {
-        match = { etHash: card.etHash, sti: decryptAlertWithKey(key, message.enc).sti };
+        match = { etHash: card.etHash, stis: decryptAlertWithKey(key, message.enc).sti };
         break;
       } catch {
         // Not this card.
@@ -534,15 +536,20 @@ async function saveMessages(messages: InboxMessage[]): Promise<{ saved: AlertRec
     if (!match) {
       continue;
     }
-    if (!known.some((a) => a.enc === message.enc || (a.sti === match.sti && !a.acknowledgedAt))) {
+    // One alert per infection in the message, so every rule that works per infection stays as it was.
+    for (const sti of match.stis) {
+      if (known.some((a) => (a.enc === message.enc && a.sti === sti) || (a.sti === sti && !a.acknowledgedAt))) {
+        continue;
+      }
       const scannedAt = keyed.find((k) => k.card.etHash === match.etHash)?.card.scannedAt ?? null;
-      const noAction = contactBeforePositive(match.sti, scannedAt, sent);
+      const noAction = contactBeforePositive(sti, scannedAt, sent);
       // Judged once, on arrival, against the tests stored now.
-      const found = coverage(match.sti, scannedAt, tests);
+      const found = coverage(sti, scannedAt, tests);
       const record = await saveAlert({
         alert: genericAlert(),
         enc: message.enc,
-        ...match,
+        etHash: match.etHash,
+        sti,
         ...(noAction ? { noAction } : {}),
         ...(found.kind !== "none" ? { testCheck: testCheck(found, found.testedAt) } : {}),
       });
